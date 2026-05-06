@@ -1,0 +1,29 @@
+---
+description: Règles de développement et de sécurité GDM (Guy Demarle)
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Règles Dev GDM
+
+Ce projet suit les règles de développement et de sécurité de Guy Demarle.
+
+**Lis le fichier `.ai-rules/RULES.md`** à la racine pour les règles complètes. Il contient :
+
+- L'architecture imposée (front Vercel → back Render/Vercel/Supabase Edge → services tiers)
+- Les 6 règles non-négociables (gitleaks, RLS Supabase, branch protection, variables d'env, préfixes VITE_*, architecture front/back)
+- Les patterns de clés à reconnaître
+- Le comportement attendu de l'IA
+- La stack technique recommandée et les conventions
+
+Respecte ces règles dans tout ce que tu génères. Si une demande te paraît contraire à une règle, explique pourquoi c'est risqué et propose l'alternative correcte.
+
+## Rappel des points critiques
+
+1. **Jamais de clé en dur**, même en exemple ou en commentaire. Utilise des placeholders ou `process.env.X`.
+2. **Pas de secret dans `VITE_*`, `NEXT_PUBLIC_*`, `REACT_APP_*`** — ces préfixes sont publics par construction.
+3. **Architecture proxy systématique** : front parle au back, back parle aux services tiers.
+4. **RLS Supabase dès la migration**, pas en deuxième temps.
+5. **Pas de fallback "mode dev"** qui contourne le proxy.
+6. **Vérifie les patterns de clés** dans le code généré : aucune chaîne ne doit matcher `AIza...`, `sk-ant-...`, `sk_live_...`, `AKIA...`, `ghp_...`.
