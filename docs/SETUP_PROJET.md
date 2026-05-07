@@ -353,6 +353,11 @@ Si tu veux une couverture sécurité plus large en 100% open source, ajoute auss
 - jobs PR bloquants : `gitleaks`, `semgrep`, `osv-scanner`
 - job planifié non bloquant : `zap baseline` + `supabomb` avec rapports en artefact
 
+Notes de fonctionnement du template OSS :
+
+- `gitleaks` est configuré en scan des commits de PR (évite de bloquer sur des fuites historiques déjà présentes)
+- `osv-scanner` est configuré avec `upload-sarif: false` (compatible repos sans GHAS)
+
 Dans le repo cible :
 
 ```bash

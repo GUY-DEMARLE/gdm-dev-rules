@@ -73,9 +73,10 @@ Couverture en profondeur :
 
 ### 1) gitleaks (PR bloquant)
 
-- **But** : détecter secrets et credentials dans le code/historique Git.
+- **But** : détecter secrets et credentials introduits par la PR.
 - **Détecte** : clés API, tokens cloud, PAT GitHub, mots de passe hardcodés, etc.
 - **Pourquoi bloquant en PR** : une fuite doit être stoppée avant merge.
+- **Mode utilisé dans ce workflow** : scan des commits de la PR (pas tout l'historique).
 - **Limite** : faux positifs possibles ; nécessite revue humaine.
 
 ### 2) semgrep (PR bloquant)
@@ -91,6 +92,7 @@ Couverture en profondeur :
 - **Détecte** : dépendances lockfiles/manifests exposées à CVE/OSV.
 - **Pourquoi bloquant en PR** : empêcher l'ajout de dépendances connues vulnérables.
 - **Limite** : ne détecte pas les failles métier de ton code.
+- **Note GHAS** : le template désactive l'upload SARIF (`upload-sarif: false`) pour rester compatible sans GitHub Advanced Security.
 
 ### 4) OWASP ZAP baseline (planifié non bloquant)
 
