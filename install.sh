@@ -40,6 +40,7 @@ files=(
     ".ai-rules/RULES.md"
     ".cursor/rules/gdm-rules.mdc"
     "CLAUDE.md"
+    "AGENTS.md"
 )
 
 # Vérifier si des fichiers existent déjà
@@ -84,7 +85,7 @@ done
 # Vérifier le .gitignore
 echo -e "${CYAN}→ Vérification du .gitignore...${NC}"
 if [ -f ".gitignore" ]; then
-    patterns=(".ai-rules" ".cursor" "CLAUDE.md")
+    patterns=(".ai-rules" ".cursor" "CLAUDE.md" "AGENTS.md")
     ignored_files=()
     for pattern in "${patterns[@]}"; do
         if grep -qF "$pattern" .gitignore; then
@@ -116,13 +117,14 @@ echo -e "${WHITE}  1. Ouvre CLAUDE.md et remplis les sections 'Contexte du proje
 echo -e "${WHITE}     et 'Règles spécifiques à ce projet'.${NC}"
 echo ""
 echo -e "${WHITE}  2. Commit les fichiers :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md${NC}"
 echo -e "${GRAY}       git commit -m \"chore: add GDM AI rules\"${NC}"
 echo ""
 echo -e "${WHITE}  3. Vérifie que ça marche :${NC}"
 echo -e "${WHITE}     - Avec Claude Code : lance 'claude' et demande${NC}"
 echo -e "${WHITE}       'Quelles sont les règles GDM ?'${NC}"
 echo -e "${WHITE}     - Avec Cursor : Cmd/Ctrl+L et même question${NC}"
+echo -e "${WHITE}     - Avec Codex : ouvre le repo et pose la même question${NC}"
 echo ""
 echo -e "${WHITE}Pour mettre à jour les règles plus tard :${NC}"
 echo -e "${GRAY}  curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash${NC}"

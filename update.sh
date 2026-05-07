@@ -89,11 +89,40 @@ else
     echo -e "${YELLOW}⚠ CLAUDE.md créé (n'existait pas), pense à remplir le contexte projet${NC}"
 fi
 
+# Mise à jour de AGENTS.md (avec préservation des sections projet)
+echo -e "${CYAN}→ Mise à jour de AGENTS.md (préservation du contexte projet)...${NC}"
+
+if [ -f "AGENTS.md" ]; then
+    # Extraire la section "## Contexte du projet" jusqu'à la fin
+    if grep -q "^## Contexte du projet" AGENTS.md; then
+        # Sauvegarder la section projet
+        project_section=$(awk '/^## Contexte du projet/,EOF' AGENTS.md)
+        echo -e "${GREEN}✓ Sections projet AGENTS.md détectées et préservées${NC}"
+
+        # Télécharger le nouveau template
+        new_template=$(curl -sSL -f "$REPO_URL/AGENTS.md")
+
+        # Remplacer la section projet du template par celle préservée
+        echo "$new_template" | sed -n '1,/^## Contexte du projet/p' | sed '$d' > AGENTS.md.tmp
+        echo "$project_section" >> AGENTS.md.tmp
+        mv AGENTS.md.tmp AGENTS.md
+
+        echo -e "${GREEN}✓ AGENTS.md${NC}"
+    else
+        # Pas de section projet, écrasement complet
+        curl -sSL -f "$REPO_URL/AGENTS.md" -o "AGENTS.md"
+        echo -e "${YELLOW}⚠ Pas de section projet détectée dans AGENTS.md, fichier complètement remplacé${NC}"
+    fi
+else
+    curl -sSL -f "$REPO_URL/AGENTS.md" -o "AGENTS.md"
+    echo -e "${YELLOW}⚠ AGENTS.md créé (n'existait pas), pense à remplir le contexte projet${NC}"
+fi
+
 # Afficher le diff Git
 echo ""
 echo -e "${CYAN}→ Changements détectés :${NC}"
 echo ""
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md 2>/dev/null || true
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md 2>/dev/null || true
 echo ""
 
 # Message final
@@ -104,9 +133,9 @@ echo ""
 echo -e "${WHITE}Prochaines étapes :${NC}"
 echo ""
 echo -e "${WHITE}  1. Vérifie le diff avec :${NC}"
-echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md${NC}"
+echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md${NC}"
 echo ""
 echo -e "${WHITE}  2. Si OK, commit :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md${NC}"
 echo -e "${GRAY}       git commit -m \"chore: update GDM AI rules\"${NC}"
 echo ""

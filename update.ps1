@@ -91,10 +91,43 @@ if (Test-Path "CLAUDE.md") {
     Write-Warn "CLAUDE.md créé (n'existait pas), pense à remplir le contexte projet"
 }
 
+# Mise à jour de AGENTS.md (avec préservation des sections projet)
+Write-Step "Mise à jour de AGENTS.md (préservation du contexte projet)..."
+
+if (Test-Path "AGENTS.md") {
+    $existingContent = Get-Content "AGENTS.md" -Raw
+
+    # Extraire les sections personnalisées (entre "## Contexte du projet" et la fin)
+    $projectSectionMatch = [regex]::Match($existingContent, '## Contexte du projet[\s\S]*$', 'Multiline')
+
+    if ($projectSectionMatch.Success) {
+        $projectSection = $projectSectionMatch.Value
+        Write-Ok "Sections projet AGENTS.md détectées et préservées"
+    } else {
+        $projectSection = $null
+        Write-Warn "Pas de section projet détectée dans AGENTS.md, le fichier sera complètement remplacé"
+    }
+
+    # Télécharger le nouveau template
+    $newTemplate = Invoke-RestMethod -Uri "$RepoUrl/AGENTS.md"
+
+    if ($projectSection) {
+        # Remplacer les sections projet du nouveau template par celles préservées
+        $newContent = [regex]::Replace($newTemplate, '## Contexte du projet[\s\S]*$', $projectSection)
+        Set-Content -Path "AGENTS.md" -Value $newContent -NoNewline
+    } else {
+        Set-Content -Path "AGENTS.md" -Value $newTemplate -NoNewline
+    }
+    Write-Ok "AGENTS.md"
+} else {
+    Invoke-RestMethod -Uri "$RepoUrl/AGENTS.md" -OutFile "AGENTS.md"
+    Write-Warn "AGENTS.md créé (n'existait pas), pense à remplir le contexte projet"
+}
+
 # Afficher le diff Git
 Write-Step "Changements détectés :"
 Write-Host ""
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md 2>$null
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md 2>$null
 Write-Host ""
 
 # Message final
@@ -105,9 +138,9 @@ Write-Host ""
 Write-Host "Prochaines étapes :" -ForegroundColor White
 Write-Host ""
 Write-Host "  1. Vérifie le diff avec :" -ForegroundColor White
-Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md" -ForegroundColor Gray
+Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  2. Si OK, commit :" -ForegroundColor White
-Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md" -ForegroundColor Gray
+Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md" -ForegroundColor Gray
 Write-Host "       git commit -m `"chore: update GDM AI rules`"" -ForegroundColor Gray
 Write-Host ""

@@ -36,7 +36,8 @@ if (-not (Test-Path ".git")) {
 $files = @(
     @{ Source = ".ai-rules/RULES.md"; Target = ".ai-rules/RULES.md" },
     @{ Source = ".cursor/rules/gdm-rules.mdc"; Target = ".cursor/rules/gdm-rules.mdc" },
-    @{ Source = "CLAUDE.md"; Target = "CLAUDE.md" }
+    @{ Source = "CLAUDE.md"; Target = "CLAUDE.md" },
+    @{ Source = "AGENTS.md"; Target = "AGENTS.md" }
 )
 
 # Vérifier si des fichiers existent déjà
@@ -89,7 +90,7 @@ foreach ($file in $files) {
 Write-Step "Vérification du .gitignore..."
 if (Test-Path ".gitignore") {
     $gitignore = Get-Content ".gitignore" -Raw
-    $patterns = @(".ai-rules", ".cursor", "CLAUDE.md")
+    $patterns = @(".ai-rules", ".cursor", "CLAUDE.md", "AGENTS.md")
     $ignoredFiles = @()
     foreach ($pattern in $patterns) {
         if ($gitignore -match [regex]::Escape($pattern)) {
@@ -121,13 +122,14 @@ Write-Host "  1. Ouvre CLAUDE.md et remplis les sections 'Contexte du projet'" -
 Write-Host "     et 'Règles spécifiques à ce projet'." -ForegroundColor White
 Write-Host ""
 Write-Host "  2. Commit les fichiers :" -ForegroundColor White
-Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md" -ForegroundColor Gray
+Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md" -ForegroundColor Gray
 Write-Host "       git commit -m `"chore: add GDM AI rules`"" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  3. Vérifie que ça marche :" -ForegroundColor White
 Write-Host "     - Avec Claude Code : lance 'claude' et demande" -ForegroundColor White
 Write-Host "       'Quelles sont les règles GDM ?'" -ForegroundColor White
 Write-Host "     - Avec Cursor : Cmd/Ctrl+L et même question" -ForegroundColor White
+Write-Host "     - Avec Codex : ouvre le repo et pose la même question" -ForegroundColor White
 Write-Host ""
 Write-Host "Pour mettre à jour les règles plus tard :" -ForegroundColor White
 Write-Host "  irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex" -ForegroundColor Gray

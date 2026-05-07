@@ -1,10 +1,10 @@
 # gdm-dev-rules
 
-Règles de développement et de sécurité pour les projets Guy Demarle, à charger automatiquement par Claude Code et Cursor sur chaque repo.
+Règles de développement et de sécurité pour les projets Guy Demarle, à charger automatiquement par Claude Code, Cursor et Codex sur chaque repo.
 
 ## Pour quoi faire
 
-Quand tu codes avec Claude Code ou Cursor, l'IA suit naturellement nos règles GDM :
+Quand tu codes avec Claude Code, Cursor ou Codex, l'IA suit naturellement nos règles GDM :
 
 - Pas de secret en dur dans le code
 - Pas de variable `VITE_*` qui contient une clé secrète
@@ -30,7 +30,7 @@ irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.ps1
 curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.sh | bash
 ```
 
-Le script télécharge 3 fichiers et les place aux bons endroits :
+Le script télécharge 4 fichiers et les place aux bons endroits :
 
 ```
 ton-repo/
@@ -39,7 +39,8 @@ ton-repo/
 ├── .cursor/
 │   └── rules/
 │       └── gdm-rules.mdc     ← Lu automatiquement par Cursor
-└── CLAUDE.md                 ← Lu automatiquement par Claude Code
+├── CLAUDE.md                 ← Lu automatiquement par Claude Code
+└── AGENTS.md                 ← Lu automatiquement par Codex
 ```
 
 Le script vérifie aussi que ton `.gitignore` n'ignore pas ces fichiers.
@@ -67,7 +68,7 @@ C'est ce qui aide l'IA à donner des réponses adaptées **à ton projet**, en p
 ### Commit
 
 ```bash
-git add .ai-rules/ .cursor/ CLAUDE.md
+git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md
 git commit -m "chore: add GDM AI rules"
 ```
 
@@ -89,7 +90,7 @@ irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 
 curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
 ```
 
-**Bon à savoir** : `update` préserve les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` que tu as personnalisées. Tu ne perds pas tes ajouts.
+**Bon à savoir** : `update` préserve les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` que tu as personnalisées. Tu ne perds pas tes ajouts.
 
 ### Mise à jour de tous tes repos en batch
 
@@ -105,7 +106,7 @@ foreach ($repo in $repos) {
     Write-Host "`n=== $repo ===" -ForegroundColor Cyan
     cd $repo
     irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex
-    git add .ai-rules/ .cursor/ CLAUDE.md
+    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md
     git commit -m "chore: update GDM AI rules"
     git push
 }
@@ -123,7 +124,7 @@ for repo in "${repos[@]}"; do
     echo -e "\n=== $repo ==="
     cd "$repo"
     curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
-    git add .ai-rules/ .cursor/ CLAUDE.md
+    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md
     git commit -m "chore: update GDM AI rules"
     git push
 done
@@ -154,6 +155,14 @@ Ouvre une nouvelle conversation Cursor (Cmd/Ctrl+L) et tape :
 
 Pareil, Cursor doit lister les règles. Vérifie aussi que dans Cursor → Settings → Rules → Project Rules, tu vois bien `gdm-rules` dans la liste.
 
+### Avec Codex
+
+Lance Codex dans le repo puis tape :
+
+> Quelles sont les règles de sécurité GDM que tu dois respecter ?
+
+Codex doit aussi lister les règles. Si non, vérifie que `AGENTS.md` est bien à la racine du repo.
+
 ### Test pratique
 
 Demande à l'IA de générer du code qui violerait une règle (volontairement) :
@@ -172,7 +181,7 @@ Le contenu source unique est dans `templates/.ai-rules/RULES.md`. Quand tu modif
 2. Une fois mergée, les règles sont disponibles via les scripts d'install/update
 3. Les autres devs peuvent lancer `update.ps1` ou `update.sh` sur leurs projets pour récupérer la mise à jour
 
-Les fichiers `templates/CLAUDE.md` et `templates/.cursor/rules/gdm-rules.mdc` sont des fichiers d'amorçage minimalistes qui pointent vers `.ai-rules/RULES.md`. Tu n'as normalement pas besoin de les modifier sauf changement de structure.
+Les fichiers `templates/CLAUDE.md`, `templates/AGENTS.md` et `templates/.cursor/rules/gdm-rules.mdc` sont des fichiers d'amorçage minimalistes qui pointent vers `.ai-rules/RULES.md`. Tu n'as normalement pas besoin de les modifier sauf changement de structure.
 
 ---
 
@@ -191,16 +200,17 @@ gdm-dev-rules/
     ├── .cursor/
     │   └── rules/
     │       └── gdm-rules.mdc
-    └── CLAUDE.md
+    ├── CLAUDE.md
+    └── AGENTS.md
 ```
 
 ---
 
 ## FAQ
 
-**Pourquoi 3 fichiers d'IA et pas un seul ?**
+**Pourquoi 4 fichiers d'IA et pas un seul ?**
 
-Parce que Claude Code et Cursor lisent automatiquement leurs fichiers respectifs. Avoir un seul fichier ne marcherait pas — l'IA ne saurait pas qu'il existe. Solution : 3 fichiers d'amorçage minimalistes qui pointent tous vers `.ai-rules/RULES.md` (la source unique).
+Parce que Claude Code, Cursor et Codex lisent automatiquement leurs fichiers respectifs. Avoir un seul fichier ne marcherait pas — l'IA ne saurait pas qu'il existe. Solution : des fichiers d'amorçage minimalistes (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/gdm-rules.mdc`) qui pointent tous vers `.ai-rules/RULES.md` (la source unique).
 
 **Est-ce que ça remplace gitleaks et les autres protections ?**
 
