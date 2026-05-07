@@ -22,6 +22,43 @@ Puis configurer la variable GitHub :
 
 - `SECURITY_TARGET_URL` (URL de preview/prod à auditer)
 
+## Mise en place dans GitHub (pas à pas)
+
+### 1) Commit et push dans ton repo projet
+
+```bash
+git add .github/workflows/security-oss.yml
+git commit -m "chore(security): add OSS security pipeline"
+git push
+```
+
+### 2) Ajouter la variable dans GitHub
+
+- Repo GitHub -> `Settings` -> `Secrets and variables` -> `Actions` -> `Variables`
+- Créer `SECURITY_TARGET_URL`
+- Exemple de valeur : `https://app.guydemarle.com`
+
+### 3) Lancer le workflow manuellement (premier test)
+
+- Ouvrir l'onglet `Actions`
+- Ouvrir le workflow `Security OSS`
+- Cliquer `Run workflow`
+- Optionnel : renseigner `target_url` si tu veux surcharger temporairement `SECURITY_TARGET_URL`
+
+### 4) Vérifier ce qui doit apparaître
+
+- Sur PR : jobs bloquants
+  - `PR Security - Gitleaks + Semgrep`
+  - `PR Security - OSV Scanner`
+- En manuel/planifié : job non bloquant
+  - `Scheduled Audit - ZAP + Supabomb`
+
+### 5) Récupérer les rapports d'audit
+
+- Ouvrir le run du job `Scheduled Audit - ZAP + Supabomb`
+- Télécharger l'artefact `security-audit-reports`
+- Fichiers attendus : `zap-report.json`, `zap-report.md`, `zap-report.html`, `supabomb-report.txt`
+
 ## Objectif du pipeline
 
 Couverture en profondeur :

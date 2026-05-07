@@ -374,6 +374,13 @@ Puis configure la variable de repo GitHub suivante :
 Pour le détail de chaque outil (ce que ça couvre / ce que ça ne couvre pas), voir :
 `docs/SECURITY_OSS_PIPELINE.md`
 
+Pour lancer et valider ce workflow :
+
+1. Commit/push `.github/workflows/security-oss.yml`
+2. Configure la variable GitHub `SECURITY_TARGET_URL`
+3. Va dans `Actions` -> `Security OSS` -> `Run workflow`
+4. Vérifie les jobs PR bloquants et les artefacts du job `Scheduled Audit - ZAP + Supabomb`
+
 ### Test que le workflow se lance
 
 Commit ce fichier et pousse :
