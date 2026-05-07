@@ -1,0 +1,102 @@
+name: Security OSS
+
+on:
+  pull_request:
+    branches: [main, staging, dev]
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Base URL to audit (optional, overrides vars.SECURITY_TARGET_URL)"
+        required: false
+        type: string
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  pr_security_gitleaks_semgrep:
+    name: PR Security - Gitleaks + Semgrep
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep
+        run: python -m pip install --upgrade semgrep
+
+      - name: Semgrep scan (blocking)
+        run: semgrep scan --config p/owasp-top-ten --config p/secrets --error --metrics=off
+
+  pr_security_osv:
+    name: PR Security - OSV Scanner
+    if: github.event_name == 'pull_request'
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.4
+    with:
+      fail-on-vuln: true
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+  scheduled_audit_zap_supabomb:
+    name: Scheduled Audit - ZAP + Supabomb
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      TARGET_URL: ${{ inputs.target_url || vars.SECURITY_TARGET_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate target URL
+        run: |
+          if [ -z "$TARGET_URL" ]; then
+            echo "TARGET_URL is empty. Set repository variable SECURITY_TARGET_URL or pass workflow_dispatch input target_url."
+            exit 1
+          fi
+          echo "Auditing: $TARGET_URL"
+
+      - name: ZAP baseline scan (non-blocking)
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/zap/wrk/:rw" -t ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "$TARGET_URL" -a -J zap-report.json -w zap-report.md -r zap-report.html
+        continue-on-error: true
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Supabomb discover (non-blocking)
+        run: |
+          uvx supabomb discover --url "$TARGET_URL" | tee supabomb-report.txt
+        continue-on-error: true
+
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-reports
+          path: |
+            zap-report.json
+            zap-report.md
+            zap-report.html
+            supabomb-report.txt
+          if-no-files-found: warn

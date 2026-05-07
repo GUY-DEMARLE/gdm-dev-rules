@@ -173,6 +173,31 @@ L'IA doit refuser et proposer l'architecture proxy à la place. Si elle le fait 
 
 ---
 
+## Pipeline sécurité OSS (optionnel)
+
+Un template de pipeline GitHub Actions 100% open source est disponible ici :
+
+`templates/.github/workflows/security-oss.yml`
+
+Il contient :
+
+- Jobs PR bloquants : `gitleaks`, `semgrep`, `osv-scanner`
+- Job planifié non bloquant : `zap baseline` + `supabomb` avec artefacts
+
+Copie rapide dans un repo projet :
+
+```bash
+mkdir -p .github/workflows
+curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
+```
+
+Puis configure la variable GitHub `SECURITY_TARGET_URL` (URL à auditer en planifié).
+
+Explications détaillées de chaque outil :
+`docs/SECURITY_OSS_PIPELINE.md`
+
+---
+
 ## Pour les contributeurs (modification des règles)
 
 Le contenu source unique est dans `templates/.ai-rules/RULES.md`. Quand tu modifies ce fichier :
@@ -200,6 +225,9 @@ gdm-dev-rules/
     ├── .cursor/
     │   └── rules/
     │       └── gdm-rules.mdc
+    ├── .github/
+    │   └── workflows/
+    │       └── security-oss.yml
     ├── CLAUDE.md
     └── AGENTS.md
 ```
