@@ -1,118 +1,184 @@
-# Règles Dev GDM — Version condensée pour IA
+# Règles Dev GDM — Source IA unique
 
-> Source unique de vérité. Si tu modifies ce fichier, modifie aussi les références dans `CLAUDE.md` et `.cursor/rules/gdm-rules.mdc` si besoin (normalement ils pointent vers ce fichier).
+Version condensée mais **opérationnelle** pour IA (Claude, Cursor, Codex).
 
-## Architecture imposée
+## 0) Cadre global
 
-Tout projet GDM suit ce schéma :
+Architecture imposée par défaut :
 
 ```
-Front (Vercel) → Back (Render/Vercel/Supabase Edge) → Services tiers (Gemini, OpenAI, Stripe...)
+Front (Vercel) -> Back (Render/Vercel/Supabase Edge) -> Services tiers (Gemini/OpenAI/Stripe/etc.)
 ```
 
-- **Front** : React/Vite ou Next.js. Aucun secret. Appelle uniquement notre back.
-- **Back** : Node.js (Express/Fastify) ou Python (FastAPI/Flask). Détient TOUTES les clés sensibles.
-- **BDD** : Supabase par défaut. RLS obligatoires sur toutes les tables.
+- **Front** : React/Vite ou Next.js, aucun secret, appelle uniquement le back.
+- **Back** : Node.js (Express/Fastify) ou Python (FastAPI/Flask), détient les secrets.
+- **BDD** : Supabase (PostgreSQL) avec RLS activée sur toutes les tables.
 
-## Les 6 règles non-négociables
+## 1) Les 6 règles non-negociables
 
-### 1. Aucun secret dans Git
+### 1.1 Aucun secret dans Git
 
-Tout fichier qui pourrait contenir un secret est dans `.gitignore` (`.env`, `.env.local`, `.env.production`, etc.). Un hook gitleaks bloque les commits qui contiennent une clé. Si tu génères du code, tu n'écris JAMAIS une clé en dur.
+- Interdit : clés API, tokens, mots de passe, certificats, credentials committés.
+- `.env*` (sauf `.env.example`) doit etre ignore.
+- `gitleaks` doit bloquer localement + en CI.
+- **Jamais de clé en dur**, meme dans commentaires/exemples.
 
-### 2. Toute table Supabase a des RLS actives
+### 1.2 Toute table Supabase a RLS active des la migration
 
-Quand tu génères une migration SQL pour créer une table, tu ajoutes immédiatement après :
+Chaque `CREATE TABLE` doit etre suivi de :
 
 ```sql
 ALTER TABLE public.ma_table ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "policy_name" ON public.ma_table
   FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
 ```
 
-Pas de migration sans RLS. Pas de policy qui fait confiance au client (toujours `auth.uid()`, jamais un `user_id` du body).
+- Pas de "on ajoutera RLS plus tard".
+- Policy basee sur `auth.uid()`, jamais confiance a un `user_id` venant du client.
 
-### 3. Pas de push direct sur `main` ou `staging`
+### 1.3 Pas de push direct sur `main` / `staging`
 
-Workflow : `dev-prenom → feature/xxx → dev → staging → main`. Toujours via Pull Request.
+- Merge uniquement via PR.
+- Branch protection active (`Require PR`, checks obligatoires, pas de bypass).
 
-### 4. Variables d'env dans la plateforme, jamais dans le repo
+### 1.4 Variables d'env dans la plateforme, jamais dans le repo
 
-Vraies valeurs : Vercel / Render / Supabase Edge Functions Secrets / GitHub Actions Secrets. Jamais commitées. `.env.example` contient uniquement des placeholders.
+- Vraies valeurs dans Vercel / Render / Supabase Secrets / GitHub Secrets.
+- `.env.example` contient des placeholders uniquement.
+- Aucun historique Git ne doit contenir de secret.
 
-### 5. Aucun secret dans `VITE_*`, `NEXT_PUBLIC_*`, `REACT_APP_*`
+### 1.5 Aucun secret dans `VITE_*`, `NEXT_PUBLIC_*`, `REACT_APP_*`
 
-Ces préfixes sont publics par construction (Vite/Next/CRA inlinent la valeur dans le bundle au build). Test mental : *"Si la fuite causait une rotation, ce n'est pas une variable VITE_*."*
+Ces préfixes sont **publics par design** (inline dans bundle).
 
-| Type de valeur | Préfixe | Exemples |
-|----------------|---------|----------|
-| URL publique, clé anon Supabase, Stripe `pk_live_` | `VITE_` | `VITE_API_URL`, `VITE_SUPABASE_ANON_KEY` |
-| Clé secrète (API Gemini/OpenAI/Stripe, password, JWT secret) | **PAS de préfixe** | `GEMINI_API_KEY`, `STRIPE_SECRET_KEY`, `DATABASE_URL` |
+Test mental obligatoire :
+> Si la fuite impose une rotation, ce n'est PAS une variable publique.
 
-**Pas de fallback "mode dev" qui contourne le proxy** : si tu vois `if (proxy) {...} else { appel direct avec clé }`, refuse — supprime la branche `else`. Vite inline la clé dans le bundle même si la branche n'est pas exécutée en prod.
+| Type de valeur | Prefixe |
+|---|---|
+| URL publique, clé anon Supabase, Stripe `pk_*` | `VITE_` / `NEXT_PUBLIC_` / `REACT_APP_` |
+| Clé secrete, password, token admin, `service_role` | Aucun prefixe, back uniquement |
 
-### 6. Front parle au back, le back parle aux services tiers
+Interdit absolu : fallback client du type "si proxy indisponible, appel direct avec clé".
 
-Le front ne contient JAMAIS de clé qui authentifie auprès d'un service tiers payant. Si une fonctionnalité a besoin d'une telle clé, on monte un endpoint sur notre back qui sert de proxy.
+### 1.6 Front -> Back -> Services tiers
 
-Le back qui fait proxy doit :
-- Authentifier l'utilisateur avant de relayer
-- Valider les inputs (Zod / Pydantic)
-- Verrouiller les paramètres coûteux côté serveur (modèle Gemini, max_tokens)
-- Construire le prompt système côté serveur
-- Rate-limiter par IP et par utilisateur
+- Le front ne parle pas directement aux services tiers sensibles/payant.
+- Le back proxy doit :
+  - authentifier l'utilisateur,
+  - valider les inputs (Zod/Pydantic),
+  - verrouiller les parametres couteux (modele, max tokens, etc.),
+  - construire le prompt systeme cote serveur,
+  - appliquer rate limit IP + utilisateur,
+  - ajouter captcha si endpoint public,
+  - journaliser les appels.
 
-## Patterns de clés à reconnaître
+## 2) Checklists minimales obligatoires
 
-| Service | Pattern | Statut |
-|---------|---------|--------|
-| Anthropic | `sk-ant-api03-...` | **Secret** |
-| OpenAI | `sk-...` ou `sk-proj-...` | **Secret** |
-| Google API (Gemini, Maps) | `AIza` + 35 car. | **Secret** |
-| Stripe Secret | `sk_live_...` ou `sk_test_...` | **Secret** |
-| Stripe Publishable | `pk_live_...` ou `pk_test_...` | Public OK |
-| AWS Access Key | `AKIA` + 16 car. | **Secret** |
-| GitHub PAT | `ghp_` + 36 car. | **Secret** |
-| JWT (Supabase, Auth0...) | `eyJ...` + 2 points | Selon le `role` |
+### 2.1 Avant de coder une fonctionnalite
 
-JWT : décoder sur jwt.io. `role: anon` = public OK, `role: service_role` = JAMAIS dans le bundle.
+- Identifier les secrets impliques.
+- Si service tiers sensible/payant : back obligatoire.
+- Verifier les variables env (public vs secret).
+- Definir le flux de donnees front -> back -> tiers.
 
-## Comportement attendu de l'IA
+### 2.2 A chaque ajout de variable d'env
 
-Quand tu génères du code, tu :
+- Secret ? -> back uniquement, sans prefixe public.
+- Non secret ? -> variable publique possible.
+- Ajouter placeholder dans `.env.example`.
+- Mettre la vraie valeur en plateforme, jamais en repo.
 
-1. **N'écris jamais de clé en dur**, même en exemple ou en commentaire. Utilise des placeholders du genre `your-key-here` ou `process.env.X`.
-2. **Refuses de mettre une clé secrète dans une variable préfixée** `VITE_*`, `NEXT_PUBLIC_*`, `REACT_APP_*`. Si l'utilisateur insiste, explique pourquoi c'est dangereux.
-3. **Proposes systématiquement une architecture proxy** quand l'utilisateur veut intégrer un service tiers depuis le front.
-4. **Active RLS dès la création** d'une table Supabase, dans la même migration. Pas de "on l'ajoutera après".
-5. **N'ajoutes pas de fallback "mode dev"** dans le code client qui utilise une clé directement. Si le proxy n'est pas dispo, le code doit `throw`, pas fournir un chemin alternatif.
-6. **Vérifies les patterns de clés** dans le code généré : aucune chaîne ne doit matcher un pattern de la table ci-dessus.
-7. **Utilises `.env.example`** avec des placeholders pour documenter les variables, jamais une vraie valeur.
+### 2.3 A chaque nouvelle table Supabase
 
-## Stack technique (rappel)
+- RLS activee dans la meme migration.
+- Policies explicites ajoutees.
+- Verification anti-regression des tables sans RLS (script SQL ou CI).
 
-- **Front** : React/Vite ou Next.js, TypeScript, Tailwind, shadcn/ui, Zustand ou React Context
-- **Back Node.js** : Express ou Fastify, TypeScript, Zod
-- **Back Python** : FastAPI ou Flask, Pydantic
-- **BDD** : Supabase (PostgreSQL + Auth + Storage)
-- **Hébergement** : Vercel (front), Render (back lourd), Supabase Edge Functions (proxies légers)
-- **Tests** : Vitest + Playwright (Node), pytest (Python)
+### 2.4 Avant chaque PR
 
-## Conventions
+- Aucun `.env*` (hors `.env.example`) commite.
+- Aucune chaine ressemblant a un secret.
+- Architecture front/back respectee.
+- CI securite verte (gitleaks au minimum).
 
-- **Branches** : `dev-prenom`, `feature/xxx`, `fix/xxx`
-- **Commits** : `type(scope): description` (feat, fix, chore, docs, style, refactor, test, perf)
-- **Repos** : `gdm-<type>-<nom>` sous l'org `GUY-DEMARLE`
-- **Node** : v20 LTS (fixé dans `.nvmrc`)
-- **Python** : 3.11+
+### 2.5 Avant chaque deploiement prod
 
-## En cas de doute
+- Scanner le bundle compile pour patterns de secrets.
+- Si pattern trouve -> deploiement bloque, correction obligatoire.
 
-Si l'utilisateur demande quelque chose qui violerait une de ces règles, **explique pourquoi c'est risqué et propose l'alternative correcte**. Ne te contente pas de refuser, oriente vers la bonne pratique.
+### 2.6 Audit periodique (obligatoire)
 
-Référence complète des docs GDM :
-- `SETUP_MACHINE.md` — installation outils par dev
-- `SETUP_PROJET.md` — config par projet
-- `ARCHITECTURE_SECURITE_GDM.md` — référence permanente
+- Frequence minimale : mensuel pendant 3 mois apres lancement, puis trimestriel.
+- Lancer `gitleaks detect --source . --verbose --no-banner` sur chaque repo actif.
+- Verifier les tables Supabase sans RLS via requete SQL de controle.
+- Auditer les apps exposees avec :
+
+```bash
+uvx supabomb discover --url https://votre-app.example.com/
+```
+
+- Pour chaque endpoint/fonction detecte par `supabomb`, verifier :
+  - auth,
+  - validation input,
+  - rate limiting,
+  - aucun parametre sensible pilotable par le client.
+- Si GitHub Advanced Security (GHAS) est disponible, activer aussi Secret Scanning + Push Protection.
+
+## 3) Patterns de secrets a reconnaitre
+
+| Service | Pattern indicatif | Statut |
+|---|---|---|
+| Anthropic | `sk-ant-api03-...` | Secret |
+| OpenAI | `sk-...`, `sk-proj-...` | Secret |
+| Google API | `AIza` + 35 caracteres | Secret |
+| Stripe secret | `sk_live_...`, `sk_test_...` | Secret |
+| Stripe publishable | `pk_live_...`, `pk_test_...` | Public OK |
+| AWS access key id | `AKIA` + 16 caracteres | Secret |
+| GitHub PAT classique | `ghp_...` | Secret |
+| GitHub fine-grained PAT | `github_pat_...` | Secret |
+| Slack bot/user | `xoxb-...`, `xoxp-...` | Secret |
+| JWT | `eyJ...` + 2 points | Selon role |
+
+JWT : decoder le payload. `role=anon` peut etre public, `role=service_role` est strictement secret.
+
+## 4) Procedure incident (si fuite detectee)
+
+1. Considerer le secret comme compromis.
+2. Rotation immediate de la cle.
+3. Mise a jour des plateformes + redeploiement.
+4. Nettoyage historique Git si necessaire.
+5. Verification des logs d'usage suspect.
+6. Analyse de la cause racine (hook absent, CI absente, regle contournee, etc.).
+7. Compte-rendu court + action preventive.
+
+## 5) Comportement attendu de l'IA
+
+Quand tu proposes ou modifies du code :
+
+1. Ne jamais ecrire de secret en dur.
+2. Refuser les secrets dans `VITE_*` / `NEXT_PUBLIC_*` / `REACT_APP_*`.
+3. Proposer un proxy back pour tout service tiers sensible.
+4. Activer RLS des la migration, avec policy.
+5. Interdire les fallbacks client qui exposent la clé.
+6. Verifier les patterns de secret dans le code genere.
+7. Documenter les variables dans `.env.example` avec placeholders.
+8. Si la demande viole une regle, expliquer le risque et proposer l'alternative sure.
+9. Pour une demande d'audit securite app exposee, inclure un plan `supabomb` + controles auth/RLS.
+
+## 6) Stack et conventions (rappel)
+
+- **Front** : React/Vite ou Next.js, TypeScript.
+- **Back** : Node.js (Express/Fastify) ou Python (FastAPI/Flask), Deno uniquement pour Supabase Edge Functions.
+- **BDD** : Supabase par defaut.
+- **Hosting** : Vercel (front), Render (back lourd), Supabase Edge (proxy leger).
+- **Branches** : `dev-prenom`, `feature/xxx`, `fix/xxx`.
+- **Commits** : Conventional commits (`feat`, `fix`, `chore`, etc.).
+- **Repo** : `gdm-<type>-<nom>` sous `GUY-DEMARLE`.
+
+## 7) References
+
+- `SETUP_MACHINE.md` (setup poste dev)
+- `SETUP_PROJET.md` (setup projet)
+- `ARCHITECTURE_SECURITE_GDM.md` (reference complete)
