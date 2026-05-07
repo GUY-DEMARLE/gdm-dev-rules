@@ -59,6 +59,36 @@ git push
 - Télécharger l'artefact `security-audit-reports`
 - Fichiers attendus : `zap-report.json`, `zap-report.md`, `zap-report.html`, `supabomb-report.txt`
 
+## Rollout multi-repos (checklist)
+
+Checklist rapide pour déployer ce pipeline sur plusieurs repos sans oubli :
+
+1. Ajouter `.github/workflows/security-oss.yml` dans le repo
+2. Commit/push sur la branche cible (`main` en général)
+3. Configurer la variable GitHub `SECURITY_TARGET_URL`
+4. Lancer `Run workflow` une première fois (validation manuelle)
+5. Vérifier les jobs PR :
+   - `PR Security - Gitleaks + Semgrep`
+   - `PR Security - OSV Scanner`
+6. Vérifier le job planifié :
+   - `Scheduled Audit - ZAP + Supabomb`
+   - artefact `security-audit-reports` présent
+7. Configurer la branch protection sur `staging` et `main` :
+   - PR obligatoire
+   - status checks obligatoires
+   - branches à jour avant merge
+   - pas de bypass
+
+Commande PowerShell type (à rejouer repo par repo) :
+
+```powershell
+New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
+Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
+git add .github/workflows/security-oss.yml
+git commit -m "chore(security): add OSS security pipeline"
+git push
+```
+
 ## Objectif du pipeline
 
 Couverture en profondeur :
@@ -134,3 +164,32 @@ Le job planifié exporte :
 - `supabomb-report.txt`
 
 Ces artefacts servent de base de revue sécurité périodique.
+
+## Que faire si le check bloque sur un faux positif
+
+### Cas Gitleaks : utiliser le fingerprint
+
+Dans les logs Gitleaks, chaque alerte contient une ligne `Fingerprint:`.  
+Exemple :
+
+```txt
+Fingerprint: 51a0be3ee3b698c26980090be98a894bc2cd147f:docs/security/BOT_PROTECTION_QUICKSTART.md:curl-auth-header:115
+```
+
+Le fingerprint est l'identifiant unique de cette alerte précise.  
+Pour ignorer uniquement ce cas (et pas toute la règle), ajoute la valeur dans `.gitleaksignore` :
+
+```txt
+51a0be3ee3b698c26980090be98a894bc2cd147f:docs/security/BOT_PROTECTION_QUICKSTART.md:curl-auth-header:115
+```
+
+### Cas Semgrep : ignorer la ligne ciblée
+
+Si c'est un faux positif Semgrep, ajouter un commentaire `nosemgrep` avec l'ID de règle et la raison :
+
+```ts
+// nosemgrep: javascript.express.security.cors-misconfiguration.cors-misconfiguration -- origin déjà validé par allowlist
+res.setHeader("Access-Control-Allow-Origin", origin);
+```
+
+Règle importante : ignorer au plus fin (ligne/cas précis), jamais tout le scan globalement.
