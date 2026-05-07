@@ -48,7 +48,7 @@ jobs:
   pr_security_osv:
     name: PR Security - OSV Scanner
     if: github.event_name == 'pull_request'
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.4
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@main
     with:
       fail-on-vuln: true
     permissions:

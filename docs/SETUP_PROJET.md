@@ -360,6 +360,13 @@ mkdir -p .github/workflows
 curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
 ```
 
+Ou en PowerShell :
+
+```powershell
+New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
+Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
+```
+
 Puis configure la variable de repo GitHub suivante :
 
 - `SECURITY_TARGET_URL` = URL de preview/prod à auditer (ex: `https://app.guydemarle.com`)

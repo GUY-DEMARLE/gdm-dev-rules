@@ -2,6 +2,26 @@
 
 Ce document explique le rôle de chaque outil du pipeline open source proposé dans `templates/.github/workflows/security-oss.yml`.
 
+## Installation rapide dans un repo projet
+
+### Bash
+
+```bash
+mkdir -p .github/workflows
+curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
+```
+
+### PowerShell
+
+```powershell
+New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
+Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
+```
+
+Puis configurer la variable GitHub :
+
+- `SECURITY_TARGET_URL` (URL de preview/prod à auditer)
+
 ## Objectif du pipeline
 
 Couverture en profondeur :
