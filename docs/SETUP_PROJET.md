@@ -419,15 +419,19 @@ Coche les options suivantes :
   - Dismiss stale pull request approvals when new commits are pushed
 - ✅ **Require status checks to pass before merging**
   - Require branches to be up to date before merging
-  - Status checks : tape `Scan secrets (gitleaks)` et sélectionne-le quand il apparaît (le workflow doit avoir tourné au moins une fois pour apparaître ici)
+  - Status checks (minimum) : `Scan secrets (gitleaks)`
+  - Status checks (si workflow OSS activé) :
+    - `PR Security - Gitleaks + Semgrep`
+    - `PR Security - OSV Scanner`
 - ✅ **Require conversation resolution before merging**
 - ✅ **Do not allow bypassing the above settings**
+- ✅ *(Idéal)* **Restrict who can push to matching branches**
 
 Bouton **Create** ou **Save changes**.
 
 ### Règle pour `staging`
 
-Même chose, branch name pattern : `staging`. Tu peux décocher "Require approvals" si l'équipe est petite (2 devs), mais garde au minimum les status checks et le PR obligatoire.
+Même chose, branch name pattern : `staging`. Tu peux décocher "Require approvals" si l'équipe est petite (2 devs), mais garde au minimum le PR obligatoire + status checks requis. Si tu utilises le workflow OSS, exige les mêmes checks (`PR Security - Gitleaks + Semgrep`, `PR Security - OSV Scanner`).
 
 ### Test
 

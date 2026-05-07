@@ -23,7 +23,7 @@ jobs:
     name: PR Security - Gitleaks + Semgrep
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-     steps:
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
