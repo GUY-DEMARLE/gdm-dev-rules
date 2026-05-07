@@ -427,6 +427,7 @@ Coche les options suivantes :
 - ✅ **Do not allow bypassing the above settings**
 - ✅ *(Idéal)* **Restrict who can push to matching branches**
 
+
 Bouton **Create** ou **Save changes**.
 
 ### Règle pour `staging`
