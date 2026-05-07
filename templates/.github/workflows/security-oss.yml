@@ -31,8 +31,8 @@ jobs:
       - name: Gitleaks scan (PR commits only)
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
-            git --source="/repo" --redact --verbose --exit-code 1 \
-            --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
+            git --redact --verbose --exit-code 1 \
+            --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.sha }}" /repo
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
