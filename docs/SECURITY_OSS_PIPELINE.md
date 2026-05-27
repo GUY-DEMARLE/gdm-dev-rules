@@ -432,6 +432,12 @@ Cette etape s'execute seulement si `SECURITY_TARGET_URL` est configuree.
 
 Supabomb est utile surtout pour les applications qui utilisent Supabase. Il cherche des signaux lies a une surface Supabase exposee ou mal configuree.
 
+Important : Supabomb n'est pas lance via `uvx supabomb`, car l'outil n'est pas publie comme package Python classique dans le registry. Le workflow clone le repository GitHub officiel puis execute :
+
+```bash
+uv run supabomb discover --url "$TARGET_URL"
+```
+
 Interet :
 
 ```text
