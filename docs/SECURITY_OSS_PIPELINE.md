@@ -1,195 +1,663 @@
-# Pipeline sécurité OSS — gitleaks + semgrep + osv + zap + supabomb
+# Workflow Security OSS
 
-Ce document explique le rôle de chaque outil du pipeline open source proposé dans `templates/.github/workflows/security-oss.yml`.
+Ce document explique le workflow GitHub Actions `.github/workflows/security-oss.yml`.
 
-## Installation rapide dans un repo projet
+L'objectif est de mettre en place un socle de securite automatise, reutilisable sur plusieurs applications, quelle que soit la stack technique : PHP, Node, Python, Docker, application web publique, ou projet utilisant Supabase.
 
-### Bash
+Le workflow ne remplace pas un pentest manuel complet. Il sert de controle continu pour detecter rapidement les erreurs classiques : secrets exposes, dependances vulnerables, problemes de code, configuration web faible, ou signaux de surface d'attaque.
 
-```bash
-mkdir -p .github/workflows
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
+## Objectif General
+
+Le workflow couvre deux moments differents du cycle de vie du projet.
+
+Sur les Pull Requests, il agit comme une barriere de securite. Si un risque important est detecte, la PR echoue et doit etre corrigee avant merge.
+
+Chaque lundi, ou manuellement, il lance un audit plus large. Cet audit est non bloquant : il produit des rapports, les archive dans GitHub Actions, puis envoie une synthese Slack enrichie par une analyse IA.
+
+## Declencheurs
+
+Le workflow se lance dans trois cas.
+
+```yaml
+pull_request:
+  branches: [main, staging, dev]
 ```
 
-### PowerShell
+Sur Pull Request, les controles sont bloquants. L'objectif est d'eviter d'introduire un secret, une faille de code ou une dependance vulnerable.
 
-```powershell
-New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
-Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
+```yaml
+workflow_dispatch:
 ```
 
-Puis configurer la variable GitHub :
+Lancement manuel depuis GitHub Actions. Utile pour tester le workflow ou relancer un audit a la demande.
 
-- `SECURITY_TARGET_URL` (URL de preview/prod à auditer)
-
-## Mise en place dans GitHub (pas à pas)
-
-### 1) Commit et push dans ton repo projet
-
-```bash
-git add .github/workflows/security-oss.yml
-git commit -m "chore(security): add OSS security pipeline"
-git push
+```yaml
+schedule:
+  - cron: "0 6 * * 1"
 ```
 
-### 2) Ajouter la variable dans GitHub
+Lancement automatique chaque lundi a 06:00 UTC.
 
-- Repo GitHub -> `Settings` -> `Secrets and variables` -> `Actions` -> `Variables`
-- Créer `SECURITY_TARGET_URL`
-- Exemple de valeur : `https://app.guydemarle.com`
+## Configuration Necessaire
 
-### 3) Lancer le workflow manuellement (premier test)
+Le workflow peut fonctionner partiellement sans configuration, mais certaines fonctionnalites demandent des variables ou secrets GitHub.
 
-- Ouvrir l'onglet `Actions`
-- Ouvrir le workflow `Security OSS`
-- Cliquer `Run workflow`
-- Optionnel : renseigner `target_url` si tu veux surcharger temporairement `SECURITY_TARGET_URL`
+### Secrets GitHub
 
-### 4) Vérifier ce qui doit apparaître
-
-- Sur PR : jobs bloquants
-  - `PR Security - Gitleaks + Semgrep`
-  - `PR Security - OSV Scanner`
-- En manuel/planifié : job non bloquant
-  - `Scheduled Audit - ZAP + Supabomb`
-
-### 5) Récupérer les rapports d'audit
-
-- Ouvrir le run du job `Scheduled Audit - ZAP + Supabomb`
-- Télécharger l'artefact `security-audit-reports`
-- Fichiers attendus : `zap-report.json`, `zap-report.md`, `zap-report.html`, `supabomb-report.txt`
-
-## Rollout multi-repos (checklist)
-
-Checklist rapide pour déployer ce pipeline sur plusieurs repos sans oubli :
-
-1. Ajouter `.github/workflows/security-oss.yml` dans le repo
-2. Commit/push sur la branche cible (`main` en général)
-3. Configurer la variable GitHub `SECURITY_TARGET_URL`
-4. Lancer `Run workflow` une première fois (validation manuelle)
-5. Vérifier les jobs PR :
-   - `PR Security - Gitleaks + Semgrep`
-   - `PR Security - OSV Scanner`
-6. Vérifier le job planifié :
-   - `Scheduled Audit - ZAP + Supabomb`
-   - artefact `security-audit-reports` présent
-7. Configurer la branch protection sur `staging` et `main` :
-   - PR obligatoire
-   - status checks obligatoires
-   - branches à jour avant merge
-   - pas de bypass
-
-Commande PowerShell type (à rejouer repo par repo) :
-
-```powershell
-New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
-Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
-git add .github/workflows/security-oss.yml
-git commit -m "chore(security): add OSS security pipeline"
-git push
+```text
+SLACK_WEBHOOK_URL
 ```
 
-## Objectif du pipeline
+Webhook Slack utilise pour envoyer le rapport final.
 
-Couverture en profondeur :
+```text
+OPENAI_API_KEY
+```
 
-1. Empêcher l'introduction de secrets
-2. Détecter les failles dans le code
-3. Détecter les dépendances vulnérables
-4. Scanner l'app déployée comme un attaquant
-5. Auditer la surface exposée Supabase
+Cle OpenAI utilisee pour generer la synthese IA du rapport. Si elle est absente, le workflow continue sans analyse IA.
 
-## Outils et rôle exact
+### Variables GitHub
 
-### 1) gitleaks (PR bloquant)
+```text
+SECURITY_TARGET_URL
+```
 
-- **But** : détecter secrets et credentials introduits par la PR.
-- **Détecte** : clés API, tokens cloud, PAT GitHub, mots de passe hardcodés, etc.
-- **Pourquoi bloquant en PR** : une fuite doit être stoppée avant merge.
-- **Mode utilisé dans ce workflow** : scan des commits de la PR (pas tout l'historique).
-- **Limite** : faux positifs possibles ; nécessite revue humaine.
-
-### 2) semgrep (PR bloquant)
-
-- **But** : SAST (analyse statique de sécurité du code).
-- **Détecte** : patterns dangereux (validation manquante, injections, pratiques à risque, etc.).
-- **Pourquoi bloquant en PR** : éviter de merger une faille évidente.
-- **Limite** : dépend du ruleset ; les règles doivent évoluer avec la stack.
-
-### 3) osv-scanner (PR bloquant)
-
-- **But** : détecter les vulnérabilités connues dans les dépendances.
-- **Détecte** : dépendances lockfiles/manifests exposées à CVE/OSV.
-- **Pourquoi bloquant en PR** : empêcher l'ajout de dépendances connues vulnérables.
-- **Limite** : ne détecte pas les failles métier de ton code.
-- **Note GHAS** : le template désactive l'upload SARIF (`upload-sarif: false`) pour rester compatible sans GitHub Advanced Security.
-
-### 4) OWASP ZAP baseline (planifié non bloquant)
-
-- **But** : DAST léger sur app déployée (scan HTTP externe).
-- **Détecte** : headers manquants, routes exposées, signaux de config faible.
-- **Pourquoi non bloquant** : scan périodique de surveillance ; résultats en rapports.
-- **Limite** : baseline != pentest complet ; complète mais ne remplace pas un audit humain.
-
-### 5) supabomb (planifié non bloquant)
-
-- **But** : découverte de surface exposée pour apps liées à Supabase.
-- **Détecte** : endpoints/fonctions accessibles, signaux d'exposition.
-- **Pourquoi non bloquant** : outil d'audit périodique et de triage.
-- **Limite** : nécessite vérification manuelle auth/validation/rate-limit/RLS.
-
-## Stratégie recommandée
-
-- **PR (bloquant)** : gitleaks + semgrep + osv-scanner
-- **Hebdo (non bloquant + rapports)** : zap baseline + supabomb
-- **Mensuel/trimestriel** : revue manuelle des rapports et plan de remédiation
-
-## Variable GitHub requise
-
-Le job planifié utilise :
-
-- `SECURITY_TARGET_URL` : URL de l'app à auditer (preview ou prod)
+URL de production a auditer avec ZAP et Supabomb.
 
 Exemple :
 
-`https://app.guydemarle.com`
+```text
+https://www.monguydemarle.com/boite-outils/generateur-post/
+```
 
-## Artefacts produits
+```text
+OPENAI_SECURITY_MODEL
+```
 
-Le job planifié exporte :
+Modele IA utilise pour la synthese Slack. Par defaut, le workflow utilise `gpt-5.4-mini`.
 
-- `zap-report.json`
-- `zap-report.md`
-- `zap-report.html`
-- `supabomb-report.txt`
+## Permissions
 
-Ces artefacts servent de base de revue sécurité périodique.
+```yaml
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+```
 
-## Que faire si le check bloque sur un faux positif
+Le workflow lit le code et les informations d'execution GitHub Actions. La permission `security-events: write` est conservee pour compatibilite avec certains outils de securite, meme si le workflow evite les integrations payantes comme l'upload SARIF GitHub Code Scanning.
 
-### Cas Gitleaks : utiliser le fingerprint
+## Jobs Du Workflow
 
-Dans les logs Gitleaks, chaque alerte contient une ligne `Fingerprint:`.  
+## 1. PR Security - Secrets + SAST
+
+Ce job tourne uniquement sur Pull Request.
+
+Il cherche deux familles de problemes :
+
+```text
+1. secrets exposes
+2. erreurs de code liees a la securite
+```
+
+Il est bloquant : si un probleme est trouve, la PR echoue.
+
+### Checkout
+
+```yaml
+uses: actions/checkout@v4
+```
+
+Cette etape recupere le code du repository dans le runner GitHub Actions.
+
+Le workflow utilise `fetch-depth: 0` pour donner a certains outils un acces plus complet a l'historique Git si necessaire.
+
+### Gitleaks
+
+Source : [Gitleaks GitHub](https://github.com/gitleaks/gitleaks) et [site officiel Gitleaks](https://gitleaks.org/).
+
+Gitleaks est un scanner de secrets. Il cherche dans le repository des valeurs qui ressemblent a des informations sensibles :
+
+```text
+cles API
+tokens Slack
+tokens GitHub
+cles OpenAI / Anthropic
+mots de passe
+identifiants de base de donnees
+fichiers .env commites par erreur
+```
+
+Dans ce workflow, Gitleaks est lance via Docker :
+
+```yaml
+docker run --rm -v "${GITHUB_WORKSPACE}:/repo" zricethezav/gitleaks:latest detect
+```
+
+Ce choix evite d'utiliser l'action GitHub officielle `gitleaks/gitleaks-action`, qui peut demander une licence dans les organisations GitHub.
+
+Interet :
+
+```text
+eviter qu'un secret soit merge dans le code
+reduire le risque de fuite d'identifiants
+forcer la rotation rapide d'une cle si une fuite est detectee
+```
+
+### Semgrep
+
+Source : [documentation Semgrep](https://semgrep.dev/docs/) et [documentation des rulesets](https://semgrep.dev/docs/running-rules/).
+
+Semgrep est un outil SAST, c'est-a-dire Static Application Security Testing. Il analyse le code sans l'executer.
+
+Dans ce workflow, il utilise :
+
+```text
+p/owasp-top-ten
+p/secrets
+```
+
+Ces rulesets permettent de detecter des patterns proches des risques OWASP et des secrets.
+
+Exemples de problemes que Semgrep peut aider a detecter :
+
+```text
+injections
+validation insuffisante des entrees utilisateur
+usage dangereux de fonctions
+exposition d'informations sensibles
+patterns de code risques
+```
+
+Interet :
+
+```text
+detecter les erreurs de code avant merge
+standardiser une base de controle securite
+remonter des signaux sur des failles classiques
+```
+
+## 2. PR Security - OSV Scanner
+
+Ce job tourne uniquement sur Pull Request.
+
+Source : [OSV Scanner GitHub Action](https://github.com/google/osv-scanner-action) et [documentation OSV Scanner](https://google.github.io/osv-scanner/usage/).
+
+OSV Scanner analyse les dependances du projet et les compare a la base de vulnerabilites OSV.
+
+Il regarde notamment les lockfiles presents dans le repository :
+
+```text
+composer.lock
+package-lock.json
+requirements.txt
+autres fichiers supportes par OSV
+```
+
+Contrairement au job Semgrep, OSV ne cherche pas principalement des erreurs dans le code applicatif. Il cherche si une bibliotheque utilisee est connue comme vulnerable.
+
 Exemple :
 
-```txt
-Fingerprint: 51a0be3ee3b698c26980090be98a894bc2cd147f:docs/security/BOT_PROTECTION_QUICKSTART.md:curl-auth-header:115
+```text
+une version de symfony/options-resolver a une vulnerabilite connue
+une dependance npm a une CVE
+une dependance Python est affectee par un advisory
 ```
 
-Le fingerprint est l'identifiant unique de cette alerte précise.  
-Pour ignorer uniquement ce cas (et pas toute la règle), ajoute la valeur dans `.gitleaksignore` :
+Le workflow lance OSV directement, sans upload SARIF. Cela evite de dependre de GitHub Advanced Security, qui peut etre payant ou non active sur certains repositories.
 
-```txt
-51a0be3ee3b698c26980090be98a894bc2cd147f:docs/security/BOT_PROTECTION_QUICKSTART.md:curl-auth-header:115
+Interet :
+
+```text
+eviter d'introduire une dependance vulnerable
+detecter les problemes de supply chain
+completer les scans de code par un scan des bibliotheques
 ```
 
-### Cas Semgrep : ignorer la ligne ciblée
+## 3. Weekly Security Audit
 
-Si c'est un faux positif Semgrep, ajouter un commentaire `nosemgrep` avec l'ID de règle et la raison :
+Ce job tourne chaque lundi ou manuellement.
 
-```ts
-// nosemgrep: javascript.express.security.cors-misconfiguration.cors-misconfiguration -- origin déjà validé par allowlist
-res.setHeader("Access-Control-Allow-Origin", origin);
+Il est configure avec :
+
+```yaml
+continue-on-error: true
 ```
 
-Règle importante : ignorer au plus fin (ligne/cas précis), jamais tout le scan globalement.
+Cela signifie qu'un outil peut echouer sans casser tout le workflow. L'objectif est de produire un rapport, pas de bloquer le projet.
+
+## Ordre Des Etapes Hebdomadaires
+
+### 1. Checkout
+
+Le workflow recupere le code.
+
+### 2. Preparation Du Dossier De Rapports
+
+```bash
+mkdir -p reports
+```
+
+Tous les rapports generes sont stockes dans `reports/`.
+
+### 3. Detection Automatique De La Stack
+
+Le workflow detecte les fichiers presents.
+
+```text
+composer.lock -> active Composer audit
+package-lock.json -> active npm audit
+requirements*.txt -> active pip-audit
+Dockerfile -> active Trivy
+SECURITY_TARGET_URL -> active ZAP et Supabomb
+```
+
+Interet :
+
+```text
+utiliser le meme workflow sur plusieurs stacks
+eviter les erreurs si un outil ne concerne pas le repo
+skipper proprement les scans inutiles
+```
+
+### 4. Gitleaks En Mode Rapport
+
+Gitleaks relance un scan de secrets, mais en mode non bloquant.
+
+Il genere :
+
+```text
+reports/gitleaks-report.json
+```
+
+Interet :
+
+```text
+avoir un rapport exploitable meme hors PR
+surveiller les secrets dans le temps
+detecter une fuite introduite par un commit direct ou historique
+```
+
+### 5. Semgrep En Mode Rapport
+
+Semgrep genere :
+
+```text
+reports/semgrep-report.json
+```
+
+Interet :
+
+```text
+avoir un snapshot hebdomadaire des risques de code
+suivre les signaux OWASP
+centraliser les findings dans les artifacts
+```
+
+### 6. OSV Scanner En Mode Rapport
+
+OSV genere :
+
+```text
+reports/osv-scanner-report.json
+```
+
+Interet :
+
+```text
+detecter les vulnerabilites de dependances apparues depuis le dernier audit
+surveiller les advisories qui changent avec le temps
+```
+
+Une dependance peut devenir vulnerable meme si le code n'a pas change.
+
+### 7. Composer Audit
+
+Source : [documentation Composer CLI](https://getcomposer.org/doc/03-cli.md).
+
+Cette etape s'execute seulement si un `composer.lock` est present.
+
+Composer est le gestionnaire de dependances PHP. La commande :
+
+```bash
+composer audit --format=json
+```
+
+verifie les packages PHP installes via le lockfile.
+
+Interet :
+
+```text
+detecter les vulnerabilites PHP connues
+completer OSV avec l'audit natif Composer
+produire un rapport dedie par projet PHP
+```
+
+### 8. npm Audit
+
+Source : [documentation npm audit](https://docs.npmjs.com/cli/v7/commands/npm-audit/).
+
+Cette etape s'execute seulement si un `package-lock.json` est present.
+
+Elle verifie les dependances Node/npm.
+
+Interet :
+
+```text
+detecter les vulnerabilites npm
+identifier les severites critical, high, moderate, low
+completer OSV avec l'audit natif npm
+```
+
+### 9. pip-audit
+
+Source : [pip-audit sur PyPI](https://pypi.org/project/pip-audit/) et [repository PyPA pip-audit](https://github.com/pypa/pip-audit).
+
+Cette etape s'execute seulement si un fichier `requirements*.txt` est present.
+
+Elle verifie les dependances Python.
+
+Interet :
+
+```text
+detecter les packages Python vulnerables
+produire un rapport JSON exploitable
+standardiser l'audit des projets Python
+```
+
+### 10. Trivy
+
+Source : [documentation Trivy filesystem scan](https://trivy.dev/docs/latest/target/filesystem/) et [documentation CLI Trivy](https://trivy.dev/docs/latest/references/configuration/cli/trivy/).
+
+Cette etape s'execute seulement si un `Dockerfile` existe.
+
+Trivy scanne le filesystem du projet et peut detecter :
+
+```text
+vulnerabilites connues
+problemes de configuration
+risques lies aux fichiers Docker
+secrets selon la configuration de scan
+```
+
+Interet :
+
+```text
+ajouter une couche de controle pour les projets containerises
+detecter des risques lies a l'image ou au filesystem
+```
+
+### 11. OWASP ZAP Baseline Scan
+
+Source : [OWASP ZAP](https://www.zaproxy.org/) et [ZAP Baseline Scan](https://www.zaproxy.org/docs/docker/baseline-scan/).
+
+Cette etape s'execute seulement si `SECURITY_TARGET_URL` est configuree.
+
+ZAP scanne l'application web exposee publiquement.
+
+Il peut detecter :
+
+```text
+headers de securite manquants
+cookies mal configures
+configuration HTTP faible
+exposition de fichiers sensibles
+erreurs serveur visibles
+problemes web classiques
+```
+
+Rapports generes :
+
+```text
+reports/zap-report.json
+reports/zap-report.md
+reports/zap-report.html
+```
+
+Interet :
+
+```text
+tester l'application en conditions proches de la production
+detecter des problemes visibles depuis l'exterieur
+avoir un rapport HTML lisible
+```
+
+Limite : le scan baseline n'est pas un scan authentifie complet. Il teste surtout ce qui est publiquement accessible.
+
+### 12. Supabomb
+
+Source : [presentation Supabomb](https://dev.to/victor_yrazusta/introducing-supabomb-open-source-supabase-penetration-testing-4dnb).
+
+Cette etape s'execute seulement si `SECURITY_TARGET_URL` est configuree.
+
+Supabomb est utile surtout pour les applications qui utilisent Supabase. Il cherche des signaux lies a une surface Supabase exposee ou mal configuree.
+
+Interet :
+
+```text
+standardiser un controle utile sur les projets Supabase
+ne pas avoir a modifier le workflow selon chaque app
+produire un rapport meme si l'app ne semble pas utiliser Supabase
+```
+
+Sur un projet sans Supabase, le rapport peut etre vide ou peu utile. C'est acceptable dans une logique de workflow universel.
+
+### 13. Rapport De Synthese
+
+Le workflow cree :
+
+```text
+reports/security-summary.md
+```
+
+Ce fichier resume :
+
+```text
+le repository audite
+l'URL cible
+l'etat de chaque outil
+les fichiers detectes
+les scans executes ou ignores
+```
+
+Interet :
+
+```text
+donner une vue rapide sans ouvrir tous les rapports
+faciliter le suivi hebdomadaire
+servir de point d'entree pour le responsable ou le mainteneur
+```
+
+### 14. Analyse IA
+
+Source : [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses/create?api-mode=responses).
+
+Le workflow utilise l'API OpenAI si `OPENAI_API_KEY` est configuree.
+
+Il n'envoie pas les rapports bruts complets. Il construit un contexte filtre :
+
+```text
+etat des jobs
+nombre de findings Semgrep
+extraits limites des messages
+packages vulnerables OSV
+advisories Composer
+resultats npm
+alertes ZAP
+extrait Supabomb limite
+```
+
+Des patterns de secrets courants sont redacted avant envoi.
+
+Le modele par defaut est :
+
+```text
+gpt-5.4-mini
+```
+
+Il peut etre change via :
+
+```text
+OPENAI_SECURITY_MODEL
+```
+
+Interet :
+
+```text
+transformer des rapports techniques en synthese lisible
+prioriser les actions
+eviter de noyer l'equipe sous des fichiers JSON
+obtenir une checklist claire dans Slack
+```
+
+### 15. Upload Des Artifacts
+
+Tous les rapports sont archives dans GitHub Actions :
+
+```text
+security-audit-reports
+```
+
+Interet :
+
+```text
+garder une trace de l'audit
+permettre une analyse detaillee apres notification Slack
+telecharger les rapports JSON / HTML / Markdown
+```
+
+### 16. Notification Slack
+
+Source : [Slack Incoming Webhooks](https://api.slack.com/messaging/webhooks).
+
+Le workflow envoie un message Slack si `SLACK_WEBHOOK_URL` est configure.
+
+Le message contient :
+
+```text
+repository
+lien vers le run GitHub Actions
+URL cible
+etat de chaque scan
+conseil IA
+indication que les rapports sont disponibles en artifacts
+```
+
+Interet :
+
+```text
+ne pas devoir aller verifier GitHub Actions manuellement
+centraliser la maintenance securite dans Slack
+creer une routine hebdomadaire lisible
+```
+
+## Pourquoi Le Workflow Est Universel
+
+Le workflow ne suppose pas que le projet est PHP, Node, Python, Docker ou Supabase.
+
+Il detecte les fichiers presents et active uniquement les outils utiles :
+
+```text
+composer.lock present -> Composer audit
+package-lock.json present -> npm audit
+requirements*.txt present -> pip-audit
+Dockerfile present -> Trivy
+SECURITY_TARGET_URL configuree -> ZAP + Supabomb
+```
+
+Cela permet de copier le workflow dans plusieurs repositories avec peu de configuration.
+
+Configuration minimale :
+
+```text
+SLACK_WEBHOOK_URL
+OPENAI_API_KEY
+SECURITY_TARGET_URL
+```
+
+## Difference Entre PR Et Audit Hebdomadaire
+
+Les jobs de PR sont faits pour bloquer rapidement les risques evidents.
+
+```text
+PR = controle strict avant merge
+```
+
+L'audit hebdomadaire est fait pour surveiller dans le temps.
+
+```text
+Hebdomadaire = rapport complet et non bloquant
+```
+
+Cette distinction est importante : certaines vulnerabilites apparaissent apres coup, sans changement de code. L'audit du lundi permet donc de detecter un probleme meme si aucune PR recente n'a ete mergee.
+
+## Ce Que Le Workflow Couvre Bien
+
+Le workflow couvre bien :
+
+```text
+secrets exposes
+erreurs de code detectables statiquement
+dependances vulnerables
+problemes web publics simples
+problemes Docker ou filesystem
+surface Supabase potentielle
+rapport et notification
+```
+
+## Limites
+
+Le workflow ne remplace pas un pentest manuel.
+
+Il ne couvre pas completement :
+
+```text
+logique metier complexe
+contournement subtil de roles
+scan authentifie avance
+abus fonctionnels
+prompt injection avancee
+tests avec plusieurs comptes utilisateurs
+enchaînement de plusieurs failles faibles
+```
+
+Il doit donc etre considere comme un audit automatique recurrent, pas comme une certification de securite.
+
+## Process Recommande
+
+Sur chaque PR :
+
+```text
+1. Verifier que Gitleaks passe
+2. Verifier que Semgrep passe
+3. Verifier que OSV passe
+4. Corriger avant merge si un job echoue
+```
+
+Chaque lundi :
+
+```text
+1. Lire le message Slack
+2. Ouvrir le run GitHub Actions si un outil est en failure
+3. Telecharger les artifacts si necessaire
+4. Traiter en priorite les secrets, critical et high
+5. Documenter les faux positifs si besoin
+```
+
+Chaque trimestre ou avant mise en production importante :
+
+```text
+1. Faire une revue manuelle ciblee
+2. Tester les roles utilisateurs
+3. Tester les formulaires sensibles
+4. Verifier les rate limits
+5. Revoir les variables d'environnement et secrets
+```
+
+## Conclusion
+
+Ce workflow apporte un socle DevSecOps simple et reutilisable.
+
+Il automatise les controles les plus utiles au quotidien, produit des rapports exploitables, notifie l'equipe dans Slack et ajoute une synthese IA pour aider a prioriser.
+
+Il est particulierement adapte aux outils internes et petites applications web, tout en restant suffisamment generique pour etre copie dans d'autres repositories.

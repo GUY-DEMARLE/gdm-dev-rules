@@ -1,0 +1,702 @@
+name: Security OSS
+
+on:
+  pull_request:
+    branches: [main, staging, dev]
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Base URL to audit (optional, overrides vars.SECURITY_TARGET_URL)"
+        required: false
+        type: string
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+env:
+  TARGET_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.target_url || vars.SECURITY_TARGET_URL }}
+
+jobs:
+  pr_security_static:
+    name: PR Security - Secrets + SAST
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare PR reports directory
+        run: mkdir -p reports
+
+      - name: Gitleaks scan (blocking)
+        id: pr_gitleaks
+        run: |
+          set +e
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" zricethezav/gitleaks:latest detect \
+            --source /repo \
+            --no-git \
+            --redact \
+            --report-format json \
+            --report-path /repo/reports/pr-gitleaks-report.json \
+            --exit-code 1
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep
+        run: python -m pip install --upgrade semgrep
+
+      - name: Semgrep scan (blocking)
+        id: pr_semgrep
+        run: |
+          set +e
+          semgrep scan --config p/owasp-top-ten --config p/secrets --json --output reports/pr-semgrep-report.json --error --metrics=off
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload PR static reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-security-static-reports
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Fail PR static checks when findings exist
+        if: steps.pr_gitleaks.outputs.exit_code != '0' || steps.pr_semgrep.outputs.exit_code != '0'
+        run: exit 1
+
+  pr_security_osv:
+    name: PR Security - OSV Scanner
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare PR reports directory
+        run: mkdir -p reports
+
+      - name: OSV Scanner (blocking, no SARIF upload)
+        id: pr_osv
+        uses: google/osv-scanner-action/osv-scanner-action@v2.3.1
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --recursive
+            --format=json
+            --output=reports/pr-osv-scanner-report.json
+            .
+
+      - name: Upload PR OSV report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-security-osv-reports
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Fail PR OSV check when vulnerabilities exist
+        if: steps.pr_osv.outcome == 'failure'
+        run: exit 1
+
+  pr_security_notify:
+    name: PR Security - Slack notification
+    needs: [pr_security_static, pr_security_osv]
+    if: always() && github.event_name == 'pull_request' && (needs.pr_security_static.result == 'failure' || needs.pr_security_osv.result == 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download PR security reports
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: pr-security-*-reports
+          path: reports
+          merge-multiple: true
+
+      - name: Send PR security failure to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPOSITORY_NAME: ${{ github.repository }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          STATIC_RESULT: ${{ needs.pr_security_static.result }}
+          OSV_RESULT: ${{ needs.pr_security_osv.result }}
+        shell: bash
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not configured. Skipping PR security notification."
+            exit 0
+          fi
+
+          python - <<'PY' > pr-security-slack-payload.json
+          import json
+          import os
+          from pathlib import Path
+
+          static_result = os.environ.get("STATIC_RESULT", "unknown")
+          osv_result = os.environ.get("OSV_RESULT", "unknown")
+          reports = Path("reports")
+
+          def load_json(name):
+              path = reports / name
+              try:
+                  if path.exists() and path.stat().st_size > 0:
+                      return json.loads(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  return {"_parse_error": str(exc)}
+              return {}
+
+          def short(value, limit=140):
+              text = str(value or "").replace("\n", " ").strip()
+              return text if len(text) <= limit else text[: limit - 1] + "..."
+
+          def semgrep_findings():
+              data = load_json("pr-semgrep-report.json")
+              findings = []
+              for item in data.get("results", [])[:8]:
+                  extra = item.get("extra", {}) or {}
+                  check_id = item.get("check_id", "")
+                  path = item.get("path", "fichier inconnu")
+                  line = item.get("start", {}).get("line")
+                  message = short(extra.get("message"), 110)
+                  fix = "Lire la regle Semgrep et corriger le code."
+                  if "missing-user" in check_id:
+                      fix = "Ajouter un USER non-root dans ce Dockerfile avant le CMD."
+                  elif "dangerouslysetinnerhtml" in check_id.lower():
+                      fix = "Remplacer par du JSX/texte normal ou sanitizer avec DOMPurify."
+                  findings.append(f"- `{path}{':' + str(line) if line else ''}`: {message} Action: {fix}")
+              return findings
+
+          def gitleaks_findings():
+              data = load_json("pr-gitleaks-report.json")
+              if isinstance(data, dict):
+                  items = data.get("findings") or data.get("results") or []
+              else:
+                  items = data if isinstance(data, list) else []
+              findings = []
+              for item in items[:8]:
+                  rule = item.get("RuleID") or item.get("rule") or "secret potentiel"
+                  file_name = item.get("File") or item.get("file") or "fichier inconnu"
+                  line = item.get("StartLine") or item.get("line")
+                  findings.append(f"- `{file_name}{':' + str(line) if line else ''}`: {rule}. Action: revoquer la cle, supprimer du code, mettre dans GitHub Secrets.")
+              return findings
+
+          def osv_findings():
+              data = load_json("pr-osv-scanner-report.json")
+              findings = []
+              seen = set()
+              for result in data.get("results", []):
+                  source = result.get("source", {}).get("path") or result.get("source", {}).get("name") or "source inconnue"
+                  for package in result.get("packages", []) or []:
+                      pkg = package.get("package", {}) or {}
+                      name = pkg.get("name", "package inconnu")
+                      version = pkg.get("version", "?")
+                      ecosystem = pkg.get("ecosystem", "?")
+                      vulns = package.get("vulnerabilities", []) or []
+                      vuln_ids = ", ".join(v.get("id", "?") for v in vulns[:3])
+                      key = (source, ecosystem, name, version, vuln_ids)
+                      if not vulns or key in seen:
+                          continue
+                      seen.add(key)
+                      if ecosystem.lower() == "pypi":
+                          action = "mettre a jour `requirements.in`, regenerer `requirements.txt`, puis lancer les tests."
+                      elif ecosystem.lower() == "npm":
+                          action = "lancer `npm audit fix` ou mettre a jour le package, puis commiter `package-lock.json`."
+                      elif ecosystem.lower() in {"packagist", "composer"}:
+                          action = "mettre a jour Composer puis commiter `composer.lock`."
+                      else:
+                          action = "mettre a jour la dependance concernee."
+                      findings.append(f"- `{name}` {version} ({ecosystem}) dans `{source}`: {vuln_ids}. Action: {action}")
+                      if len(findings) >= 12:
+                          return findings
+              return findings
+
+          failed = []
+          sections = []
+
+          if static_result == "failure":
+              failed.append("Secrets + SAST")
+              gitleaks = gitleaks_findings()
+              semgrep = semgrep_findings()
+              if gitleaks:
+                  sections.append("*Secrets detectes par Gitleaks:*\n" + "\n".join(gitleaks))
+              if semgrep:
+                  sections.append("*Findings Semgrep:*\n" + "\n".join(semgrep))
+              if not gitleaks and not semgrep:
+                  sections.append("*Secrets + SAST:* le job a echoue, mais aucun rapport JSON exploitable n'a ete trouve. Ouvrir les logs du job.")
+
+          if osv_result == "failure":
+              failed.append("OSV Scanner")
+              osv = osv_findings()
+              if osv:
+                  sections.append("*Dependances vulnerables OSV:*\n" + "\n".join(osv))
+              else:
+                  sections.append("*OSV Scanner:* le job a echoue, mais aucun rapport JSON exploitable n'a ete trouve. Ouvrir les logs du job.")
+
+          details = "\n\n".join(sections) if sections else "Ouvrir les logs du workflow pour identifier le job en erreur."
+
+          text = f"""PR security check en echec sur {os.environ.get('REPOSITORY_NAME')}
+          PR: {os.environ.get('PR_TITLE')} - {os.environ.get('PR_URL')}
+          Auteur: {os.environ.get('PR_AUTHOR')}
+          Run: {os.environ.get('RUN_URL')}
+
+          Jobs en echec: {', '.join(failed) if failed else 'inconnu'}
+          Secrets + SAST: {static_result}
+          OSV Scanner: {osv_result}
+
+          Analyse:
+          {details}
+
+          Important: si la PR peut quand meme etre mergee, active les branch protection rules et rends ces checks obligatoires."""
+
+          print(json.dumps({"text": text}))
+          PY
+
+          curl -sS -X POST -H "Content-Type: application/json" --data @pr-security-slack-payload.json "$SLACK_WEBHOOK_URL"
+
+  weekly_security_audit:
+    name: Weekly Security Audit
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare reports directory
+        run: mkdir -p reports
+
+      - name: Detect project files
+        id: detect
+        shell: bash
+        run: |
+          if [ -n "$(find . -name composer.lock -not -path './vendor/*' -print -quit)" ]; then echo "has_composer=true" >> "$GITHUB_OUTPUT"; else echo "has_composer=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$(find . -name package-lock.json -not -path './vendor/*' -not -path './node_modules/*' -print -quit)" ]; then echo "has_package_lock=true" >> "$GITHUB_OUTPUT"; else echo "has_package_lock=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$(find . -name 'requirements*.txt' -not -path './vendor/*' -not -path './node_modules/*' -print -quit)" ]; then echo "has_requirements=true" >> "$GITHUB_OUTPUT"; else echo "has_requirements=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$(find . -iname Dockerfile -not -path './vendor/*' -not -path './node_modules/*' -print -quit)" ]; then echo "has_dockerfile=true" >> "$GITHUB_OUTPUT"; else echo "has_dockerfile=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$TARGET_URL" ]; then echo "has_target_url=true" >> "$GITHUB_OUTPUT"; else echo "has_target_url=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Gitleaks scan (report)
+        id: gitleaks
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -v "${GITHUB_WORKSPACE}/reports:/reports" zricethezav/gitleaks:latest detect \
+            --source /repo \
+            --no-git \
+            --redact \
+            --report-format json \
+            --report-path /reports/gitleaks-report.json \
+            --exit-code 1
+        continue-on-error: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep
+        run: python -m pip install --upgrade semgrep
+
+      - name: Semgrep scan (report)
+        id: semgrep
+        run: semgrep scan --config p/owasp-top-ten --config p/secrets --json --output reports/semgrep-report.json --metrics=off
+        continue-on-error: true
+
+      - name: OSV Scanner (report)
+        id: osv
+        uses: google/osv-scanner-action/osv-scanner-action@v2.3.1
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --recursive
+            --format=json
+            --output=reports/osv-scanner-report.json
+            .
+
+      - name: Setup PHP for Composer audit
+        if: steps.detect.outputs.has_composer == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer
+
+      - name: Composer audit if composer.lock exists
+        id: composer_audit
+        if: steps.detect.outputs.has_composer == 'true'
+        shell: bash
+        run: |
+          find . -name composer.lock -not -path './vendor/*' -print0 | while IFS= read -r -d '' lockfile; do
+            dir="$(dirname "$lockfile")"
+            safe_name="$(echo "$dir" | sed 's#^\./##; s#[^A-Za-z0-9_.-]#-#g')"
+            [ -z "$safe_name" ] && safe_name="root"
+            (cd "$dir" && composer audit --format=json) > "reports/composer-audit-${safe_name}.json"
+          done
+        continue-on-error: true
+
+      - name: Setup Node for npm audit
+        if: steps.detect.outputs.has_package_lock == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: npm audit if package-lock.json exists
+        id: npm_audit
+        if: steps.detect.outputs.has_package_lock == 'true'
+        shell: bash
+        run: |
+          find . -name package-lock.json -not -path './vendor/*' -not -path './node_modules/*' -print0 | while IFS= read -r -d '' lockfile; do
+            dir="$(dirname "$lockfile")"
+            safe_name="$(echo "$dir" | sed 's#^\./##; s#[^A-Za-z0-9_.-]#-#g')"
+            [ -z "$safe_name" ] && safe_name="root"
+            (cd "$dir" && npm audit --json) > "reports/npm-audit-${safe_name}.json"
+          done
+        continue-on-error: true
+
+      - name: Install pip-audit
+        if: steps.detect.outputs.has_requirements == 'true'
+        run: python -m pip install --upgrade pip-audit
+
+      - name: pip-audit if requirements.txt exists
+        id: pip_audit
+        if: steps.detect.outputs.has_requirements == 'true'
+        shell: bash
+        run: |
+          find . -name 'requirements*.txt' -not -path './vendor/*' -not -path './node_modules/*' -print0 | while IFS= read -r -d '' reqfile; do
+            safe_name="$(echo "$reqfile" | sed 's#^\./##; s#[^A-Za-z0-9_.-]#-#g')"
+            pip-audit -r "$reqfile" -f json -o "reports/pip-audit-${safe_name}.json"
+          done
+        continue-on-error: true
+
+      - name: Docker filesystem scan if Dockerfile exists
+        id: docker_scan
+        if: steps.detect.outputs.has_dockerfile == 'true'
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/project" aquasec/trivy:latest fs \
+            --format json \
+            --output /project/reports/trivy-fs-report.json \
+            /project
+        continue-on-error: true
+
+      - name: ZAP baseline scan if SECURITY_TARGET_URL exists
+        id: zap
+        if: steps.detect.outputs.has_target_url == 'true'
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}/reports:/zap/wrk/:rw" -t ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "$TARGET_URL" -a -J zap-report.json -w zap-report.md -r zap-report.html
+        continue-on-error: true
+
+      - name: Setup uv for Supabomb
+        if: steps.detect.outputs.has_target_url == 'true'
+        uses: astral-sh/setup-uv@v6
+
+      - name: Supabomb discover if SECURITY_TARGET_URL exists
+        id: supabomb
+        if: steps.detect.outputs.has_target_url == 'true'
+        run: uvx supabomb discover --url "$TARGET_URL" | tee reports/supabomb-report.txt
+        continue-on-error: true
+
+      - name: Record skipped web scan
+        if: steps.detect.outputs.has_target_url != 'true'
+        run: echo "Skipped ZAP and Supabomb because SECURITY_TARGET_URL is not configured." > reports/web-scan-skipped.txt
+
+      - name: Build audit summary
+        if: always()
+        shell: bash
+        run: |
+          cat > reports/security-summary.md <<EOF
+          # Security audit summary
+
+          Repository: ${{ github.repository }}
+          Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Target URL: ${TARGET_URL:-not configured}
+
+          ## Results
+
+          - Gitleaks: ${{ steps.gitleaks.outcome || 'skipped' }}
+          - Semgrep: ${{ steps.semgrep.outcome || 'skipped' }}
+          - OSV Scanner: ${{ steps.osv.outcome || 'skipped' }}
+          - Composer audit: ${{ steps.composer_audit.outcome || 'skipped' }}
+          - npm audit: ${{ steps.npm_audit.outcome || 'skipped' }}
+          - pip-audit: ${{ steps.pip_audit.outcome || 'skipped' }}
+          - Docker/Trivy scan: ${{ steps.docker_scan.outcome || 'skipped' }}
+          - ZAP baseline: ${{ steps.zap.outcome || 'skipped' }}
+          - Supabomb: ${{ steps.supabomb.outcome || 'skipped' }}
+
+          ## Detected project files
+
+          - composer.lock: ${{ steps.detect.outputs.has_composer }}
+          - package-lock.json: ${{ steps.detect.outputs.has_package_lock }}
+          - requirements*.txt: ${{ steps.detect.outputs.has_requirements }}
+          - Dockerfile: ${{ steps.detect.outputs.has_dockerfile }}
+          - SECURITY_TARGET_URL: ${{ steps.detect.outputs.has_target_url }}
+          EOF
+
+      - name: AI security analysis
+        if: always()
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_SECURITY_MODEL: ${{ vars.OPENAI_SECURITY_MODEL || vars.OPENAI_MAINTENANCE_MODEL || 'gpt-5.4-mini' }}
+          REPOSITORY_NAME: ${{ github.repository }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITLEAKS_OUTCOME: ${{ steps.gitleaks.outcome || 'skipped' }}
+          SEMGREP_OUTCOME: ${{ steps.semgrep.outcome || 'skipped' }}
+          OSV_OUTCOME: ${{ steps.osv.outcome || 'skipped' }}
+          COMPOSER_OUTCOME: ${{ steps.composer_audit.outcome || 'skipped' }}
+          NPM_OUTCOME: ${{ steps.npm_audit.outcome || 'skipped' }}
+          PIP_AUDIT_OUTCOME: ${{ steps.pip_audit.outcome || 'skipped' }}
+          DOCKER_OUTCOME: ${{ steps.docker_scan.outcome || 'skipped' }}
+          ZAP_OUTCOME: ${{ steps.zap.outcome || 'skipped' }}
+          SUPABOMB_OUTCOME: ${{ steps.supabomb.outcome || 'skipped' }}
+        shell: bash
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "Conseil IA indisponible: OPENAI_API_KEY n'est pas configure." > reports/ai-security-advice.txt
+            exit 0
+          fi
+
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+          from pathlib import Path
+
+          REPORTS = Path("reports")
+          OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+
+          def load_json(path):
+              try:
+                  if path.exists() and path.stat().st_size > 0:
+                      return json.loads(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  return {"_parse_error": str(exc)}
+              return {}
+
+          def redact(value):
+              text = str(value or "")
+              text = re.sub(r"sk-[A-Za-z0-9_-]{12,}", "sk-REDACTED", text)
+              text = re.sub(r"sk_(live|test)_[A-Za-z0-9_-]{12,}", "sk_REDACTED", text)
+              text = re.sub(r"xox[baprs]-[A-Za-z0-9-]{12,}", "xox-REDACTED", text)
+              text = re.sub(r"AIza[0-9A-Za-z_-]{20,}", "AIza-REDACTED", text)
+              return text[:500]
+
+          def semgrep_summary():
+              data = load_json(REPORTS / "semgrep-report.json")
+              results = data.get("results", []) if isinstance(data, dict) else []
+              sample = []
+              for item in results[:20]:
+                  extra = item.get("extra", {}) or {}
+                  sample.append({
+                      "check_id": item.get("check_id"),
+                      "severity": extra.get("severity"),
+                      "path": item.get("path"),
+                      "message": redact(extra.get("message")),
+                  })
+              return {"count": len(results), "sample": sample}
+
+          def osv_summary():
+              data = load_json(REPORTS / "osv-scanner-report.json")
+              results = data.get("results", []) if isinstance(data, dict) else []
+              packages = []
+              vuln_count = 0
+              for result in results:
+                  for package in result.get("packages", []) or []:
+                      vulns = package.get("vulnerabilities", []) or []
+                      if not vulns:
+                          continue
+                      vuln_count += len(vulns)
+                      packages.append({
+                          "package": package.get("package", {}).get("name"),
+                          "ecosystem": package.get("package", {}).get("ecosystem"),
+                          "vulns": [v.get("id") for v in vulns[:5]],
+                      })
+              return {"vulnerability_count": vuln_count, "packages": packages[:20]}
+
+          def composer_summaries():
+              summaries = []
+              for path in sorted(REPORTS.glob("composer-audit-*.json")):
+                  data = load_json(path)
+                  advisories = data.get("advisories", {}) if isinstance(data, dict) else {}
+                  summaries.append({
+                      "file": path.name,
+                      "advisory_count": sum(len(v) for v in advisories.values()) if isinstance(advisories, dict) else 0,
+                      "packages": sorted(advisories.keys())[:20] if isinstance(advisories, dict) else [],
+                  })
+              return summaries
+
+          def npm_summaries():
+              summaries = []
+              for path in sorted(REPORTS.glob("npm-audit-*.json")):
+                  data = load_json(path)
+                  metadata = data.get("metadata", {}).get("vulnerabilities", {}) if isinstance(data, dict) else {}
+                  summaries.append({"file": path.name, "severity_counts": metadata})
+              return summaries
+
+          def zap_summary():
+              data = load_json(REPORTS / "zap-report.json")
+              sites = data.get("site", []) if isinstance(data, dict) else []
+              alerts = []
+              for site in sites:
+                  for alert in site.get("alerts", []) or []:
+                      alerts.append({
+                          "risk": alert.get("riskdesc"),
+                          "name": alert.get("name"),
+                          "count": alert.get("count"),
+                      })
+              return {"alert_count": len(alerts), "alerts": alerts[:25]}
+
+          def read_text_report(path_name, max_chars=2500):
+              path = REPORTS / path_name
+              if not path.exists():
+                  return ""
+              return redact(path.read_text(encoding="utf-8", errors="replace"))[:max_chars]
+
+          context = {
+              "repository": os.environ.get("REPOSITORY_NAME"),
+              "run_url": os.environ.get("RUN_URL"),
+              "target_url_configured": bool(os.environ.get("TARGET_URL")),
+              "job_outcomes": {
+                  "gitleaks": os.environ.get("GITLEAKS_OUTCOME"),
+                  "semgrep": os.environ.get("SEMGREP_OUTCOME"),
+                  "osv": os.environ.get("OSV_OUTCOME"),
+                  "composer": os.environ.get("COMPOSER_OUTCOME"),
+                  "npm": os.environ.get("NPM_OUTCOME"),
+                  "pip_audit": os.environ.get("PIP_AUDIT_OUTCOME"),
+                  "docker_trivy": os.environ.get("DOCKER_OUTCOME"),
+                  "zap": os.environ.get("ZAP_OUTCOME"),
+                  "supabomb": os.environ.get("SUPABOMB_OUTCOME"),
+              },
+              "semgrep": semgrep_summary(),
+              "osv": osv_summary(),
+              "composer_audit": composer_summaries(),
+              "npm_audit": npm_summaries(),
+              "zap": zap_summary(),
+              "supabomb_excerpt": read_text_report("supabomb-report.txt"),
+          }
+
+          body = {
+              "model": os.environ.get("OPENAI_SECURITY_MODEL", "gpt-5.4-mini"),
+              "instructions": (
+                  "Tu es un analyste securite applicative senior. "
+                  "Tu lis un audit automatique GitHub Actions et tu produis une synthese Slack courte, "
+                  "en francais, actionnable, sans dramatiser. "
+                  "Priorise les actions concretes. Ne demande jamais de coller des secrets."
+              ),
+              "input": (
+                  "Analyse ce contexte JSON d'audit securite. "
+                  "Reponds en 8 lignes maximum avec: statut global, points critiques, actions recommandees, "
+                  "et quoi regarder dans les artifacts.\n\n"
+                  + json.dumps(context, ensure_ascii=False, indent=2)
+              ),
+              "max_output_tokens": 500,
+              "store": False,
+          }
+
+          request = urllib.request.Request(
+              OPENAI_RESPONSES_URL,
+              data=json.dumps(body).encode("utf-8"),
+              headers={
+                  "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              text = payload.get("output_text", "")
+              if not text:
+                  chunks = []
+                  for item in payload.get("output", []) or []:
+                      for content in item.get("content", []) or []:
+                          if content.get("text"):
+                              chunks.append(content["text"])
+                  text = "\n".join(chunks)
+              if not text.strip():
+                  text = "Conseil IA indisponible: reponse OpenAI vide."
+          except Exception as exc:
+              text = f"Conseil IA indisponible pour cette execution: {exc}"
+
+          (REPORTS / "ai-security-advice.txt").write_text(text.strip() + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-reports
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Slack report
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPOSITORY_NAME: ${{ github.repository }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITLEAKS_OUTCOME: ${{ steps.gitleaks.outcome || 'skipped' }}
+          SEMGREP_OUTCOME: ${{ steps.semgrep.outcome || 'skipped' }}
+          OSV_OUTCOME: ${{ steps.osv.outcome || 'skipped' }}
+          COMPOSER_OUTCOME: ${{ steps.composer_audit.outcome || 'skipped' }}
+          NPM_OUTCOME: ${{ steps.npm_audit.outcome || 'skipped' }}
+          PIP_AUDIT_OUTCOME: ${{ steps.pip_audit.outcome || 'skipped' }}
+          DOCKER_OUTCOME: ${{ steps.docker_scan.outcome || 'skipped' }}
+          ZAP_OUTCOME: ${{ steps.zap.outcome || 'skipped' }}
+          SUPABOMB_OUTCOME: ${{ steps.supabomb.outcome || 'skipped' }}
+        shell: bash
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not configured. Skipping Slack notification."
+            exit 0
+          fi
+
+          python - <<'PY' > reports/slack-payload.json
+          import json
+          import os
+          from pathlib import Path
+
+          ai_path = Path("reports/ai-security-advice.txt")
+          ai_advice = ai_path.read_text(encoding="utf-8").strip() if ai_path.exists() else "Conseil IA indisponible."
+          target_url = os.environ.get("TARGET_URL") or "not configured"
+
+          text = f"""Security audit termine pour {os.environ.get('REPOSITORY_NAME')}
+          Run: {os.environ.get('RUN_URL')}
+          Target: {target_url}
+
+          Gitleaks: {os.environ.get('GITLEAKS_OUTCOME')}
+          Semgrep: {os.environ.get('SEMGREP_OUTCOME')}
+          OSV: {os.environ.get('OSV_OUTCOME')}
+          Composer: {os.environ.get('COMPOSER_OUTCOME')}
+          npm: {os.environ.get('NPM_OUTCOME')}
+          pip-audit: {os.environ.get('PIP_AUDIT_OUTCOME')}
+          Docker/Trivy: {os.environ.get('DOCKER_OUTCOME')}
+          ZAP: {os.environ.get('ZAP_OUTCOME')}
+          Supabomb: {os.environ.get('SUPABOMB_OUTCOME')}
+
+          Conseil IA:
+          {ai_advice}
+
+          Rapports disponibles dans les artifacts GitHub Actions."""
+
+          print(json.dumps({"text": text}))
+          PY
+
+          curl -sS -X POST -H "Content-Type: application/json" --data @reports/slack-payload.json "$SLACK_WEBHOOK_URL"
