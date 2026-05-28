@@ -2,9 +2,9 @@
 
 **Quand utiliser ce doc** : à chaque création d'un nouveau projet GDM, ou pour mettre à jour un projet existant aux standards GDM.
 **Durée** : ~25 minutes pour un nouveau projet, ~10 minutes pour une mise à jour.
-**Prérequis** : avoir suivi `SETUP_MACHINE.md` (gitleaks, npm, comptes Vercel/Render/Supabase OK).
+**Prérequis** : avoir suivi `SETUP_MACHINE.md` (gitleaks, npm, accès GitHub Actions, comptes Vercel/Render/Supabase OK).
 
-À la fin de ce doc, ton projet a tous les garde-fous de sécurité GDM en place : pas de secret possible dans Git, branches protégées, RLS Supabase, et architecture front/back propre.
+À la fin de ce doc, ton projet a tous les garde-fous de sécurité GDM en place : pas de secret possible dans Git, Security OSS actif sur PR et audit hebdomadaire, branches protégées, RLS Supabase, et architecture front/back propre.
 
 ---
 
@@ -17,13 +17,13 @@
 │   2. Installation des règles IA GDM                     │
 │   3. Configuration .gitignore                           │
 │   4. Fichier .env.example                               │
-│   5. Installation Husky + hook gitleaks                 │
-│   6. Workflow GitHub Actions (CI sécurité)              │
+│   5. Modèle de branches GitHub                          │
+│   6. Workflow GitHub Actions Security OSS               │
 │   7. Branch protection (main, staging)                  │
 │   8. GitHub Secret Scanning                             │
 │   9. Setup Supabase (RLS dès le début)                  │
 │   10. Setup Vercel et/ou Render                         │
-│   11. Test final : tentative de commit piégée           │
+│   11. Test final : PR Security OSS + branch protection  │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -251,154 +251,153 @@ Le commentaire est dans Git, donc la clé est dans Git. Même retirée plus tard
 
 ---
 
-## 5. Husky + hook gitleaks pre-commit
+## 5. Modèle de branches GitHub
 
-**Pourquoi** : Husky permet d'exécuter automatiquement des scripts à des moments précis du workflow Git (avant un commit, avant un push, etc.). On va l'utiliser pour lancer gitleaks **avant** chaque commit. Si gitleaks détecte un secret, le commit est annulé.
+**Pourquoi** : le contrôle fiable est côté GitHub : PR obligatoire, historique propre, checks Security OSS, et interdiction de bypass.
 
-### Init du package.json (si pas déjà fait)
+Le modèle standard GDM est simple :
 
-```bash
-npm init -y
+```mermaid
+flowchart LR
+  feature["feature/* ou fix/*"] --> prDev["PR vers dev"]
+  prDev --> dev["dev\nintegration continue"]
+  dev --> prStaging["PR vers staging"]
+  prStaging --> staging["staging\nrecette / preprod"]
+  staging --> prMain["PR vers main"]
+  prMain --> main["main\nproduction"]
+
+  prDev -. "Security OSS PR\nSecrets + SAST + OSV" .-> checks1["Checks obligatoires"]
+  prStaging -. "Security OSS PR\nSecrets + SAST + OSV" .-> checks2["Checks obligatoires"]
+  prMain -. "Security OSS PR\nSecrets + SAST + OSV" .-> checks3["Checks obligatoires"]
 ```
 
-### Installation Husky
+Règles de branches recommandées :
 
-```bash
-npm install --save-dev husky
-npx husky init
-```
+| Branche | Rôle | Merge autorisé | Règles minimales |
+|---|---|---|---|
+| `main` | Production | PR uniquement depuis `staging` | PR obligatoire, checks Security OSS, linear history, conversation résolue, pas de bypass |
+| `staging` | Recette / préprod | PR depuis `dev` ou hotfix | PR obligatoire, checks Security OSS, linear history, conversation résolue |
+| `dev` | Intégration | PR depuis `feature/*` ou `fix/*` | PR obligatoire, checks Security OSS |
+| `feature/*`, `fix/*` | Travail courant | Push libre du dev | Pas de protection stricte |
 
-La commande `husky init` :
-- Crée un dossier `.husky/`
-- Ajoute un script `prepare` dans `package.json`
-- Crée un hook par défaut `.husky/pre-commit` (qui contient `npm test` à l'origine)
+Options GitHub à activer sur `main` et `staging` :
 
-### Configuration du hook pour gitleaks
+- **Require a pull request before merging**
+- **Require status checks to pass before merging**
+- **Require branches to be up to date before merging**
+- **Require conversation resolution before merging**
+- **Require linear history**
+- **Do not allow bypassing the above settings**
 
-Remplace le contenu du hook pre-commit par gitleaks :
+Mode de merge GDM :
 
-```bash
-echo "gitleaks protect --staged --verbose" > .husky/pre-commit
-```
+- On merge uniquement avec **Rebase and merge**.
+- On désactive **Create a merge commit**.
+- On évite **Squash and merge** par défaut, sauf cas exceptionnel décidé en review.
 
-(Sur Windows, si la commande `echo >` te pose problème, ouvre `.husky/pre-commit` dans VS Code et remplace son contenu manuellement par la ligne ci-dessus.)
-
-### Test que le hook fonctionne
-
-Crée un commit volontairement piégé :
-
-```bash
-echo "GEMINI_API_KEY=AIzaSyDaGt24qMlfCXQlYhJSSdsum6FrKTxSLn8" > test_leak.txt
-git add test_leak.txt
-git commit -m "test"
-```
-
-Tu dois voir gitleaks lancer un scan et **bloquer le commit** avec un message d'erreur du type :
-
-```
-Finding:     AIzaSyDaGt24qMlfCXQlYhJSSdsum6FrKTxSLn8
-RuleID:      gcp-api-key
-File:        test_leak.txt
-WRN leaks found: 1
-```
-
-Le commit échoue. Nettoie :
-
-```bash
-rm test_leak.txt
-git restore --staged test_leak.txt 2>$null
-```
-
-Si le commit **passe** sans erreur, le hook n'est pas correctement installé. Vérifie :
-- Le fichier `.husky/pre-commit` existe et contient `gitleaks protect --staged --verbose`
-- Sur Mac/Linux : le fichier a les droits d'exécution (`chmod +x .husky/pre-commit`)
-- gitleaks est bien dans le PATH (`gitleaks version` doit fonctionner)
+Pourquoi : avec `Require linear history` + rebase merge, l'historique reste lisible, sans gros commits de merge inutiles. Pour une petite équipe, c'est plus simple à relire, à bisecter et à auditer.
 
 ---
 
-## 6. Workflow GitHub Actions — CI de sécurité
+## 6. Workflow GitHub Actions — Security OSS
 
-**Pourquoi** : le hook pre-commit est local à ta machine. Si un dev oublie de l'installer ou le contourne avec `--no-verify`, le secret peut quand même partir sur GitHub. Le workflow CI scanne le repo côté GitHub, c'est la deuxième couche.
+**Pourquoi** : Security OSS est la couche de contrôle côté GitHub. Elle ne dépend pas de la machine du dev, donc elle reste active même si quelqu'un n'a pas les mêmes outils installés en local.
 
-### Création du workflow
+Security OSS devient le workflow standard GDM :
 
-Crée le fichier `.github/workflows/security.yml` :
+- Sur PR : `Gitleaks`, `Semgrep` et `OSV Scanner` sont bloquants.
+- Chaque lundi : audit complet non bloquant avec rapports et Slack.
+- Si `SECURITY_TARGET_URL` est configurée : ZAP baseline + Supabomb sont lancés sur l'URL cible.
+- Si les lockfiles existent : Composer, npm, pip-audit et Trivy sont activés automatiquement selon la stack.
 
-```yaml
-name: Security
+### Installation du workflow
 
-on:
-  pull_request:
-  push:
-    branches: [main, staging, dev]
+Crée le fichier suivant dans le repo applicatif :
 
-jobs:
-  gitleaks:
-    name: Scan secrets (gitleaks)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Récupère tout l'historique pour scanner aussi les vieux commits
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```text
+.github/workflows/security-oss.yml
 ```
 
-### Option recommandée — Pipeline OSS complet
+Le repo `gdm-dev-rules` reste la source de vérité. Selon l'état de centralisation :
 
-Si tu veux une couverture sécurité plus large en 100% open source, ajoute aussi :
+- Si le workflow central est disponible en workflow réutilisable, le repo applicatif ne doit contenir qu'un caller léger vers `GUY-DEMARLE/gdm-dev-rules`.
+- Sinon, copie temporairement la version validée de `.github/workflows/security-oss.yml` depuis `gdm-dev-rules`.
 
-- jobs PR bloquants : `gitleaks`, `semgrep`, `osv-scanner`
-- job planifié non bloquant : `zap baseline` + `supabomb` avec rapports en artefact
+Objectif à terme : quand on corrige le workflow central, toutes les apps récupèrent la correction sans devoir recopier 5 fois le gros fichier.
 
-Notes de fonctionnement du template OSS :
+### Configuration GitHub du repo
 
-- `gitleaks` est configuré en scan des commits de PR (évite de bloquer sur des fuites historiques déjà présentes)
-- `osv-scanner` est configuré avec `upload-sarif: false` (compatible repos sans GHAS)
+Dans GitHub, va dans **Settings → Secrets and variables → Actions**.
 
-Dans le repo cible :
+Secrets recommandés :
 
-```bash
-mkdir -p .github/workflows
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
+```text
+SLACK_WEBHOOK_URL
 ```
 
-Ou en PowerShell :
+Permet d'envoyer les rapports Slack et les alertes PR en échec.
 
-```powershell
-New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
-Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
+```text
+OPENAI_API_KEY
 ```
 
-Puis configure la variable de repo GitHub suivante :
+Optionnel. Permet d'ajouter une synthèse IA courte et actionnable dans le rapport Slack. Si absent, le workflow continue sans IA.
 
-- `SECURITY_TARGET_URL` = URL de preview/prod à auditer (ex: `https://app.guydemarle.com`)
+Variables recommandées :
 
-Pour le détail de chaque outil (ce que ça couvre / ce que ça ne couvre pas), voir :
-`docs/SECURITY_OSS_PIPELINE.md`
+```text
+SECURITY_TARGET_URL=https://app.guydemarle.com
+```
 
-Pour lancer et valider ce workflow :
+Optionnel mais recommandé pour les apps web publiques. Active ZAP baseline et Supabomb.
 
-1. Commit/push `.github/workflows/security-oss.yml`
-2. Configure la variable GitHub `SECURITY_TARGET_URL`
-3. Va dans `Actions` -> `Security OSS` -> `Run workflow`
-4. Vérifie les jobs PR bloquants et les artefacts du job `Scheduled Audit - ZAP + Supabomb`
+```text
+OPENAI_SECURITY_MODEL=gpt-5.4-mini
+```
+
+Optionnel. Permet de changer le modèle utilisé pour la synthèse IA.
+
+### Ce que le workflow crée
+
+Sur Pull Request :
+
+```text
+PR Security - Secrets + SAST -> Gitleaks + Semgrep
+PR Security - OSV Scanner   -> dépendances vulnérables
+PR Security - Slack notification -> message Slack si un check échoue
+```
+
+Chaque lundi ou en lancement manuel :
+
+```text
+Weekly Security Audit -> rapports Gitleaks, Semgrep, OSV, Composer, npm, pip-audit, Trivy, ZAP, Supabomb
+```
+
+Les rapports sont disponibles dans les artifacts GitHub Actions.
+
+Pour le détail de chaque outil et du process, voir :
+
+- `docs/SECURITY_OSS_PIPELINE.md`
+- `docs/security-monitoring-process.md`
 
 ### Test que le workflow se lance
 
-Commit ce fichier et pousse :
+Commit le workflow et pousse :
 
 ```bash
-git add .github/workflows/security.yml
-git commit -m "chore(security): add gitleaks workflow"
+git add .github/workflows/security-oss.yml
+git commit -m "chore(security): add Security OSS workflow"
 git push
 ```
 
-Va sur https://github.com/GUY-DEMARLE/gdm-app-exemple/actions et tu dois voir le workflow "Security" en train de tourner ou terminé en succès.
+Va sur https://github.com/GUY-DEMARLE/gdm-app-exemple/actions et tu dois voir le workflow "Security OSS".
 
-Si tu veux le tester en cas de fuite, tente de pousser le commit piégé de l'étape 5 (avec `--no-verify` pour bypass le hook local) et regarde le workflow Actions s'exécuter et échouer.
+Teste ensuite les deux chemins :
+
+1. Ouvre une PR vers `staging` ou `main` : les jobs PR doivent se lancer.
+2. Lance manuellement `Actions` → `Security OSS` → `Run workflow` : le job hebdomadaire doit produire les artifacts et, si configuré, le message Slack.
+
+Si tu veux tester le blocage, pousse une branche test avec un faux secret dans un fichier temporaire. La PR doit échouer côté Security OSS.
 
 ---
 
@@ -424,20 +423,22 @@ Coche les options suivantes :
   - Dismiss stale pull request approvals when new commits are pushed
 - ✅ **Require status checks to pass before merging**
   - Require branches to be up to date before merging
-  - Status checks (minimum) : `Scan secrets (gitleaks)`
-  - Status checks (si workflow OSS activé) :
-    - `PR Security - Gitleaks + Semgrep`
+  - Status checks Security OSS :
+    - `PR Security - Secrets + SAST`
     - `PR Security - OSV Scanner`
 - ✅ **Require conversation resolution before merging**
+- ✅ **Require linear history**
 - ✅ **Do not allow bypassing the above settings**
 - ✅ *(Idéal)* **Restrict who can push to matching branches**
+
+Dans **Settings → General → Pull Requests**, garde uniquement **Allow rebase merging** comme mode de merge standard. Désactive **Allow merge commits**. Désactive aussi **Allow squash merging**, sauf si le repo a une raison explicite de le garder.
 
 
 Bouton **Create** ou **Save changes**.
 
 ### Règle pour `staging`
 
-Même chose, branch name pattern : `staging`. Tu peux décocher "Require approvals" si l'équipe est petite (2 devs), mais garde au minimum le PR obligatoire + status checks requis. Si tu utilises le workflow OSS, exige les mêmes checks (`PR Security - Gitleaks + Semgrep`, `PR Security - OSV Scanner`).
+Même chose, branch name pattern : `staging`. Tu peux décocher "Require approvals" si l'équipe est petite (2 devs), mais garde au minimum le PR obligatoire + status checks requis. Exige les mêmes checks Security OSS (`PR Security - Secrets + SAST`, `PR Security - OSV Scanner`).
 
 ### Test
 
@@ -482,12 +483,11 @@ Sur cette page, regarde la section **GitHub Advanced Security** :
 
 ### Si GHAS n'est pas dispo (le cas le plus probable aujourd'hui)
 
-Pas grave — gitleaks (étapes 4 et 5 de ce doc) couvre déjà les commits locaux et les PR sur GitHub. Secret Scanning serait une **troisième couche**, pas la première.
+Pas grave — Security OSS couvre déjà les PR sur GitHub avec Gitleaks, Semgrep et OSV. Secret Scanning serait une **couche supplémentaire**, pas la première.
 
 Concrètement, gitleaks attrape :
 
-- Les secrets au moment du commit local (étape 5)
-- Les secrets dans les PR avant merge (étape 6)
+- Les secrets dans les PR avant merge via Security OSS
 - Les secrets dans tout l'historique lors d'un audit ponctuel (`gitleaks detect`)
 
 Ce que Secret Scanning attraperait en plus :
@@ -611,7 +611,7 @@ END $$;
 supabase db remote run --file scripts/check-rls.sql
 ```
 
-Ou intégré au workflow CI (cf. évolution future de `security.yml`).
+Ou intégré au workflow Security OSS si on ajoute un check SQL dédié.
 
 ### Audit ponctuel du dashboard
 
@@ -692,20 +692,25 @@ Les secrets définis avec `supabase secrets set` sont accessibles dans la foncti
 
 Lance cette série de tests pour valider que tous les garde-fous sont en place.
 
-### Test 1 — Hook gitleaks
+### Test 1 — Security OSS bloque une PR piégée
 
 ```bash
 echo "GEMINI_API_KEY=AIzaSyTestFakeKey1234567890123456789012" > test_leak.txt
 git add test_leak.txt
-git commit -m "test"
-# → Doit échouer
+git commit -m "test security oss"
+git push origin HEAD:test/security-oss
+# → Ouvre une PR vers dev ou staging : Security OSS doit échouer
 rm test_leak.txt
 git restore --staged test_leak.txt 2>$null
 ```
 
-### Test 2 — Workflow CI
+Ferme ensuite la PR de test et supprime la branche. Ne merge jamais ce commit.
 
-Pousse une branche test, ouvre une PR, vérifie que le workflow "Security" tourne automatiquement et que la PR ne peut pas être mergée si le workflow échoue.
+### Test 2 — Workflow CI normal
+
+Pousse une branche test, ouvre une PR, vérifie que le workflow "Security OSS" tourne automatiquement et que la PR ne peut pas être mergée si `PR Security - Secrets + SAST` ou `PR Security - OSV Scanner` échoue.
+
+Si `SLACK_WEBHOOK_URL` est configuré, vérifie aussi qu'un échec de PR envoie un message Slack avec les findings et les actions à faire.
 
 ### Test 3 — Branch protection
 
@@ -753,9 +758,9 @@ Si tous les tests passent, ton projet est aux standards GDM. Tu peux commencer �
 - [x] Règles IA GDM installées (`.ai-rules/`, `.cursor/`, `CLAUDE.md`, `AGENTS.md`) avec contexte projet rempli
 - [x] `.gitignore` standard avec tous les `.env*` exclus
 - [x] `.env.example` avec placeholders uniquement
-- [x] Husky installé + hook pre-commit gitleaks fonctionnel
-- [x] Workflow `.github/workflows/security.yml` qui tourne sur PR/push
-- [x] Optionnel : workflow `.github/workflows/security-oss.yml` activé (gitleaks + semgrep + osv + zap + supabomb)
+- [x] Modèle de branches défini (`dev`, `staging`, `main`, branches feature/fix)
+- [x] Workflow `.github/workflows/security-oss.yml` actif
+- [x] Secrets/variables GitHub configurés si besoin : `SLACK_WEBHOOK_URL`, `OPENAI_API_KEY`, `SECURITY_TARGET_URL`, `OPENAI_SECURITY_MODEL`
 - [x] Branch protection sur `main` (et `staging` si applicable)
 - [x] GitHub Secret Scanning activé (si dispo)
 - [x] Projet Supabase créé avec RLS activée sur toutes les tables (si applicable)
@@ -768,11 +773,13 @@ Si tous les tests passent, ton projet est aux standards GDM. Tu peux commencer �
 
 ## Que faire si quelque chose ne marche pas
 
-**Le hook gitleaks ne se déclenche pas au commit** : vérifie que `.husky/pre-commit` existe et contient `gitleaks protect --staged --verbose`. Sur Mac/Linux, `chmod +x .husky/pre-commit`.
+**Le workflow GitHub Actions ne tourne pas** : vérifie que le fichier `security-oss.yml` est bien dans `.github/workflows/` (pas `.github/workflow/` ou autre faute de frappe), et que tu as poussé le commit qui le contient.
 
-**Le workflow GitHub Actions ne tourne pas** : vérifie que le fichier est bien dans `.github/workflows/` (pas `.github/workflow/` ou autre faute de frappe), et que tu as poussé le commit qui le contient.
+**Branch protection refuse de merger même via PR** : vérifie que tu as bien créé une PR (pas un push direct) et que les checks `PR Security - Secrets + SAST` et `PR Security - OSV Scanner` sont bien terminés en succès.
 
-**Branch protection refuse de m'inviter sur main même via PR** : vérifie que tu as bien créé une PR (pas un push direct) et que le workflow "Security" est bien terminé en succès.
+**Je ne reçois pas le message Slack Security OSS** : vérifie que le secret GitHub `SLACK_WEBHOOK_URL` est configuré dans le repo ou au niveau de l'organisation, et que le workflow a le droit d'accéder aux secrets.
+
+**L'audit web ZAP/Supabomb est ignoré** : vérifie que la variable GitHub `SECURITY_TARGET_URL` est configurée. Sans cette variable, le workflow saute volontairement les scans web.
 
 **Supabase refuse mes requêtes après avoir activé RLS** : c'est normal, le DENY ALL par défaut bloque tout. Crée des policies explicites pour chaque opération autorisée (cf. exemples étape 9).
 

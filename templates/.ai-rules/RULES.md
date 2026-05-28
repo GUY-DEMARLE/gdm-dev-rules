@@ -76,6 +76,14 @@ Interdit absolu : fallback client du type "si proxy indisponible, appel direct a
 
 ## 2) Checklists minimales obligatoires
 
+Le socle standard sur les apps actives est :
+
+```text
+Avant merge  -> Security OSS bloque Gitleaks, Semgrep et OSV.
+Chaque lundi -> Security OSS lance l'audit complet et envoie Slack.
+Production   -> Sentry surveille erreurs, latence, routes critiques et couts IA.
+```
+
 ### 2.1 Avant de coder une fonctionnalite
 
 - Identifier les secrets impliques.
@@ -101,30 +109,30 @@ Interdit absolu : fallback client du type "si proxy indisponible, appel direct a
 - Aucun `.env*` (hors `.env.example`) commite.
 - Aucune chaine ressemblant a un secret.
 - Architecture front/back respectee.
-- CI securite verte (gitleaks au minimum).
+- CI securite verte :
+  - `PR Security - Secrets + SAST` : Gitleaks + Semgrep.
+  - `PR Security - OSV Scanner` : dependances vulnerables.
+- Si Security OSS envoie un Slack d'echec : corriger les fichiers/packages cites avant merge.
 
 ### 2.5 Avant chaque deploiement prod
 
 - Scanner le bundle compile pour patterns de secrets.
 - Si pattern trouve -> deploiement bloque, correction obligatoire.
 
-### 2.6 Audit periodique (obligatoire)
+### 2.6 Audit periodique et monitoring (obligatoire)
 
-- Frequence minimale : mensuel pendant 3 mois apres lancement, puis trimestriel.
-- Lancer `gitleaks detect --source . --verbose --no-banner` sur chaque repo actif.
-- Verifier les tables Supabase sans RLS via requete SQL de controle.
-- Auditer les apps exposees avec :
-
-```bash
-uvx supabomb discover --url https://votre-app.example.com/
-```
-
-- Pour chaque endpoint/fonction detecte par `supabomb`, verifier :
-  - auth,
-  - validation input,
-  - rate limiting,
-  - aucun parametre sensible pilotable par le client.
-- Si GitHub Advanced Security (GHAS) est disponible, activer aussi Secret Scanning + Push Protection.
+- Frequence minimale : audit Security OSS chaque lundi.
+- Le workflow Security OSS detecte la stack et lance selon les fichiers presents :
+  - Gitleaks, Semgrep, OSV Scanner,
+  - Composer audit si `composer.lock`,
+  - npm audit si `package-lock.json`,
+  - pip-audit si `requirements*.txt`,
+  - Trivy si `Dockerfile`,
+  - ZAP + Supabomb si `SECURITY_TARGET_URL`.
+- Supabomb n'est pas lance via `uvx supabomb`; le workflow clone le repo officiel puis execute `uv run supabomb discover --url "$TARGET_URL"`.
+- Les rapports sont envoyes dans Slack et conserves en artifacts GitHub Actions.
+- Sentry doit etre installe sur les apps en prod pour suivre erreurs, latence, routes critiques, tokens et couts IA.
+- Revue manuelle trimestrielle : RLS Supabase, variables d'env, acces dashboards, endpoints admin, roles utilisateurs.
 
 ## 3) Patterns de secrets a reconnaitre
 
@@ -166,6 +174,8 @@ Quand tu proposes ou modifies du code :
 7. Documenter les variables dans `.env.example` avec placeholders.
 8. Si la demande viole une regle, expliquer le risque et proposer l'alternative sure.
 9. Pour une demande d'audit securite app exposee, inclure un plan `supabomb` + controles auth/RLS.
+10. Pour une app GDM active, proposer le workflow Security OSS et des monitors Sentry si absents.
+11. Ne jamais copier le gros workflow Security OSS dans un projet si un workflow central reutilisable existe ; installer seulement le caller qui reference `gdm-dev-rules`.
 
 ## 6) Stack et conventions (rappel)
 
@@ -182,3 +192,5 @@ Quand tu proposes ou modifies du code :
 - `SETUP_MACHINE.md` (setup poste dev)
 - `SETUP_PROJET.md` (setup projet)
 - `ARCHITECTURE_SECURITE_GDM.md` (reference complete)
+- `SECURITY_OSS_PIPELINE.md` (workflow GitHub Actions Security OSS)
+- `security-monitoring-process.md` (process Security OSS + Sentry)

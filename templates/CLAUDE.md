@@ -9,8 +9,12 @@ Ce projet suit les règles de développement et de sécurité de Guy Demarle.
 - Les patterns de clés à reconnaître (Anthropic, Google, Stripe, AWS, JWT...)
 - Le comportement attendu de l'IA (jamais de clé en dur, proxy systématique, RLS dès la migration, etc.)
 - La stack technique recommandée et les conventions
+- Le process Security OSS : Gitleaks/Semgrep/OSV sur PR, audit hebdomadaire Slack, artifacts GitHub Actions
+- Le process Sentry : erreurs, performance, routes lentes, tokens et couts IA en production
 
 Tu dois respecter ces règles dans tout ce que tu génères. Si une demande te paraît contraire à une règle, explique pourquoi c'est risqué et propose l'alternative correcte.
+
+Si tu ajoutes ou modifies un pipeline securite, ne copie pas le gros workflow central dans une app si un workflow reutilisable existe. L'app doit seulement contenir le caller qui reference `GUY-DEMARLE/gdm-dev-rules`.
 
 ## Contexte du projet
 

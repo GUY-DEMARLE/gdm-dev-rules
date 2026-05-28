@@ -1,18 +1,20 @@
 # Architecture & Sécurité — Dev GDM
 
-**Version** : 1.1 (mai 2026)
+**Version** : 1.2 (mai 2026)
 **Pour** : équipe dev interne + prestataires
 **Lecture rapide** : Parties 1 et 2 (5 min) — le reste sert de référence détaillée.
 
-## Le trio de docs GDM
+## Les docs GDM de reference
 
-Ce document fait partie d'un ensemble de 3 docs complémentaires :
+Ce document fait partie d'un ensemble de docs complémentaires :
 
 | Doc | Quand l'utiliser | Durée |
 |-----|------------------|-------|
 | **`SETUP_MACHINE.md`** | Une seule fois, à l'arrivée dans l'équipe | ~30 min |
 | **`SETUP_PROJET.md`** | À chaque nouveau projet | ~20 min |
 | **`ARCHITECTURE_SECURITE_GDM.md`** *(ce doc)* | Référence permanente pour les décisions d'archi et de sécu | Lecture continue |
+| **`SECURITY_OSS_PIPELINE.md`** | Détail du workflow GitHub Actions Security OSS | ~15 min |
+| **`security-monitoring-process.md`** | Synthèse responsable : Security OSS + Sentry + process app | ~10 min |
 
 Si tu débutes : commence par `SETUP_MACHINE.md`, puis `SETUP_PROJET.md` sur ton premier projet, puis reviens ici pour la suite.
 
@@ -61,14 +63,14 @@ Si tu débutes : commence par `SETUP_MACHINE.md`, puis `SETUP_PROJET.md` sur ton
 
 | # | Règle | Outil qui l'applique | Setup |
 |---|-------|---------------------|-------|
-| 1 | Aucun secret dans Git | gitleaks pre-commit + CI | Cf. `SETUP_PROJET.md` étape 4-5 |
-| 2 | Toute table Supabase a des RLS actives | Migration template + check CI | Cf. `SETUP_PROJET.md` étape 8 |
-| 3 | Pas de push direct sur `main` ou `staging` | Branch protection GitHub | Cf. `SETUP_PROJET.md` étape 6 |
+| 1 | Aucun secret dans Git | Gitleaks local + Security OSS CI | Cf. `SETUP_PROJET.md` + `SECURITY_OSS_PIPELINE.md` |
+| 2 | Toute table Supabase a des RLS actives | Migration template + audit Supabase/Supabomb | Cf. `SETUP_PROJET.md` étape 8 |
+| 3 | Pas de push direct sur `main` ou `staging` | Branch protection GitHub + checks Security OSS obligatoires | Cf. `SETUP_PROJET.md` étape 6 |
 | 4 | Variables d'env dans la plateforme, jamais dans le repo | `.gitignore` + revue PR | Cf. `SETUP_PROJET.md` étape 2-3 |
 | 5 | Aucun secret dans `VITE_*`, `NEXT_PUBLIC_*`, `REACT_APP_*` | Test mental + scan bundle | Cf. Partie 5 ci-dessous |
 | 6 | Front parle au back, le back parle aux services tiers | Architecture imposée dès l'init | Cf. Partie 5 ci-dessous |
 
-Si une règle est violée, le déploiement échoue ou la PR est bloquée. C'est tout.
+Si une règle est violée, le déploiement échoue ou la PR est bloquée. Le pipeline Security OSS ajoute aussi un rapport Slack actionnable quand un check échoue.
 
 ---
 
@@ -117,6 +119,16 @@ Trois options selon le cas :
 ## Partie 4 — Protocole de sécurité au quotidien
 
 À chaque moment du cycle de vie d'une app, voilà ce qu'il faut vérifier. Aucune étape ne doit prendre plus de 5 minutes.
+
+Le socle continu à mettre en place sur les applications actives est maintenant :
+
+```text
+Avant merge  -> Security OSS bloque les secrets, failles de code et dépendances vulnérables.
+Chaque lundi -> Security OSS lance un audit complet et envoie un rapport Slack.
+En production -> Sentry surveille erreurs, latence, routes critiques et coûts IA.
+```
+
+Le détail technique du workflow est dans `SECURITY_OSS_PIPELINE.md`. La synthèse process destinée au responsable est dans `security-monitoring-process.md`.
 
 ### Étape 1 — Initialisation du projet
 
@@ -279,6 +291,16 @@ Toute occurrence est suspecte → vérifier au cas par cas.
 └──────────────────────────────────────────┘
 ```
 
+Le workflow Security OSS ajoute maintenant un socle commun plus large sur chaque PR :
+
+```text
+PR Security - Secrets + SAST -> Gitleaks + Semgrep, bloquant
+PR Security - OSV Scanner   -> dependances vulnerables, bloquant
+PR Security - Slack notification -> message Slack avec findings et actions
+```
+
+Ces checks doivent etre rendus obligatoires dans les branch protection rules. Sinon GitHub peut afficher un check rouge mais laisser merger.
+
 **Checklist du dev qui ouvre la PR** :
 
 - [ ] Aucun fichier `.env*` ajouté (autre que `.env.example`)
@@ -287,6 +309,8 @@ Toute occurrence est suspecte → vérifier au cas par cas.
 - [ ] Si nouvelle variable d'env : ajoutée dans `.env.example` avec placeholder
 - [ ] Si nouvelle table Supabase : RLS activée + policy explicite
 - [ ] Si nouvel endpoint qui appelle un service tiers : validations en place
+- [ ] Si Security OSS remonte une dependance vulnerable : mettre a jour le lockfile avant merge
+- [ ] Si Security OSS remonte un finding Semgrep : corriger ou documenter explicitement le faux positif
 
 **Checklist du reviewer** :
 
@@ -358,29 +382,29 @@ C'est exactement ce que font les bots de Google et de GitHub Secret Scanning.
 
 ---
 
-### Étape 6 — Audit périodique
+### Étape 6 — Audit périodique et monitoring
 
-**Quand** : tous les mois pendant les 3 premiers mois d'application, puis tous les trimestres.
+**Quand** : chaque lundi via le workflow Security OSS, puis revue manuelle trimestrielle pour les sujets qui ne peuvent pas etre automatises.
 
-**Checklist trimestrielle** :
+**Audit automatique hebdomadaire** :
 
-**1. Scan global gitleaks de tous les repos**
+Le workflow `.github/workflows/security-oss.yml` lance automatiquement :
 
-```powershell
-$repos = @(
-    "C:\Users\$env:USERNAME\Travail\repo-1",
-    "C:\Users\$env:USERNAME\Travail\repo-2"
-    # ... ajouter tous les repos actifs
-)
-
-foreach ($repo in $repos) {
-    Write-Host "`n=== $repo ===" -ForegroundColor Cyan
-    cd $repo
-    gitleaks detect --source . --verbose --no-banner
-}
+```text
+Gitleaks
+Semgrep
+OSV Scanner
+Composer audit si composer.lock existe
+npm audit si package-lock.json existe
+pip-audit si requirements*.txt existe
+Trivy si Dockerfile existe
+OWASP ZAP si SECURITY_TARGET_URL est configuree
+Supabomb si SECURITY_TARGET_URL est configuree
 ```
 
-**2. Vérification RLS sur tous les projets Supabase**
+Il produit des artifacts GitHub Actions et envoie un rapport Slack. Si `OPENAI_API_KEY` est configuree, le rapport Slack contient aussi une synthese IA courte et actionnable.
+
+**Audit Supabase/RLS trimestriel** :
 
 Pour chaque projet, dans le SQL editor :
 
@@ -393,29 +417,39 @@ ORDER BY rowsecurity, tablename;
 
 Toute table avec `rowsecurity = false` est à corriger.
 
-**3. Audit des bundles de prod**
+**Audit des bundles de prod** :
 
-Pour chaque app déployée, lancer le test du bundle déployé (Étape 5).
+Pour chaque app déployée, lancer le test du bundle déployé (Étape 5) si l'app expose du JavaScript public.
 
-**4. Audit `supabomb` sur nos sites**
+**Audit Supabomb manuel si besoin** :
 
-Pour chaque site GDM utilisant Supabase, vérifier ce que voit un attaquant externe :
+Supabomb n'est pas lance via `uvx supabomb`. Le workflow clone le repo officiel puis execute :
 
 ```bash
-uvx supabomb discover --url https://app.guydemarle.com/
+uv run supabomb discover --url https://app.guydemarle.com/
 ```
 
 Note les Edge Functions découvertes et vérifie qu'elles font bien leurs validations (modèle, prompt, auth, rate limit).
 
-**5. Audit des variables d'env de chaque plateforme**
+**Monitoring Sentry continu** :
+
+Sur les apps en production, Sentry doit surveiller au minimum :
+
+```text
+erreurs front/back
+volume d'erreurs anormal
+routes critiques lentes
+healthcheck indisponible si URL publique
+tokens et couts IA si l'app utilise des modeles
+```
+
+**Audit des variables d'env et accès dashboards** :
 
 - Vercel → Settings → Environment Variables : vérifier qu'aucune `VITE_*` ne contient un secret
 - Render → Service → Environment : lister toutes les variables, vérifier qu'elles sont toutes documentées
 - Supabase → Edge Functions Secrets : pareil
-
-**6. Audit des accès aux dashboards**
-
-Lister les utilisateurs ayant accès à : Supabase, Vercel, Render, GitHub, Google Cloud, panel Gandi, Cloudflare. Révoquer les accès des anciens devs et prestataires terminés.
+- GitHub Actions Secrets : verifier que les secrets utilises par Security OSS et deploy sont presents
+- Dashboards : lister les utilisateurs ayant accès à Supabase, Vercel, Render, GitHub, Google Cloud, Gandi, Cloudflare. Révoquer les accès des anciens devs et prestataires terminés.
 
 ---
 

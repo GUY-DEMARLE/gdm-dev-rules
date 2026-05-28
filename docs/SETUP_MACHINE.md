@@ -14,13 +14,12 @@
 ┌─────────────────────────────────────────────────────┐
 │                                                     │
 │   1. gitleaks         (scanner de secrets local)    │
-│   2. Husky            (hooks Git pre-commit)        │
-│   3. Vercel CLI       (sync des var d'env)          │
-│   4. Render CLI       (sync des var d'env)          │
-│   5. Supabase CLI     (gestion BDD + edge func)     │
-│   6. Comptes & accès  (GitHub, Vercel, Render,      │
-│                        Supabase, Google Cloud)      │
-│   7. supabomb         (audit Supabase, optionnel)   │
+│   2. Vercel CLI       (sync des var d'env)          │
+│   3. Render CLI       (sync des var d'env)          │
+│   4. Supabase CLI     (gestion BDD + edge func)     │
+│   5. Comptes & accès  (GitHub, Actions, Slack,      │
+│                        Sentry, hébergeurs, Supabase)│
+│   6. uv + Supabomb    (debug audit web optionnel)   │
 │                                                     │
 └─────────────────────────────────────────────────────┘
 ```
@@ -31,7 +30,7 @@ Tu peux faire ces étapes dans l'ordre, ou en parallèle si tu veux gagner du te
 
 ## 1. gitleaks — Scanner de secrets
 
-**À quoi ça sert** : détecter automatiquement les clés API, passwords, et autres secrets dans un dossier ou un repo Git. C'est l'outil qui va bloquer un commit si tu oublies de retirer une clé du code.
+**À quoi ça sert** : détecter automatiquement les clés API, passwords, et autres secrets dans un dossier ou un repo Git. En local, il sert à vérifier un dossier avant de pousser. Le blocage obligatoire se fait côté GitHub avec Security OSS.
 
 ### Installation
 
@@ -93,30 +92,16 @@ Tu dois voir quelque chose comme `v8.18.4`. Si tu as une erreur du genre `gitlea
 
 ---
 
-## 2. Husky — Hooks Git pre-commit
-
-**À quoi ça sert** : exécuter automatiquement gitleaks (et d'autres checks) **avant** chaque `git commit`. Si gitleaks trouve un secret, le commit est annulé. Tu n'as plus à y penser.
-
-Husky n'est pas un outil système, c'est un package npm. **Il s'installe par projet**, pas une seule fois pour la machine. Donc dans cette page, on ne fait que vérifier que tu as `npm` qui fonctionne — on installe Husky dans la doc `SETUP_PROJET.md`.
-
-### Test que npm fonctionne
-
-```bash
-npm --version
-```
-
-Tu dois voir un numéro de version (ex: `10.2.4`). Si erreur, installe Node.js depuis https://nodejs.org (version LTS recommandée). Vérifie ensuite avec :
-
-```bash
-node --version    # doit afficher v20.x.x ou plus récent
-npm --version     # doit afficher 10.x.x ou plus récent
-```
-
----
-
-## 3. Vercel CLI — Sync des variables d'env
+## 2. Vercel CLI — Sync des variables d'env
 
 **À quoi ça sert** : récupérer les variables d'env d'un projet Vercel directement sur ta machine, sans avoir besoin que quelqu'un te les envoie par Slack ou par email. C'est ce qui permet à un nouveau dev de cloner un projet, lancer une commande, et avoir son `.env.local` à jour.
+
+Pré-requis : Node.js et npm doivent être installés.
+
+```bash
+node --version
+npm --version
+```
 
 ### Installation
 
@@ -150,7 +135,7 @@ Tu dois voir la liste des projets Vercel auxquels tu as accès. Si elle est vide
 
 ---
 
-## 4. Render CLI — Sync des variables d'env
+## 3. Render CLI — Sync des variables d'env
 
 **À quoi ça sert** : pareil que Vercel CLI, mais pour les services hébergés sur Render (les back Node.js / Python). Permet de récupérer les variables d'env définies sur Render pour les avoir en local.
 
@@ -186,7 +171,7 @@ Doit afficher la liste des services Render auxquels tu as accès.
 
 ---
 
-## 5. Supabase CLI — Gestion BDD et Edge Functions
+## 4. Supabase CLI — Gestion BDD et Edge Functions
 
 **À quoi ça sert** : gérer les migrations SQL, déployer des Edge Functions, lancer une instance Supabase locale pour le dev. Indispensable si tu touches à la BDD ou aux Edge Functions.
 
@@ -243,7 +228,7 @@ Doit afficher la liste des projets Supabase auxquels tu as accès.
 
 ---
 
-## 6. Comptes et accès
+## 5. Comptes et accès
 
 C'est l'étape la moins technique mais la plus importante. **Aucune clé ne doit transiter par Slack ou email.** Le bon principe : tu as un compte sur chaque plateforme, on t'invite, et tu accèdes aux secrets via les CLI installées plus haut.
 
@@ -253,6 +238,8 @@ C'est l'étape la moins technique mais la plus importante. **Aucune clé ne doit
 - [ ] 2FA activé : Settings → Password and authentication → Two-factor authentication
 - [ ] Demander à être ajouté à l'organisation `GUY-DEMARLE`
 - [ ] Configurer SSH (cf. doc référentiel GDM existant)
+- [ ] Avoir accès à GitHub Actions sur les repos applicatifs
+- [ ] Pouvoir créer ou demander les secrets/variables Actions nécessaires à Security OSS
 
 **Test** :
 
@@ -261,23 +248,51 @@ ssh -T git@github.com
 # Doit dire "Hi <ton-username> ! You've successfully authenticated..."
 ```
 
+### GitHub Actions — Security OSS
+
+Pour installer ou maintenir le workflow Security OSS sur un repo, il faut pouvoir configurer :
+
+Secrets :
+
+```text
+SLACK_WEBHOOK_URL
+OPENAI_API_KEY
+```
+
+Variables :
+
+```text
+SECURITY_TARGET_URL
+OPENAI_SECURITY_MODEL
+```
+
+`SLACK_WEBHOOK_URL` permet de recevoir les rapports et les alertes PR. `OPENAI_API_KEY` est optionnel : sans clé OpenAI, le workflow produit quand même les rapports, mais sans synthèse IA.
+
+`SECURITY_TARGET_URL` est optionnel mais recommandé pour les apps web publiques. Sans cette variable, ZAP et Supabomb sont ignorés proprement.
+
+### Compte Slack
+
+- [ ] Être dans le workspace Slack GDM
+- [ ] Avoir accès au canal ou à l'app qui reçoit les rapports Security OSS
+- [ ] Si besoin, demander à l'admin Slack de créer un Incoming Webhook
+
 ### Compte Vercel
 
 - [ ] Compte créé avec ton email pro
 - [ ] Inviter par admin sur l'équipe `guy-demarle` (ou l'équipe correspondante)
-- [ ] Tester `vercel projects ls` (cf. section 3)
+- [ ] Tester `vercel projects ls` (cf. section 2)
 
 ### Compte Render
 
 - [ ] Compte créé avec ton email pro
 - [ ] Invité par admin sur le workspace GDM
-- [ ] Tester `render services list` (cf. section 4)
+- [ ] Tester `render services list` (cf. section 3)
 
 ### Compte Supabase
 
 - [ ] Compte créé avec ton email pro
 - [ ] Invité par admin sur l'organisation GDM (rôle Developer ou Admin selon ton niveau)
-- [ ] Tester `supabase projects list` (cf. section 5)
+- [ ] Tester `supabase projects list` (cf. section 4)
 
 ### Compte Google Cloud (si tu touches à Gemini, Maps, etc.)
 
@@ -285,19 +300,28 @@ ssh -T git@github.com
 - [ ] Invité sur le projet GCP GDM par admin
 - [ ] Accès à la console : https://console.cloud.google.com
 
+### Compte Sentry (si l'app est en production)
+
+- [ ] Compte créé avec ton email pro
+- [ ] Accès aux projets Sentry GDM utiles
+- [ ] Pouvoir récupérer le DSN du projet si tu instrumentes une app
+- [ ] Pouvoir consulter Issues, Traces, Spans et Monitors
+
+Sentry est le complément prod de Security OSS : Security OSS bloque avant merge et audite chaque semaine, Sentry surveille ce qui se passe réellement en production.
+
 ---
 
-## 7. supabomb — Audit Supabase (optionnel mais utile)
+## 6. uv + Supabomb — Audit web/Supabase optionnel
 
-**À quoi ça sert** : c'est l'outil que Safercy a utilisé pour trouver les fuites Supabase pendant l'audit. Il scanne un site web public, détecte si une instance Supabase est utilisée, extrait la clé anon, liste les Edge Functions, et permet de tester si les RLS sont en place.
+**À quoi ça sert** : Supabomb aide à repérer des signaux Supabase exposés depuis une application web publique : URL Supabase, anon key, Edge Functions, indices de configuration faible.
 
-**Pourquoi l'avoir** : pour faire le même audit que Safercy sur nos propres apps, en lecture seule, et vérifier qu'on n'a plus de fuite. À utiliser uniquement sur **nos** sites, pas sur ceux des autres.
+**Important** : dans le process standard, Supabomb tourne surtout dans le workflow GitHub Actions Security OSS quand `SECURITY_TARGET_URL` est configurée. L'installation locale sert seulement à reproduire ou déboguer un scan.
 
-### Installation
+À utiliser uniquement sur **nos** sites, pas sur ceux des autres.
 
-supabomb est un outil Python, distribué via le package manager `uv` (variante moderne de pip). Le plus simple :
+### Installation de uv
 
-#### Installer uv (si pas déjà fait)
+Le workflow GitHub installe `uv` automatiquement. En local, installe-le seulement si tu veux lancer Supabomb à la main.
 
 **Sur Windows** :
 
@@ -311,20 +335,22 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-#### Lancer supabomb sans l'installer
+### Lancer Supabomb en local
+
+Supabomb n'est pas lancé via `uvx supabomb`, car le package n'est pas toujours disponible dans le registre Python. La méthode fiable est de cloner le repo officiel puis d'exécuter l'outil avec `uv`.
 
 ```bash
-uvx supabomb discover --url https://gestionnaire-kit.guydemarle.work/
+git clone https://github.com/ModernPentest/supabomb.git
+cd supabomb
+uv run supabomb discover --url https://simu-recrutement.guydemarle.com/
 ```
 
-`uvx` télécharge supabomb dans un environnement temporaire et l'exécute. C'est plus simple que de l'installer en permanence — tu lances la commande quand tu en as besoin, fin.
+Sur Windows PowerShell :
 
-### Test
-
-Lance la commande sur un site GDM pour voir le résultat :
-
-```bash
-uvx supabomb discover --url https://simu-recrutement.guydemarle.com/
+```powershell
+git clone https://github.com/ModernPentest/supabomb.git
+cd supabomb
+uv run supabomb discover --url https://simu-recrutement.guydemarle.com/
 ```
 
 Tu dois voir quelque chose comme :
@@ -341,6 +367,8 @@ Edge Functions      X discovered
 ```
 
 C'est une commande **non destructive** — elle ne fait que lire des pages publiques. Tu peux la lancer librement sur tous nos sites pour faire un inventaire.
+
+Dans Security OSS, cette étape est automatisée : le workflow clone Supabomb dans le runner GitHub, lance `uv run supabomb discover --url "$TARGET_URL"` et archive le rapport dans les artifacts.
 
 ### À ne pas faire avec supabomb
 
@@ -359,6 +387,7 @@ npm --version
 vercel --version
 render --version
 supabase --version
+uv --version
 ```
 
 Toutes les commandes doivent retourner un numéro de version. Aucune erreur "command not found".
@@ -371,6 +400,13 @@ render services list
 supabase projects list
 ssh -T git@github.com
 ```
+
+Et vérifie que tu as les accès nécessaires au process Security OSS :
+
+- GitHub Actions activé sur les repos.
+- Possibilité de configurer ou demander les secrets Actions.
+- Accès Slack au canal ou à l'app qui reçoit les rapports.
+- Accès Sentry pour les apps déjà en production.
 
 Si tout passe, ta machine est prête. Tu peux passer au doc `SETUP_PROJET.md` pour configurer un projet.
 
@@ -385,5 +421,9 @@ Si tout passe, ta machine est prête. Tu peux passer au doc `SETUP_PROJET.md` po
 **Si tu n'as pas accès à un projet Vercel/Render/Supabase** : tu n'as pas été invité, ou pas avec les bons droits. Demande à l'admin GDM de la plateforme concernée de t'ajouter.
 
 **Si gitleaks plante avec un message bizarre** : vérifie la version (`gitleaks version`). Si c'est une vieille version, retélécharge la dernière depuis https://github.com/gitleaks/gitleaks/releases.
+
+**Si Supabomb échoue avec `supabomb was not found in the package registry`** : c'est normal avec `uvx supabomb`. Utilise la méthode par clone GitHub indiquée section 6, ou laisse Security OSS le lancer dans GitHub Actions.
+
+**Si Security OSS n'envoie pas de Slack** : ce n'est pas un problème machine. Vérifie côté repo GitHub que `SLACK_WEBHOOK_URL` est bien configuré dans les secrets Actions.
 
 **Pour toute autre erreur** : copie-colle le message dans Slack #dev, quelqu'un répondra.
