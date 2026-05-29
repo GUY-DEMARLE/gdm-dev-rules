@@ -1,6 +1,6 @@
 # Architecture & Sécurité — Dev GDM
 
-**Version** : 1.2 (mai 2026)
+**Version** : 1.3 (mai 2026)
 **Pour** : équipe dev interne + prestataires
 **Lecture rapide** : Parties 1 et 2 (5 min) — le reste sert de référence détaillée.
 
@@ -14,6 +14,7 @@ Ce document fait partie d'un ensemble de docs complémentaires :
 | **`SETUP_PROJET.md`** | À chaque nouveau projet | ~20 min |
 | **`ARCHITECTURE_SECURITE_GDM.md`** *(ce doc)* | Référence permanente pour les décisions d'archi et de sécu | Lecture continue |
 | **`SECURITY_OSS_PIPELINE.md`** | Détail du workflow GitHub Actions Security OSS | ~15 min |
+| **`HEBERGEMENT_GANDI.md`** | Choisir et sécuriser un hébergement Gandi FTP (front statique) | ~10 min |
 | **`security-monitoring-process.md`** | Synthèse responsable : Security OSS + Sentry + process app | ~10 min |
 
 Si tu débutes : commence par `SETUP_MACHINE.md`, puis `SETUP_PROJET.md` sur ton premier projet, puis reviens ici pour la suite.
@@ -83,7 +84,18 @@ Si une règle est violée, le déploiement échoue ou la PR est bloquée. Le pip
 | **React + Vite + TypeScript** | App SPA classique sans besoin de SEO (outils internes, dashboards) |
 | **Next.js + TypeScript** | App client-facing avec SEO important (catalogue, vitrine) |
 
-Hébergement : **Vercel** (déploiement auto depuis GitHub, preview deploys par PR, CDN intégré).
+**Hébergement du front** — deux options selon que le front a besoin de rendu serveur :
+
+| Hébergeur | Quand l'utiliser |
+|-----------|------------------|
+| **Gandi FTP** (statique) | Front SPA statique + API Supabase-only. Le moins cher/simple, sous `guydemarle.com`. Détail : `HEBERGEMENT_GANDI.md`. |
+| **Vercel** | Besoin de SSR/SEO (Next.js), de serverless, ou de preview deploys par PR. Déploiement auto depuis GitHub, CDN intégré. |
+
+En pratique, « API Supabase-only » et « front statique » coïncident presque toujours (une app simple est une SPA). Le déclencheur Vercel est le besoin de **rendu serveur**.
+
+> ⚠️ Front statique Gandi + Supabase en accès direct ⇒ **les RLS sont l'unique barrière** (Règle 2 vitale) et tout tiers sensible reste **derrière une Edge Function** (Règle 6).
+
+> 💬 **Prompt IA — hébergement front** : « Mon front [SPA Vite ? besoin SEO/SSR ?]. D'après les règles GDM, un statique sur Gandi FTP suffit-il ou faut-il Vercel ? »
 
 ### Back
 
@@ -99,6 +111,10 @@ Trois options selon le cas :
 - Le back fait > 5 endpoints métier ou de la logique async ? → **Render**
 - L'app est un Next.js fullstack et le back tient en quelques routes simples ? → **Vercel API Routes**
 - Le back est juste un proxy sécurisé vers un service tiers (Gemini, OpenAI, Stripe) avec validation ? → **Supabase Edge Function**
+
+**Priorité : Supabase d'abord.** Pour la plupart des apps, le besoin est du CRUD sur Postgres + un proxy léger vers les tiers. Dans ce cas, **PostgREST** (API REST auto-générée par Supabase, sécurisée par les RLS) + **Edge Functions** (proxy/logique légère) suffisent et évitent de maintenir une API maison. Ne monter une **API Render** que si la logique ne rentre pas dans PostgREST/Edge : async lourd, orchestration, long-running, RAG, libs Python/ML.
+
+> 💬 **Prompt IA — choix du back** : « Voici ce que doit faire mon app : [détail]. Une API Supabase PostgREST/Edge suffit-elle, ou ai-je besoin d'une API maison sur Render ? Justifie. »
 
 ### Base de données
 
