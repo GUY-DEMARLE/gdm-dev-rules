@@ -14,6 +14,19 @@ Front (Vercel) -> Back (Render/Vercel/Supabase Edge) -> Services tiers (Gemini/O
 - **Back** : Node.js (Express/Fastify) ou Python (FastAPI/Flask), détient les secrets.
 - **BDD** : Supabase (PostgreSQL) avec RLS activée sur toutes les tables.
 
+### Choix de stack et d'hébergement (à trancher au démarrage)
+
+Deux décisions chaînées :
+
+1. **Back / API** — prioriser **Supabase (PostgREST + Edge Functions)** tant que le besoin est du CRUD sur Postgres + proxy léger vers les tiers. Monter une **API maison sur Render** (Node/Python) seulement pour la logique qui ne rentre pas dans PostgREST/Edge : async lourd, orchestration, long-running, RAG, libs Python/ML.
+2. **Front / hébergement** — si le front est une **SPA statique** (pas de rendu serveur) et que l'API est Supabase-only, l'héberger sur **Gandi FTP** (statique, sous `guydemarle.com`, le moins cher/simple). Passer à **Vercel** seulement si besoin de SSR/SEO (Next.js), de serverless, ou de preview deploys par PR.
+
+> ⚠️ Front statique Gandi + Supabase en accès direct ⇒ **les RLS sont l'unique barrière de sécurité** (règle 1.2 devient vitale) **et** tout tiers sensible/payant reste **derrière une Edge Function** (règle 1.6). Jamais d'appel direct front → tiers.
+
+> 💬 **Prompt IA de démarrage** : « Mon app doit [besoin métier + volumétrie + tiers utilisés]. D'après les règles GDM, conseille-moi : (1) API Supabase PostgREST/Edge ou API maison Render ? (2) front statique sur Gandi FTP ou Vercel ? Justifie selon l'arbre de décision et liste les implications sécu (RLS, Edge Functions, secrets). »
+
+Détail complet : `HEBERGEMENT_GANDI.md`.
+
 ## 1) Les 6 règles non-negociables
 
 ### 1.1 Aucun secret dans Git
@@ -182,7 +195,11 @@ Quand tu proposes ou modifies du code :
 - **Front** : React/Vite ou Next.js, TypeScript.
 - **Back** : Node.js (Express/Fastify) ou Python (FastAPI/Flask), Deno uniquement pour Supabase Edge Functions.
 - **BDD** : Supabase par defaut.
-- **Hosting** : Vercel (front), Render (back lourd), Supabase Edge (proxy leger).
+- **Hosting** :
+  - **Vercel** : front avec SSR/SEO ou serverless (Next.js), preview deploys.
+  - **Gandi FTP** : front statique (SPA) quand l'API est Supabase-only — le moins cher/simple. Transport **SFTP/FTPS, jamais FTP en clair** ; `.env` hors webroot via `.htaccess`, jamais commité ; identifiants en GitHub Secrets ; RLS strictes obligatoires (seule barrière).
+  - **Render** : back lourd (Node/Python).
+  - **Supabase Edge** : proxy léger / logique liée à la BDD.
 - **Branches** : `dev-prenom`, `feature/xxx`, `fix/xxx`.
 - **Commits** : Conventional commits (`feat`, `fix`, `chore`, etc.).
 - **Repo** : `gdm-<type>-<nom>` sous `GUY-DEMARLE`.
@@ -192,5 +209,6 @@ Quand tu proposes ou modifies du code :
 - `SETUP_MACHINE.md` (setup poste dev)
 - `SETUP_PROJET.md` (setup projet)
 - `ARCHITECTURE_SECURITE_GDM.md` (reference complete)
+- `HEBERGEMENT_GANDI.md` (hebergement Gandi FTP : quand le choisir, deploiement, securite)
 - `SECURITY_OSS_PIPELINE.md` (workflow GitHub Actions Security OSS)
 - `security-monitoring-process.md` (process Security OSS + Sentry)
