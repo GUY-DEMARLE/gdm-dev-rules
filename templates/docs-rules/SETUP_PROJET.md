@@ -708,7 +708,9 @@ Lance cette série de tests pour valider que tous les garde-fous sont en place.
 ### Test 1 — Security OSS bloque une PR piégée
 
 ```bash
-echo "GEMINI_API_KEY=AIzaSyTestFakeKey1234567890123456789012" > test_leak.txt
+# Clé concaténée : ce fichier de doc ne contient pas le motif complet d'une clé,
+# mais test_leak.txt généré contient bien une clé qui doit déclencher Gitleaks.
+echo "GEMINI_API_KEY=AIzaSy""TestFakeKey1234567890123456789012" > test_leak.txt
 git add test_leak.txt
 git commit -m "test security oss"
 git push origin HEAD:test/security-oss

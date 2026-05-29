@@ -483,7 +483,7 @@ Les règles 1 à 4 sont expliquées en pratique dans `SETUP_PROJET.md`. Les règ
 
 **Pourquoi** : ces préfixes sont conçus pour exposer la valeur au navigateur. Vite/Next.js/CRA remplacent `import.meta.env.VITE_X` (ou équivalent) par la **valeur littérale** dans le bundle au moment du build. Le bundle est ensuite servi publiquement.
 
-**Cas concret GDM (mai 2026)** : la clé `AIzaSyDaGt24qMlfCXQlYhJSSdsum6FrKTxSLn8` était dans le bundle public de `simu-recrutement.guydemarle.com`, accessible via F12 → Sources → Ctrl+F. Le projet GCP a été banni par Google après détection automatique. Cause : variable `VITE_GEMINI_API_KEY` lue dans une branche de fallback "mode dev". Vite inline la valeur même dans les branches non exécutées.
+**Cas concret GDM (mai 2026)** : la clé `AIzaSyDaGt24q…SLn8` était dans le bundle public de `simu-recrutement.guydemarle.com`, accessible via F12 → Sources → Ctrl+F. Le projet GCP a été banni par Google après détection automatique. Cause : variable `VITE_GEMINI_API_KEY` lue dans une branche de fallback "mode dev". Vite inline la valeur même dans les branches non exécutées.
 
 **Le piège technique à comprendre** :
 
@@ -505,7 +505,7 @@ if (proxy.disponible()) {
 if (proxy.disponible()) {
   // ...
 } else {
-  const apiKey = "AIzaSyDaGt24qMlfCXQlYhJSSdsum6FrKTxSLn8"  // valeur en dur
+  const apiKey = "AIzaSyDaGt24q…SLn8"  // valeur en dur
   new GoogleGenAI({ apiKey })
 }
 ```
@@ -638,7 +638,7 @@ Variables Vercel, Render, GitHub Actions Secrets, Supabase Edge Functions Secret
 
 ```bash
 # Avec git filter-repo (à installer : pip install git-filter-repo)
-git filter-repo --replace-text <(echo "AIzaSyDaGt24qMlfCXQlYhJSSdsum6FrKTxSLn8==>REDACTED")
+git filter-repo --replace-text <(echo "AIzaSyDaGt24q…SLn8==>REDACTED")
 git push --force-with-lease
 ```
 
