@@ -69,23 +69,17 @@ if (Test-Path "CLAUDE.md") {
 
     if ($projectSectionMatch.Success) {
         $projectSection = $projectSectionMatch.Value
-        Write-Ok "Sections projet détectées et préservées"
-    } else {
-        $projectSection = $null
-        Write-Warn "Pas de section projet détectée, le fichier sera complètement remplacé"
-    }
 
-    # Télécharger le nouveau template
-    $newTemplate = Invoke-RestMethod -Uri "$RepoUrl/CLAUDE.md"
-
-    if ($projectSection) {
-        # Remplacer les sections projet du nouveau template par celles préservées
+        # Télécharger le nouveau template et réinjecter la section projet préservée
+        $newTemplate = Invoke-RestMethod -Uri "$RepoUrl/CLAUDE.md"
         $newContent = [regex]::Replace($newTemplate, '## Contexte du projet[\s\S]*$', $projectSection)
         Set-Content -Path "CLAUDE.md" -Value $newContent -NoNewline
+        Write-Ok "CLAUDE.md (section projet préservée)"
     } else {
-        Set-Content -Path "CLAUDE.md" -Value $newTemplate -NoNewline
+        # Sécurité : on ne touche PAS à un fichier existant dont on ne sait pas
+        # isoler la partie projet, pour ne jamais écraser du contenu custom.
+        Write-Warn "Section '## Contexte du projet' non détectée dans CLAUDE.md : fichier laissé intact (aucune mise à jour pour éviter d'écraser du contenu)."
     }
-    Write-Ok "CLAUDE.md"
 } else {
     Invoke-RestMethod -Uri "$RepoUrl/CLAUDE.md" -OutFile "CLAUDE.md"
     Write-Warn "CLAUDE.md créé (n'existait pas), pense à remplir le contexte projet"
@@ -102,23 +96,17 @@ if (Test-Path "AGENTS.md") {
 
     if ($projectSectionMatch.Success) {
         $projectSection = $projectSectionMatch.Value
-        Write-Ok "Sections projet AGENTS.md détectées et préservées"
-    } else {
-        $projectSection = $null
-        Write-Warn "Pas de section projet détectée dans AGENTS.md, le fichier sera complètement remplacé"
-    }
 
-    # Télécharger le nouveau template
-    $newTemplate = Invoke-RestMethod -Uri "$RepoUrl/AGENTS.md"
-
-    if ($projectSection) {
-        # Remplacer les sections projet du nouveau template par celles préservées
+        # Télécharger le nouveau template et réinjecter la section projet préservée
+        $newTemplate = Invoke-RestMethod -Uri "$RepoUrl/AGENTS.md"
         $newContent = [regex]::Replace($newTemplate, '## Contexte du projet[\s\S]*$', $projectSection)
         Set-Content -Path "AGENTS.md" -Value $newContent -NoNewline
+        Write-Ok "AGENTS.md (section projet préservée)"
     } else {
-        Set-Content -Path "AGENTS.md" -Value $newTemplate -NoNewline
+        # Sécurité : on ne touche PAS à un fichier existant dont on ne sait pas
+        # isoler la partie projet, pour ne jamais écraser du contenu custom.
+        Write-Warn "Section '## Contexte du projet' non détectée dans AGENTS.md : fichier laissé intact (aucune mise à jour pour éviter d'écraser du contenu)."
     }
-    Write-Ok "AGENTS.md"
 } else {
     Invoke-RestMethod -Uri "$RepoUrl/AGENTS.md" -OutFile "AGENTS.md"
     Write-Warn "AGENTS.md créé (n'existait pas), pense à remplir le contexte projet"

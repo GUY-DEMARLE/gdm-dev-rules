@@ -80,9 +80,9 @@ if [ -f "CLAUDE.md" ]; then
 
         echo -e "${GREEN}✓ CLAUDE.md${NC}"
     else
-        # Pas de section projet, écrasement complet
-        curl -sSL -f "$REPO_URL/CLAUDE.md" -o "CLAUDE.md"
-        echo -e "${YELLOW}⚠ Pas de section projet détectée, fichier complètement remplacé${NC}"
+        # Sécurité : on ne touche PAS à un fichier existant dont on ne sait pas
+        # isoler la partie projet, pour ne jamais écraser du contenu custom.
+        echo -e "${YELLOW}⚠ Section '## Contexte du projet' non détectée dans CLAUDE.md : fichier laissé intact (aucune mise à jour pour éviter d'écraser du contenu).${NC}"
     fi
 else
     curl -sSL -f "$REPO_URL/CLAUDE.md" -o "CLAUDE.md"
@@ -109,9 +109,9 @@ if [ -f "AGENTS.md" ]; then
 
         echo -e "${GREEN}✓ AGENTS.md${NC}"
     else
-        # Pas de section projet, écrasement complet
-        curl -sSL -f "$REPO_URL/AGENTS.md" -o "AGENTS.md"
-        echo -e "${YELLOW}⚠ Pas de section projet détectée dans AGENTS.md, fichier complètement remplacé${NC}"
+        # Sécurité : on ne touche PAS à un fichier existant dont on ne sait pas
+        # isoler la partie projet, pour ne jamais écraser du contenu custom.
+        echo -e "${YELLOW}⚠ Section '## Contexte du projet' non détectée dans AGENTS.md : fichier laissé intact (aucune mise à jour pour éviter d'écraser du contenu).${NC}"
     fi
 else
     curl -sSL -f "$REPO_URL/AGENTS.md" -o "AGENTS.md"
