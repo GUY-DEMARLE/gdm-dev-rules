@@ -621,6 +621,10 @@ Va sur https://supabase.com/dashboard/project/<ref>/auth/policies. Toute table a
 
 ## 10. Setup Vercel et/ou Render
 
+> **Avant de choisir où déployer**, tranche l'archi (cf. `ARCHITECTURE_SECURITE_GDM.md` Partie 3) : API Supabase PostgREST/Edge en priorité, API maison Render seulement si nécessaire ; front statique → **Gandi FTP**, front avec rendu serveur → **Vercel**.
+>
+> 💬 **Prompt IA de démarrage** : « Mon app doit [besoin métier + volumétrie + tiers utilisés]. D'après les règles GDM (`.ai-rules/RULES.md`), conseille-moi : (1) API Supabase PostgREST/Edge ou API maison Render ? (2) front statique sur Gandi FTP ou Vercel ? Justifie selon l'arbre de décision et liste les implications sécu (RLS, Edge Functions, secrets). »
+
 ### Si tu déploies un front sur Vercel
 
 1. Va sur https://vercel.com/new
@@ -685,6 +689,15 @@ supabase functions deploy ma-fonction --project-ref <ref>
 ```
 
 Les secrets définis avec `supabase secrets set` sont accessibles dans la fonction via `Deno.env.get('GEMINI_API_KEY')`. Ils ne sont **jamais** exposés au client.
+
+### Si tu déploies un front statique sur Gandi FTP
+
+Pour une SPA statique (API Supabase-only), Gandi FTP est le choix le moins cher/simple. Détail complet (déploiement, secrets, sécurité) : `HEBERGEMENT_GANDI.md`. En résumé :
+
+1. Build du front en **CI** (GitHub Actions), pas en local pour la prod.
+2. Déploiement par **SFTP/FTPS** (jamais FTP en clair), identifiants en **GitHub Secrets**.
+3. Aucun secret dans le build (règle `VITE_*`) ; `.env` serveur éventuel **hors webroot**, protégé par `.htaccess`.
+4. RLS Supabase strictes obligatoires (le front parle à Supabase en direct).
 
 ---
 
