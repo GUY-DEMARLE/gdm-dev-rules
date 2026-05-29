@@ -12,6 +12,7 @@ set -e
 
 # Configuration
 REPO_URL="${REPO_URL:-https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates}"
+DOCS_API_URL="${DOCS_API_URL:-https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main}"
 FORCE="${FORCE:-false}"
 
 # Couleurs
@@ -82,10 +83,31 @@ for file in "${files[@]}"; do
     fi
 done
 
+# Télécharger la documentation GDM (docs-rules/) — liste dynamique via l'API GitHub
+echo -e "${CYAN}→ Téléchargement de la documentation (docs-rules/)...${NC}"
+mkdir -p docs-rules
+# Extraire les "download_url" du JSON renvoyé par l'API GitHub (sans dépendre de jq)
+download_urls=$(curl -sSL -H "User-Agent: gdm-dev-rules-installer" "$DOCS_API_URL" \
+    | grep -o '"download_url": *"[^"]*"' \
+    | sed 's/.*"download_url": *"\([^"]*\)".*/\1/')
+if [ -n "$download_urls" ]; then
+    while IFS= read -r doc_url; do
+        [ -z "$doc_url" ] && continue
+        doc_name=$(basename "$doc_url")
+        if curl -sSL -f "$doc_url" -o "docs-rules/$doc_name"; then
+            echo -e "${GREEN}✓ docs-rules/$doc_name${NC}"
+        else
+            echo -e "${YELLOW}⚠ Échec du téléchargement de $doc_url${NC}"
+        fi
+    done <<< "$download_urls"
+else
+    echo -e "${YELLOW}⚠ Impossible de lister docs-rules/ via l'API GitHub (règles principales installées).${NC}"
+fi
+
 # Vérifier le .gitignore
 echo -e "${CYAN}→ Vérification du .gitignore...${NC}"
 if [ -f ".gitignore" ]; then
-    patterns=(".ai-rules" ".cursor" "CLAUDE.md" "AGENTS.md")
+    patterns=(".ai-rules" ".cursor" "CLAUDE.md" "AGENTS.md" "docs-rules")
     ignored_files=()
     for pattern in "${patterns[@]}"; do
         if grep -qF "$pattern" .gitignore; then
@@ -117,7 +139,7 @@ echo -e "${WHITE}  1. Ouvre CLAUDE.md et remplis les sections 'Contexte du proje
 echo -e "${WHITE}     et 'Règles spécifiques à ce projet'.${NC}"
 echo ""
 echo -e "${WHITE}  2. Commit les fichiers :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/${NC}"
 echo -e "${GRAY}       git commit -m \"chore: add GDM AI rules\"${NC}"
 echo ""
 echo -e "${WHITE}  3. Vérifie que ça marche :${NC}"

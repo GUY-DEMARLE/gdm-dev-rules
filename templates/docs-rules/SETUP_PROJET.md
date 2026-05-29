@@ -377,8 +377,8 @@ Les rapports sont disponibles dans les artifacts GitHub Actions.
 
 Pour le détail de chaque outil et du process, voir :
 
-- `docs/SECURITY_OSS_PIPELINE.md`
-- `docs/security-monitoring-process.md`
+- `docs-rules/SECURITY_OSS_PIPELINE.md`
+- `docs-rules/security-monitoring-process.md`
 
 ### Test que le workflow se lance
 

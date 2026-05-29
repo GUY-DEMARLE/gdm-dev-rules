@@ -11,6 +11,7 @@
 set -e
 
 REPO_URL="${REPO_URL:-https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates}"
+DOCS_API_URL="${DOCS_API_URL:-https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main}"
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
@@ -118,11 +119,32 @@ else
     echo -e "${YELLOW}⚠ AGENTS.md créé (n'existait pas), pense à remplir le contexte projet${NC}"
 fi
 
+# Mise à jour de la documentation GDM (docs-rules/) — écrasement complet, source de vérité
+echo -e "${CYAN}→ Mise à jour de la documentation (docs-rules/)...${NC}"
+mkdir -p docs-rules
+# Extraire les "download_url" du JSON renvoyé par l'API GitHub (sans dépendre de jq)
+download_urls=$(curl -sSL -H "User-Agent: gdm-dev-rules-updater" "$DOCS_API_URL" \
+    | grep -o '"download_url": *"[^"]*"' \
+    | sed 's/.*"download_url": *"\([^"]*\)".*/\1/')
+if [ -n "$download_urls" ]; then
+    while IFS= read -r doc_url; do
+        [ -z "$doc_url" ] && continue
+        doc_name=$(basename "$doc_url")
+        if curl -sSL -f "$doc_url" -o "docs-rules/$doc_name"; then
+            echo -e "${GREEN}✓ docs-rules/$doc_name${NC}"
+        else
+            echo -e "${YELLOW}⚠ Échec du téléchargement de $doc_url${NC}"
+        fi
+    done <<< "$download_urls"
+else
+    echo -e "${YELLOW}⚠ Impossible de lister docs-rules/ via l'API GitHub.${NC}"
+fi
+
 # Afficher le diff Git
 echo ""
 echo -e "${CYAN}→ Changements détectés :${NC}"
 echo ""
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md 2>/dev/null || true
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ 2>/dev/null || true
 echo ""
 
 # Message final
@@ -133,9 +155,9 @@ echo ""
 echo -e "${WHITE}Prochaines étapes :${NC}"
 echo ""
 echo -e "${WHITE}  1. Vérifie le diff avec :${NC}"
-echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md${NC}"
+echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/${NC}"
 echo ""
 echo -e "${WHITE}  2. Si OK, commit :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/${NC}"
 echo -e "${GRAY}       git commit -m \"chore: update GDM AI rules\"${NC}"
 echo ""

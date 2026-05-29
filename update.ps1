@@ -8,7 +8,8 @@
 #   irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex
 
 param(
-    [string]$RepoUrl = "https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates"
+    [string]$RepoUrl = "https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates",
+    [string]$DocsApiUrl = "https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main"
 )
 
 $ErrorActionPreference = "Stop"
@@ -112,10 +113,27 @@ if (Test-Path "AGENTS.md") {
     Write-Warn "AGENTS.md créé (n'existait pas), pense à remplir le contexte projet"
 }
 
+# Mise à jour de la documentation GDM (docs-rules/) — écrasement complet, source de vérité
+Write-Step "Mise à jour de la documentation (docs-rules/)..."
+try {
+    $docsFiles = Invoke-RestMethod -Uri $DocsApiUrl -Headers @{ "User-Agent" = "gdm-dev-rules-updater" }
+    if (-not (Test-Path "docs-rules")) {
+        New-Item -ItemType Directory -Path "docs-rules" -Force | Out-Null
+    }
+    foreach ($docFile in $docsFiles) {
+        if ($docFile.type -eq "file") {
+            Invoke-RestMethod -Uri $docFile.download_url -OutFile "docs-rules/$($docFile.name)"
+            Write-Ok "docs-rules/$($docFile.name)"
+        }
+    }
+} catch {
+    Write-Warn "Impossible de mettre à jour docs-rules/ : $($_.Exception.Message)"
+}
+
 # Afficher le diff Git
 Write-Step "Changements détectés :"
 Write-Host ""
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md 2>$null
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ 2>$null
 Write-Host ""
 
 # Message final
@@ -126,9 +144,9 @@ Write-Host ""
 Write-Host "Prochaines étapes :" -ForegroundColor White
 Write-Host ""
 Write-Host "  1. Vérifie le diff avec :" -ForegroundColor White
-Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md" -ForegroundColor Gray
+Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  2. Si OK, commit :" -ForegroundColor White
-Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md" -ForegroundColor Gray
+Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/" -ForegroundColor Gray
 Write-Host "       git commit -m `"chore: update GDM AI rules`"" -ForegroundColor Gray
 Write-Host ""

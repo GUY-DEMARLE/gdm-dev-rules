@@ -9,6 +9,7 @@
 
 param(
     [string]$RepoUrl = "https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates",
+    [string]$DocsApiUrl = "https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main",
     [switch]$Force = $false
 )
 
@@ -86,11 +87,29 @@ foreach ($file in $files) {
     }
 }
 
+# Télécharger la documentation GDM (docs-rules/) — liste dynamique via l'API GitHub
+Write-Step "Téléchargement de la documentation (docs-rules/)..."
+try {
+    $docsFiles = Invoke-RestMethod -Uri $DocsApiUrl -Headers @{ "User-Agent" = "gdm-dev-rules-installer" }
+    if (-not (Test-Path "docs-rules")) {
+        New-Item -ItemType Directory -Path "docs-rules" -Force | Out-Null
+    }
+    foreach ($docFile in $docsFiles) {
+        if ($docFile.type -eq "file") {
+            Invoke-RestMethod -Uri $docFile.download_url -OutFile "docs-rules/$($docFile.name)"
+            Write-Ok "docs-rules/$($docFile.name)"
+        }
+    }
+} catch {
+    Write-Warn "Impossible de télécharger docs-rules/ : $($_.Exception.Message)"
+    Write-Warn "Les règles principales sont installées ; tu peux relancer plus tard pour la doc."
+}
+
 # Vérifier que .gitignore ne ignore pas ces fichiers
 Write-Step "Vérification du .gitignore..."
 if (Test-Path ".gitignore") {
     $gitignore = Get-Content ".gitignore" -Raw
-    $patterns = @(".ai-rules", ".cursor", "CLAUDE.md", "AGENTS.md")
+    $patterns = @(".ai-rules", ".cursor", "CLAUDE.md", "AGENTS.md", "docs-rules")
     $ignoredFiles = @()
     foreach ($pattern in $patterns) {
         if ($gitignore -match [regex]::Escape($pattern)) {
@@ -122,7 +141,7 @@ Write-Host "  1. Ouvre CLAUDE.md et remplis les sections 'Contexte du projet'" -
 Write-Host "     et 'Règles spécifiques à ce projet'." -ForegroundColor White
 Write-Host ""
 Write-Host "  2. Commit les fichiers :" -ForegroundColor White
-Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md" -ForegroundColor Gray
+Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/" -ForegroundColor Gray
 Write-Host "       git commit -m `"chore: add GDM AI rules`"" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  3. Vérifie que ça marche :" -ForegroundColor White

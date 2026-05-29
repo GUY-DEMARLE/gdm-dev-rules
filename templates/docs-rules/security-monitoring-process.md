@@ -94,7 +94,7 @@ Le but du process est donc d'avoir une surveillance continue, sans attendre qu'u
 Le workflow GitHub Actions est documente en detail ici :
 
 ```text
-docs/security-oss-workflow.md
+docs-rules/SECURITY_OSS_PIPELINE.md
 ```
 
 Son role est de controler le projet directement dans GitHub.

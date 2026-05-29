@@ -201,7 +201,7 @@ Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/ma
 Puis configure la variable GitHub `SECURITY_TARGET_URL` (URL à auditer en planifié).
 
 Explications détaillées + guide pas à pas (ajout au repo, variable GitHub, lancement manuel, récupération des rapports) :
-`docs/SECURITY_OSS_PIPELINE.md`
+`templates/docs-rules/SECURITY_OSS_PIPELINE.md` (distribué dans les projets sous `docs-rules/`)
 
 ---
 
