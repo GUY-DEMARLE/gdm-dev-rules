@@ -131,9 +131,14 @@ try {
 }
 
 # Afficher le diff Git
+# On bascule temporairement sur "Continue" : sous PowerShell 5.1, un warning git
+# sur stderr (ex. "LF will be replaced by CRLF") serait promu en erreur terminante
+# avec ErrorActionPreference="Stop" et ferait planter le script ici.
 Write-Step "Changements détectés :"
 Write-Host ""
+$ErrorActionPreference = "Continue"
 git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ 2>$null
+$ErrorActionPreference = "Stop"
 Write-Host ""
 
 # Message final
