@@ -448,6 +448,34 @@ produire un rapport meme si l'app ne semble pas utiliser Supabase
 
 Sur un projet sans Supabase, le rapport peut etre vide ou peu utile. C'est acceptable dans une logique de workflow universel.
 
+### 12bis. Mises A Jour De Dependances (Maintenance)
+
+En plus des scans de vulnerabilites, l'audit hebdomadaire detecte les dependances **non a jour** (mises a jour disponibles), selon la stack detectee automatiquement.
+
+```text
+requirements*.txt -> pip list --outdated (dans un venv isole)
+package-lock.json -> npm outdated --json
+composer.lock     -> composer outdated --direct --format=json
+```
+
+Chaque paquet outdated est classe en `major`, `minor` ou `patch` par comparaison des numeros de version. Les resultats sont :
+
+```text
+ecrits dans reports/dependency-updates.json
+resumes dans reports/dependency-updates-slack.txt
+ajoutes au contexte de l'analyse IA (qui commente aussi les mises a jour)
+affiches dans une section "Maintenance / dependances" du message Slack
+```
+
+Cette etape est non bloquante et best-effort : si l'installation des dependances echoue, l'audit continue et la section reste vide. Elle complete les audits de securite, qui regardent les vulnerabilites, par une vue maintenance, qui regarde l'obsolescence des dependances.
+
+Difference importante :
+
+```text
+OSV / npm audit / composer audit / pip-audit -> dependances VULNERABLES
+mises a jour de dependances                   -> dependances OBSOLETES (a jour ou non)
+```
+
 ### 13. Rapport De Synthese
 
 Le workflow cree :

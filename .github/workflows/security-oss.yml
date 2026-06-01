@@ -384,6 +384,164 @@ jobs:
           done
         continue-on-error: true
 
+      - name: Python outdated dependencies (report)
+        id: pip_outdated
+        if: steps.detect.outputs.has_requirements == 'true'
+        shell: bash
+        run: |
+          find . -name 'requirements*.txt' -not -path './vendor/*' -not -path './node_modules/*' -print0 | while IFS= read -r -d '' reqfile; do
+            safe_name="$(echo "$reqfile" | sed 's#^\./##; s#[^A-Za-z0-9_.-]#-#g')"
+            out="reports/pip-outdated-${safe_name}.json"
+            venv_dir="$(mktemp -d)/venv"
+            python -m venv "$venv_dir"
+            "$venv_dir/bin/pip" install --quiet --upgrade pip >/dev/null 2>&1
+            if "$venv_dir/bin/pip" install --quiet -r "$reqfile" >/dev/null 2>&1; then
+              "$venv_dir/bin/pip" list --outdated --format=json > "$out" 2>/dev/null || echo "[]" > "$out"
+            else
+              echo "[]" > "$out"
+            fi
+            test -s "$out" || echo "[]" > "$out"
+          done
+        continue-on-error: true
+
+      - name: npm outdated dependencies (report)
+        id: npm_outdated
+        if: steps.detect.outputs.has_package_lock == 'true'
+        shell: bash
+        run: |
+          find . -name package-lock.json -not -path './vendor/*' -not -path './node_modules/*' -print0 | while IFS= read -r -d '' lockfile; do
+            dir="$(dirname "$lockfile")"
+            safe_name="$(echo "$dir" | sed 's#^\./##; s#[^A-Za-z0-9_.-]#-#g')"
+            [ -z "$safe_name" ] && safe_name="root"
+            out="reports/npm-outdated-${safe_name}.json"
+            npm --prefix "$dir" outdated --json > "$out" 2>/dev/null || true
+            test -s "$out" || echo "{}" > "$out"
+          done
+        continue-on-error: true
+
+      - name: Composer outdated dependencies (report)
+        id: composer_outdated
+        if: steps.detect.outputs.has_composer == 'true'
+        shell: bash
+        run: |
+          find . -name composer.lock -not -path './vendor/*' -print0 | while IFS= read -r -d '' lockfile; do
+            dir="$(dirname "$lockfile")"
+            safe_name="$(echo "$dir" | sed 's#^\./##; s#[^A-Za-z0-9_.-]#-#g')"
+            [ -z "$safe_name" ] && safe_name="root"
+            out="reports/composer-outdated-${safe_name}.json"
+            ( cd "$dir" && composer install --no-interaction --no-progress --no-scripts --ignore-platform-reqs >/dev/null 2>&1; composer outdated --direct --format=json --no-interaction 2>/dev/null ) > "$out" || echo '{"installed":[]}' > "$out"
+            test -s "$out" || echo '{"installed":[]}' > "$out"
+          done
+        continue-on-error: true
+
+      - name: Build dependency updates summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          REPORTS = Path("reports")
+
+          def load_json(path):
+              try:
+                  if path.exists() and path.stat().st_size > 0:
+                      return json.loads(path.read_text(encoding="utf-8"))
+              except Exception:
+                  return None
+              return None
+
+          def parse_version(value):
+              parts = re.findall(r"\d+", str(value or ""))
+              nums = [int(p) for p in parts[:3]]
+              while len(nums) < 3:
+                  nums.append(0)
+              return nums
+
+          def classify(current, latest):
+              c = parse_version(current)
+              l = parse_version(latest)
+              if l[0] != c[0]:
+                  return "major"
+              if l[1] != c[1]:
+                  return "minor"
+              if l[2] != c[2]:
+                  return "patch"
+              return "other"
+
+          updates = {"pip": [], "npm": [], "composer": []}
+
+          for path in sorted(REPORTS.glob("pip-outdated-*.json")):
+              data = load_json(path)
+              if isinstance(data, list):
+                  for item in data:
+                      name = item.get("name")
+                      current = item.get("version")
+                      latest = item.get("latest_version")
+                      if name and current and latest and current != latest:
+                          updates["pip"].append({"name": name, "current": current, "latest": latest, "level": classify(current, latest)})
+
+          for path in sorted(REPORTS.glob("npm-outdated-*.json")):
+              data = load_json(path)
+              if isinstance(data, dict):
+                  for name, info in data.items():
+                      if not isinstance(info, dict):
+                          continue
+                      current = info.get("current") or info.get("wanted")
+                      latest = info.get("latest")
+                      if name and current and latest and current != latest:
+                          updates["npm"].append({"name": name, "current": current, "latest": latest, "level": classify(current, latest)})
+
+          for path in sorted(REPORTS.glob("composer-outdated-*.json")):
+              data = load_json(path)
+              items = data.get("installed", []) if isinstance(data, dict) else []
+              for item in items or []:
+                  name = item.get("name")
+                  current = item.get("version")
+                  latest = item.get("latest")
+                  if name and current and latest and current != latest:
+                      updates["composer"].append({"name": name, "current": current, "latest": latest, "level": classify(current, latest)})
+
+          order = {"major": 0, "minor": 1, "patch": 2, "other": 3}
+          for eco, items in updates.items():
+              seen = set()
+              deduped = []
+              for it in items:
+                  key = (it["name"], it["current"], it["latest"])
+                  if key in seen:
+                      continue
+                  seen.add(key)
+                  deduped.append(it)
+              deduped.sort(key=lambda x: (order.get(x["level"], 9), x["name"].lower()))
+              updates[eco] = deduped
+
+          total = sum(len(v) for v in updates.values())
+          (REPORTS / "dependency-updates.json").write_text(json.dumps({"total": total, "updates": updates}, ensure_ascii=False, indent=2), encoding="utf-8")
+
+          labels = {"pip": "Python (pip)", "npm": "Frontend (npm)", "composer": "PHP (composer)"}
+          lines = []
+          if total == 0:
+              lines.append("Aucune mise a jour de dependance detectee.")
+          else:
+              for eco in ("pip", "npm", "composer"):
+                  items = updates[eco]
+                  if not items:
+                      continue
+                  counts = {}
+                  for it in items:
+                      counts[it["level"]] = counts.get(it["level"], 0) + 1
+                  summary = ", ".join(f"{counts[lvl]} {lvl}" for lvl in ("major", "minor", "patch", "other") if counts.get(lvl))
+                  lines.append(f"*{labels[eco]}* ({summary}):")
+                  for it in items[:12]:
+                      lines.append(f"- [{it['level']}] {it['name']}: {it['current']} -> {it['latest']}")
+                  if len(items) > 12:
+                      lines.append(f"- (+{len(items) - 12} autres)")
+          (REPORTS / "dependency-updates-slack.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+        continue-on-error: true
+
       - name: Docker filesystem scan if Dockerfile exists
         id: docker_scan
         if: steps.detect.outputs.has_dockerfile == 'true'
@@ -601,23 +759,25 @@ jobs:
               "npm_audit": npm_summaries(),
               "zap": zap_summary(),
               "supabomb_excerpt": read_text_report("supabomb-report.txt"),
+              "dependency_updates": load_json(REPORTS / "dependency-updates.json") or {"total": 0, "updates": {}},
           }
 
           body = {
               "model": os.environ.get("OPENAI_SECURITY_MODEL", "gpt-5.4-mini"),
               "instructions": (
-                  "Tu es un analyste securite applicative senior. "
+                  "Tu es un analyste securite applicative et un mainteneur logiciel senior. "
                   "Tu lis un audit automatique GitHub Actions et tu produis une synthese Slack courte, "
                   "en francais, actionnable, sans dramatiser. "
                   "Priorise les actions concretes. Ne demande jamais de coller des secrets."
               ),
               "input": (
-                  "Analyse ce contexte JSON d'audit securite. "
-                  "Reponds en 8 lignes maximum avec: statut global, points critiques, actions recommandees, "
-                  "et quoi regarder dans les artifacts.\n\n"
+                  "Analyse ce contexte JSON d'audit securite et de maintenance des dependances. "
+                  "Reponds en 10 lignes maximum avec: statut global securite, points critiques, "
+                  "actions recommandees, quoi regarder dans les artifacts, et une courte note sur les "
+                  "mises a jour de dependances (champ dependency_updates) en signalant les majors a tester en priorite.\n\n"
                   + json.dumps(context, ensure_ascii=False, indent=2)
               ),
-              "max_output_tokens": 500,
+              "max_output_tokens": 600,
               "store": False,
           }
 
@@ -689,6 +849,9 @@ jobs:
           ai_advice = ai_path.read_text(encoding="utf-8").strip() if ai_path.exists() else "Conseil IA indisponible."
           target_url = os.environ.get("TARGET_URL") or "not configured"
 
+          dep_path = Path("reports/dependency-updates-slack.txt")
+          dep_section = dep_path.read_text(encoding="utf-8").strip() if dep_path.exists() else "Section dependances indisponible."
+
           text = f"""Security audit termine pour {os.environ.get('REPOSITORY_NAME')}
           Run: {os.environ.get('RUN_URL')}
           Target: {target_url}
@@ -702,6 +865,9 @@ jobs:
           Docker/Trivy: {os.environ.get('DOCKER_OUTCOME')}
           ZAP: {os.environ.get('ZAP_OUTCOME')}
           Supabomb: {os.environ.get('SUPABOMB_OUTCOME')}
+
+          Maintenance / dependances:
+          {dep_section}
 
           Conseil IA:
           {ai_advice}
