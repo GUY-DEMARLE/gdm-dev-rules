@@ -9,7 +9,8 @@
 
 param(
     [string]$RepoUrl = "https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates",
-    [string]$DocsApiUrl = "https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main"
+    [string]$DocsApiUrl = "https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main",
+    [string]$WorkflowUrl = "https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml"
 )
 
 $ErrorActionPreference = "Stop"
@@ -130,6 +131,18 @@ try {
     Write-Warn "Impossible de mettre à jour docs-rules/ : $($_.Exception.Message)"
 }
 
+# Mise à jour du workflow GitHub Actions Security OSS (écrasement complet, source de vérité)
+Write-Step "Mise à jour de .github/workflows/security-oss.yml..."
+try {
+    if (-not (Test-Path ".github/workflows")) {
+        New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
+    }
+    Invoke-RestMethod -Uri $WorkflowUrl -OutFile ".github/workflows/security-oss.yml"
+    Write-Ok ".github/workflows/security-oss.yml"
+} catch {
+    Write-Warn "Impossible de mettre à jour le workflow security-oss : $($_.Exception.Message)"
+}
+
 # Afficher le diff Git
 # On bascule temporairement sur "Continue" : sous PowerShell 5.1, un warning git
 # sur stderr (ex. "LF will be replaced by CRLF") serait promu en erreur terminante
@@ -137,7 +150,7 @@ try {
 Write-Step "Changements détectés :"
 Write-Host ""
 $ErrorActionPreference = "Continue"
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ 2>$null
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ .github/ 2>$null
 $ErrorActionPreference = "Stop"
 Write-Host ""
 
@@ -149,9 +162,9 @@ Write-Host ""
 Write-Host "Prochaines étapes :" -ForegroundColor White
 Write-Host ""
 Write-Host "  1. Vérifie le diff avec :" -ForegroundColor White
-Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/" -ForegroundColor Gray
+Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ .github/" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  2. Si OK, commit :" -ForegroundColor White
-Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/" -ForegroundColor Gray
+Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ .github/" -ForegroundColor Gray
 Write-Host "       git commit -m `"chore: update GDM AI rules`"" -ForegroundColor Gray
 Write-Host ""

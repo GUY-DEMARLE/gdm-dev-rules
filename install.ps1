@@ -10,6 +10,7 @@
 param(
     [string]$RepoUrl = "https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates",
     [string]$DocsApiUrl = "https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main",
+    [string]$WorkflowUrl = "https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml",
     [switch]$Force = $false
 )
 
@@ -65,7 +66,7 @@ if ($existingFiles.Count -gt 0 -and -not $Force) {
 
 # Créer les dossiers nécessaires
 Write-Step "Création des dossiers..."
-$dirs = @(".ai-rules", ".cursor", ".cursor/rules")
+$dirs = @(".ai-rules", ".cursor", ".cursor/rules", ".github", ".github/workflows")
 foreach ($dir in $dirs) {
     if (-not (Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -105,11 +106,21 @@ try {
     Write-Warn "Les règles principales sont installées ; tu peux relancer plus tard pour la doc."
 }
 
+# Télécharger le workflow GitHub Actions Security OSS
+Write-Step "Téléchargement de .github/workflows/security-oss.yml..."
+try {
+    Invoke-RestMethod -Uri $WorkflowUrl -OutFile ".github/workflows/security-oss.yml"
+    Write-Ok ".github/workflows/security-oss.yml"
+} catch {
+    Write-Warn "Impossible de télécharger le workflow security-oss : $($_.Exception.Message)"
+    Write-Warn "Tu peux relancer plus tard, ou copier le workflow manuellement."
+}
+
 # Vérifier que .gitignore ne ignore pas ces fichiers
 Write-Step "Vérification du .gitignore..."
 if (Test-Path ".gitignore") {
     $gitignore = Get-Content ".gitignore" -Raw
-    $patterns = @(".ai-rules", ".cursor", "CLAUDE.md", "AGENTS.md", "docs-rules")
+    $patterns = @(".ai-rules", ".cursor", "CLAUDE.md", "AGENTS.md", "docs-rules", ".github/workflows")
     $ignoredFiles = @()
     foreach ($pattern in $patterns) {
         if ($gitignore -match [regex]::Escape($pattern)) {
@@ -141,7 +152,7 @@ Write-Host "  1. Ouvre CLAUDE.md et remplis les sections 'Contexte du projet'" -
 Write-Host "     et 'Règles spécifiques à ce projet'." -ForegroundColor White
 Write-Host ""
 Write-Host "  2. Commit les fichiers :" -ForegroundColor White
-Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/" -ForegroundColor Gray
+Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ .github/" -ForegroundColor Gray
 Write-Host "       git commit -m `"chore: add GDM AI rules`"" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  3. Vérifie que ça marche :" -ForegroundColor White
