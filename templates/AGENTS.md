@@ -16,6 +16,16 @@ Tu dois respecter ces règles dans tout ce que tu génères. Si une demande te p
 
 Si tu ajoutes ou modifies un pipeline securite, ne copie pas le gros workflow central dans une app si un workflow reutilisable existe. L'app doit seulement contenir le caller qui reference `GUY-DEMARLE/gdm-dev-rules`.
 
+## Design system Guy Demarle
+
+Le dossier `system-design/` est à la racine du repo. Il est posé et mis à jour automatiquement par `gdm-dev-rules` : ne le modifie pas ici, toute évolution se fait dans la source (`GUY-DEMARLE/gdm-dev-rules`, `templates/system-design/`).
+
+**Avant de créer ou de modifier la moindre interface, lis `system-design/AGENTS.md` et applique-le.** Jetons, composants et mascotte sont fournis dans `system-design/kit/`, il n'y a rien à redessiner. Aucune couleur, taille de texte, rayon ou durée n'est écrite en dur — uniquement des `var(--gd-*)`.
+
+- Rendu visuel de tout le kit : ouvre `system-design/kit/demo.html` dans un navigateur.
+- Direction artistique et justification des arbitrages : `system-design/README.md`.
+- Contrôle automatique avant de dire que c'est fini : `node system-design/outils/verifier-interface.mjs <dossier du front>`.
+
 ## Contexte du projet
 
 <!-- À compléter par dev pour chaque projet : -->

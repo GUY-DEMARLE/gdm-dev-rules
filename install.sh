@@ -104,10 +104,35 @@ else
     echo -e "${YELLOW}⚠ Impossible de lister docs-rules/ via l'API GitHub (règles principales installées).${NC}"
 fi
 
+# Design system IA GDM (system-design/) — écrasement complet, c'est une source
+# de vérité : le kit ne se modifie pas dans les applications.
+# La liste des fichiers vient de MANIFEST.txt (le dossier a des sous-dossiers,
+# et raw.githubusercontent n'a pas la limite de 60 req/h de l'API GitHub).
+echo -e "${CYAN}→ Téléchargement du design system (system-design/)...${NC}"
+SD_BASE="$REPO_URL/system-design"
+sd_manifest=$(curl -sSL -f "$SD_BASE/MANIFEST.txt" || true)
+if [ -n "$sd_manifest" ]; then
+    # On enlève les CR (le manifeste peut arriver en CRLF), les commentaires
+    # et les lignes vides.
+    sd_files=$(printf '%s\n' "$sd_manifest" | tr -d '\r' \
+        | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$')
+    while IFS= read -r rel; do
+        [ -z "$rel" ] && continue
+        mkdir -p "system-design/$(dirname "$rel")"
+        if curl -sSL -f "$SD_BASE/$rel" -o "system-design/$rel"; then
+            echo -e "${GREEN}✓ system-design/$rel${NC}"
+        else
+            echo -e "${YELLOW}⚠ Échec du téléchargement de system-design/$rel${NC}"
+        fi
+    done <<< "$sd_files"
+else
+    echo -e "${YELLOW}⚠ Impossible de lire system-design/MANIFEST.txt (design system non installé).${NC}"
+fi
+
 # Vérifier le .gitignore
 echo -e "${CYAN}→ Vérification du .gitignore...${NC}"
 if [ -f ".gitignore" ]; then
-    patterns=(".ai-rules" ".cursor" "CLAUDE.md" "AGENTS.md" "docs-rules")
+    patterns=(".ai-rules" ".cursor" "CLAUDE.md" "AGENTS.md" "docs-rules" "system-design")
     ignored_files=()
     for pattern in "${patterns[@]}"; do
         if grep -qF "$pattern" .gitignore; then
@@ -139,7 +164,7 @@ echo -e "${WHITE}  1. Ouvre CLAUDE.md et remplis les sections 'Contexte du proje
 echo -e "${WHITE}     et 'Règles spécifiques à ce projet'.${NC}"
 echo ""
 echo -e "${WHITE}  2. Commit les fichiers :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/${NC}"
 echo -e "${GRAY}       git commit -m \"chore: add GDM AI rules\"${NC}"
 echo ""
 echo -e "${WHITE}  3. Vérifie que ça marche :${NC}"

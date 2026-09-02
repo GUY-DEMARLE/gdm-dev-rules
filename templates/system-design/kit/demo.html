@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charte IA Guy Demarle — banc d'essai</title>
+
+<!--
+  BANC D'ESSAI DE LA CHARTE IA GUY DEMARLE
+  ============================================================================
+  Ouvrir ce fichier par double-clic. Il charge les fichiers du kit tels qu'un
+  vrai outil les chargerait — il n'y a AUCUNE valeur recopiée ici : les
+  couleurs, tailles et hex affichés sont lus en direct dans le DOM. Si un
+  jeton change dans gd-ai-tokens.css, cette page change avec lui.
+
+  À quoi ça sert :
+  1. voir à quoi ressemble un outil IA GD conforme, avant d'écrire une ligne ;
+  2. tester la mascotte (poses, effets, bulle, échelle, reduced-motion) ;
+  3. vérifier le rendu en thème clair ET sombre en un clic ;
+  4. servir de référence de non-régression quand la charte évolue.
+
+  Le CSS de CETTE page ne concerne que sa mise en page de planche : il n'est
+  pas de la charte et ne doit pas être recopié dans un outil.
+  ============================================================================
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="gd-ai-tokens.css">
+<link rel="stylesheet" href="gd-ai-components.css">
+
+<script>
+  /* Cette planche affiche volontairement plusieurs exemplaires de la mascotte
+     pour montrer l'échelle et les poses côte à côte. Dans un OUTIL, c'est
+     interdit (une seule à l'écran) et le composant prévient en console. */
+  window.GD_MASCOTTE_ALLOW_DUPLICATES = true
+</script>
+<script src="gd-ai-mascotte.js" defer></script>
+
+<style>
+  /* ---- mise en page de la planche (hors charte) -------------------------- */
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 var(--space-6) var(--space-12); }
+
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--gd-cream) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--gd-border);
+    padding: var(--space-4) 0;
+    margin-bottom: var(--space-8);
+  }
+  .top__row { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
+  .top__spacer { flex: 1 1 auto; }
+  .switch { display: inline-flex; gap: 4px; background: var(--gd-cream-deep); padding: 4px; border-radius: var(--radius-pill); }
+  .switch button {
+    border: 0; background: none; border-radius: var(--radius-pill);
+    padding: 6px 14px; cursor: pointer;
+    font-family: var(--font-sans); font-size: var(--text-xs); font-weight: var(--text-medium);
+    color: var(--gd-ink-soft-aa);
+  }
+  .switch button[aria-pressed="true"] { background: var(--gd-paper); color: var(--gd-ink); box-shadow: var(--gd-shadow-soft); }
+
+  nav.toc { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-10); }
+  nav.toc a {
+    font-size: var(--text-xs); text-decoration: none; color: var(--gd-ink-soft-aa);
+    border: 1px solid var(--gd-border); border-radius: var(--radius-pill); padding: 5px 12px;
+  }
+  nav.toc a:hover { color: var(--gd-red); border-color: var(--gd-red); }
+
+  section { margin-bottom: var(--space-12); scroll-margin-top: 88px; }
+  section > h2 {
+    font-size: var(--text-2xl); font-weight: var(--text-bold);
+    margin: 0 0 var(--space-2); letter-spacing: -0.01em;
+  }
+  section > .lead { margin: 0 0 var(--space-6); color: var(--gd-ink-soft-aa); font-size: var(--text-sm); max-width: 70ch; }
+  h3.sub {
+    font-size: var(--text-xs); font-weight: var(--text-bold); text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--gd-ink-soft-aa);
+    margin: var(--space-8) 0 var(--space-4);
+  }
+
+  .row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+  .grid { display: grid; gap: var(--space-4); }
+  .grid--3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .grid--4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+
+  /* nuancier */
+  .sw { border: 1px solid var(--gd-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--gd-paper); }
+  .sw__chip { height: 56px; }
+  .sw__meta { padding: 8px 10px; font-size: var(--text-2xs); line-height: 1.5; }
+  .sw__name { font-weight: var(--text-bold); display: block; color: var(--gd-ink); }
+  .sw__val { color: var(--gd-ink-soft-aa); font-family: ui-monospace, Menlo, Consolas, monospace; text-transform: uppercase; }
+
+  /* Un tableau ne se comprime pas : sur petit écran il pousse la page. Il
+     scrolle donc dans sa propre boîte, jamais le corps de la page. */
+  .scroll-x { overflow-x: auto; }
+  table.data { width: 100%; min-width: 520px; border-collapse: collapse; font-size: var(--text-sm); }
+  table.data th, table.data td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--gd-border); }
+  table.data th { font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--gd-ink-soft-aa); font-weight: var(--text-bold); }
+
+  /* le code de la planche est en chasse fixe : c'est un écran de dev, pas un
+     écran vu par une Conseillère. La charte n'impose Poppins que sur l'UI. */
+  pre.code {
+    background: var(--gd-ink); color: #f3ece2;
+    border-radius: var(--radius-lg); padding: var(--space-4) var(--space-5);
+    overflow-x: auto; font-size: 13px; line-height: 1.6;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  :root[data-theme="dark"] pre.code { background: #120f0c; }
+
+  /* scène de la mascotte */
+  .stage {
+    display: grid; place-items: end center;
+    min-height: 300px; padding: var(--space-8) var(--space-6) var(--space-6);
+    background: var(--gd-paper); border: 1px solid var(--gd-border);
+    border-radius: var(--radius-2xl);
+  }
+  .scale-row { display: flex; align-items: flex-end; gap: var(--space-8); flex-wrap: wrap; }
+  .scale-item { text-align: center; }
+  /* La légende est bornée : un flex-item se dimensionne sur son contenu, et
+     une légende longue élargissait la colonne au point de pousser la page. */
+  .scale-item span { display: block; max-width: 108px; margin: var(--space-2) auto 0; font-size: var(--text-2xs); color: var(--gd-ink-soft-aa); }
+  .pose-row { display: flex; gap: var(--space-6); flex-wrap: wrap; }
+  .pose-item { text-align: center; }
+  .pose-item span { display: block; margin-top: var(--space-2); font-size: var(--text-2xs); color: var(--gd-ink-soft-aa); }
+
+  /* do / don't */
+  .dd { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); }
+  .dd__case { border-radius: var(--radius-2xl); border: 1px solid var(--gd-border); overflow: hidden; }
+  .dd__head { padding: 8px 14px; font-size: var(--text-xs); font-weight: var(--text-bold); }
+  .dd__head--ok { background: var(--color-success-bg); color: var(--color-success-deep); }
+  .dd__head--ko { background: var(--color-error-bg); color: var(--color-error); }
+  .dd__body { padding: var(--space-5); background: var(--gd-cream); min-height: 118px; display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+  /* démo mouvement */
+  .mv { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-3); }
+  .mv__track { flex: 1; height: 34px; background: var(--gd-cream-deep); border-radius: var(--radius-pill); position: relative; overflow: hidden; }
+  .mv__dot { position: absolute; top: 5px; left: 5px; width: 24px; height: 24px; border-radius: var(--radius-full); background: var(--gd-red); }
+  .mv__label { width: 190px; font-size: var(--text-xs); }
+  .mv__label b { display: block; font-weight: var(--text-bold); }
+
+  .check { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+  .check li { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--text-sm); }
+  .check input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--gd-red); }
+
+  footer.end { border-top: 1px solid var(--gd-border); padding-top: var(--space-6); font-size: var(--text-xs); color: var(--gd-ink-soft-aa); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top__row">
+    <div class="gd-lockup gd-lockup--sm">
+      <span class="gd-lockup__mark gd-lockup__mark--tint"></span>
+      <span class="gd-lockup__text">
+        <span class="gd-lockup__name">Charte</span>
+        <span class="gd-lockup__by">par Guy Demarle</span>
+      </span>
+    </div>
+    <div class="top__spacer"></div>
+    <div class="switch" role="group" aria-label="Thème">
+      <button type="button" data-theme-set="auto" aria-pressed="true">Auto</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">Clair</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Sombre</button>
+    </div>
+    <div class="switch" role="group" aria-label="Animations">
+      <button type="button" id="motion-toggle" aria-pressed="false">Simuler « animations réduites »</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <a href="#mascotte">Mascotte</a>
+    <a href="#couleurs">Couleurs</a>
+    <a href="#typo">Typographie</a>
+    <a href="#composants">Composants</a>
+    <a href="#formes">Formes &amp; ombres</a>
+    <a href="#mouvement">Mouvement</a>
+    <a href="#dodont">Do / Don't</a>
+    <a href="#checklist">Checklist</a>
+  </nav>
+
+  <section id="intro">
+    <div class="gd-card gd-card--warm">
+      <h2 class="gd-card__title">Le test en une seconde</h2>
+      <p class="gd-prose" style="margin:0">
+        Une Conseillère ouvre un écran, sans logo visible, sans titre. Elle doit savoir en
+        une seconde qu'elle est <b>sur un outil IA Guy Demarle</b>, et pas sur son back-office
+        de commandes, pas sur un site web, pas sur un outil générique. Un écran qui échoue à
+        ce test est hors charte, même s'il utilise les bonnes couleurs.
+      </p>
+      <p class="gd-text-soft" style="font-size:var(--text-xs); margin:var(--space-4) 0 0">
+        Cette page est le banc d'essai du kit. Tout ce qu'elle affiche est lu en direct dans
+        <code>gd-ai-tokens.css</code>, <code>gd-ai-components.css</code> et
+        <code>gd-ai-mascotte.js</code> — rien n'est recopié.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="mascotte">
+    <h2>1 · La mascotte</h2>
+    <p class="lead">
+      L'emblème transverse de l'environnement IA. Même tracé, mêmes poses, même caractère sur
+      tous les outils — c'est pour ça qu'elle est livrée en composant et pas en image à
+      recopier. Elle accompagne, elle ne conduit pas.
+    </p>
+
+    <div class="stage">
+      <gd-mascotte id="star" size="190" pose="salut" bubble-align="center"></gd-mascotte>
+    </div>
+
+    <h3 class="sub">Poses</h3>
+    <div class="row" id="pose-buttons"></div>
+
+    <h3 class="sub">La faire parler</h3>
+    <div class="row" id="say-buttons"></div>
+    <p class="gd-hint" style="margin-top:var(--space-3)">
+      La bulle porte du statut et de la chaleur, jamais une donnée. Essayez « 25 % de
+      commission » : le composant l'accepte mais prévient en console — un chiffre dit par la
+      mascotte a l'air d'un fait vérifié alors qu'il n'a traversé aucun contrôle.
+    </p>
+
+    <h3 class="sub">Les six poses côte à côte</h3>
+    <div class="pose-row" id="pose-planche"></div>
+    <p class="gd-hint" style="margin-top:var(--space-3)">
+      « Salue » et « Saute » sont des effets ponctuels : ils se rendent en une seconde et demie
+      puis la mascotte revient au repos. Cliquez sur un personnage pour rejouer sa pose.
+    </p>
+
+    <h3 class="sub">Échelle — et le plancher de 40 px</h3>
+    <div class="scale-row" id="scale-row"></div>
+    <p class="gd-hint" style="margin-top:var(--space-4)">
+      Sous 40 px les jambes se dissolvent. Les deux déclinaisons de repli (bras rangés entre
+      24 et 40 px, coquille seule sous 24 px) ne sont pas encore dessinées : le composant
+      remonte de force à 40 px et le signale en console.
+    </p>
+
+    <h3 class="sub">Le code, en entier</h3>
+    <pre class="code">&lt;script src="/gd-ai/gd-ai-mascotte.js" defer&gt;&lt;/script&gt;
+
+&lt;gd-mascotte pose="salut" size="96"&gt;&lt;/gd-mascotte&gt;
+
+const m = document.querySelector('gd-mascotte')
+
+m.moment('attente')                       // accueil | attente | reponse
+                                          // succes | clic | repos
+m.pose = 'reflechit'                      // ou directement la pose
+m.say('Je mijote ça…', { mood: 'thinking' })
+m.hush()
+m.poke()                                  // saut ponctuel
+
+// attributs : pose, size, bubble, mood, bubble-align,
+//             label, ground="off", no-poke, reduced</pre>
+
+    <h3 class="sub">Un moment d'usage = une pose, partout pareil</h3>
+    <div class="scroll-x">
+      <table class="data">
+        <thead><tr><th>Moment</th><th><code>moment()</code></th><th>Pose</th><th>Ce qu'elle fait</th></tr></thead>
+        <tbody>
+          <tr><td>Accueil</td><td><code>accueil</code></td><td>salut</td><td>Salue, bras levé</td></tr>
+          <tr><td>Recherche en cours</td><td><code>attente</code></td><td>reflechit</td><td>« Je mijote » : bascule lente, bras qui tapote, appui qui change de jambe</td></tr>
+          <tr><td>Réponse prête</td><td><code>reponse</code></td><td>presente</td><td>Présente le résultat</td></tr>
+          <tr><td>Réussite</td><td><code>succes</code></td><td>bravo</td><td>Les deux bras en l'air</td></tr>
+          <tr><td>Clic</td><td><code>clic</code></td><td>saut</td><td>Saut, écrasement, réception</td></tr>
+          <tr><td>Rien à dire</td><td><code>repos</code></td><td>repos</td><td>Respire, balance les bras, cligne des yeux</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h3 class="sub">Les règles qui ne se négocient pas</h3>
+    <div class="grid grid--3">
+      <div class="gd-mood gd-mood--rose"><b>Une seule à l'écran.</b> Deux exemplaires simultanés cassent le personnage.</div>
+      <div class="gd-mood gd-mood--rose"><b>Une seule voix.</b> Si un indicateur d'attente parle déjà, elle se tait — et n'articule pas.</div>
+      <div class="gd-mood gd-mood--rose"><b>Jamais d'info critique.</b> Ni chiffre, ni montant, ni mention légale dans sa bulle.</div>
+      <div class="gd-mood gd-mood--rose"><b>Toujours au sol.</b> Son ombre vit à part et ne décolle jamais avec elle.</div>
+      <div class="gd-mood gd-mood--rose"><b>40 px minimum.</b> En dessous, on ne l'affiche pas.</div>
+      <div class="gd-mood gd-mood--rose"><b>Elle s'arrête en <code>prefers-reduced-motion</code>.</b> Toutes ses animations, sans exception.</div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="couleurs">
+    <h2>2 · Couleurs</h2>
+    <p class="lead">
+      Répartition visée : 60 % de crème (fond), 30 % de blanc papier (cartes, bulles, champs),
+      10 % de rouge et de gourmand (accents) — le rouge dépasse rarement 5 %. Les valeurs
+      ci-dessous sont lues en direct : basculez en thème sombre, elles changent.
+    </p>
+
+    <h3 class="sub">Couleurs de marque</h3>
+    <div class="grid grid--4" data-swatches="--gd-red,--gd-red-deep,--gd-red-soft,--gd-cream,--gd-cream-deep,--gd-sidebar,--gd-paper,--gd-paper-warm,--gd-ink,--gd-ink-soft,--gd-ink-soft-aa,--gd-border"></div>
+
+    <h3 class="sub">Palette gourmande</h3>
+    <p class="gd-hint" style="margin:0 0 var(--space-4)">
+      Accents, illustrations, humeurs, catégories. Jamais en aplat de fond sur plus d'un quart
+      de l'écran, jamais pour du texte : aucune n'atteint le contraste requis.
+    </p>
+    <div class="grid grid--4" data-swatches="--gd-butter,--gd-rose,--gd-mint,--gd-apricot,--gd-butter-soft,--gd-rose-soft,--gd-mint-soft,--gd-apricot-soft"></div>
+
+    <h3 class="sub">Sémantique — réservée au statut</h3>
+    <div class="grid grid--4" data-swatches="--color-success,--color-error,--color-warning"></div>
+
+    <h3 class="sub">Contrastes mesurés (WCAG 2.1, thème clair)</h3>
+    <div class="scroll-x">
+      <table class="data">
+        <thead><tr><th>Couple</th><th>Ratio</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td><code>--gd-ink</code> sur <code>--gd-cream</code></td><td>10,6:1</td><td>AAA</td></tr>
+          <tr><td>Blanc sur <code>--gd-red</code></td><td>5,2:1</td><td>AA</td></tr>
+          <tr><td><code>--gd-red</code> sur <code>--gd-cream</code></td><td>4,6:1</td><td>AA, juste au-dessus du seuil</td></tr>
+          <tr><td><code>--gd-ink-soft</code> sur <code>--gd-paper</code></td><td>4,9:1</td><td>AA</td></tr>
+          <tr><td><b><code>--gd-ink-soft</code> sur <code>--gd-cream</code></b></td><td><b>4,3:1</b></td><td><b>échoue AA en corps de texte</b></td></tr>
+          <tr><td><code>--gd-ink-soft-aa</code> sur <code>--gd-cream</code></td><td>5,4:1</td><td>AA</td></tr>
+        </tbody>
+    </table>
+    </div>
+    <div class="gd-alert gd-alert--warning" style="margin-top:var(--space-4)">
+      <div>
+        <b>Le piège hérité d'Ohracle.</b> <code>--gd-ink-soft</code> tient sur une carte blanche
+        mais pas sur le fond crème — or c'est là qu'il sert d'aide de saisie à 14-15 px, sur une
+        cible 50-60 ans. Sur crème : <code>--gd-ink-soft</code> à partir de 18 px ou en gras,
+        sinon <code>--gd-ink-soft-aa</code> (ou la classe <code>.gd-text-soft</code>, qui le fait
+        toute seule).
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="typo">
+    <h2>3 · Typographie</h2>
+    <p class="lead">
+      Une seule famille sur tout l'environnement : Poppins, poids 300 à 700. L'échelle porte
+      environ +2 px par palier par rapport à une échelle classique. Ce n'est pas un défaut de
+      calibrage, c'est le confort de lecture des Conseillères — ne pas « corriger » à la baisse.
+    </p>
+    <div id="type-scale"></div>
+    <p class="gd-hint" style="margin-top:var(--space-6)">
+      Interlignage 1,45 à 1,6 pour le corps, 1,2 pour les titres. Colonne de lecture de 65 à
+      75 caractères (classe <code>.gd-prose</code>). Pas de capitales au-delà de trois mots
+      hors lockup.
+    </p>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="composants">
+    <h2>4 · Composants</h2>
+    <p class="lead">
+      Les briques qui doivent être identiques d'un outil à l'autre, fournies dans
+      <code>gd-ai-components.css</code>. Le reste — grille, navigation, écrans — appartient à
+      chaque outil.
+    </p>
+
+    <h3 class="sub">Lockup de marque</h3>
+    <div class="row" style="gap:var(--space-10)">
+      <div class="gd-lockup">
+        <span class="gd-lockup__mark gd-lockup__mark--tint"></span>
+        <span class="gd-lockup__text">
+          <span class="gd-lockup__name">Ohracle</span>
+          <span class="gd-lockup__by">par Guy Demarle</span>
+        </span>
+      </div>
+      <div class="gd-lockup gd-lockup--sm">
+        <img class="gd-lockup__mark" src="gd-ai-marque-o.png" alt="">
+        <span class="gd-lockup__text">
+          <span class="gd-lockup__name">Atelier</span>
+          <span class="gd-lockup__by">par Guy Demarle</span>
+        </span>
+      </div>
+    </div>
+    <p class="gd-hint" style="margin-top:var(--space-4)">
+      La première lettre passe en rouge toute seule (<code>::first-letter</code>) : la
+      signature typographique de la famille ne dépend pas du soin de celui qui écrit le HTML.
+      « par Guy Demarle » est obligatoire. À gauche, la marque teintée
+      (<code>.gd-lockup__mark--tint</code>) qui suit le thème ; à droite, le PNG posé en
+      <code>&lt;img&gt;</code> — basculez en sombre pour voir la différence.
+    </p>
+
+    <h3 class="sub">Boutons — un seul rouge par zone</h3>
+    <div class="row">
+      <button class="gd-btn">Action principale</button>
+      <button class="gd-btn gd-btn--secondary">Secondaire</button>
+      <button class="gd-btn gd-btn--ghost">Discret</button>
+      <button class="gd-btn" disabled>Indisponible</button>
+    </div>
+    <div class="row" style="margin-top:var(--space-4)">
+      <button class="gd-btn gd-btn--lg">Grand</button>
+      <button class="gd-btn gd-btn--secondary">Taille par défaut</button>
+      <button class="gd-btn gd-btn--secondary gd-btn--sm">Petit (admin seulement)</button>
+    </div>
+
+    <h3 class="sub">Pastilles de suggestion et badges</h3>
+    <div class="row">
+      <button class="gd-chip">Comment calculer ma commission ?</button>
+      <button class="gd-chip">Prix du moule tablette</button>
+      <button class="gd-chip gd-chip--active">Sélectionnée</button>
+    </div>
+    <div class="row" style="margin-top:var(--space-4)">
+      <span class="gd-badge">Neutre</span>
+      <span class="gd-badge gd-badge--butter">Nouveau</span>
+      <span class="gd-badge gd-badge--mint">Produit</span>
+      <span class="gd-badge gd-badge--rose">Réseau</span>
+      <span class="gd-badge gd-badge--apricot">Atelier</span>
+    </div>
+
+    <h3 class="sub">Champs</h3>
+    <div class="grid grid--3">
+      <div class="gd-field">
+        <label class="gd-label" for="f1">Adresse e-mail</label>
+        <input class="gd-input" id="f1" type="email" placeholder="prenom.nom@exemple.fr">
+        <span class="gd-hint">On ne l'utilise que pour t'envoyer ton lien de connexion.</span>
+      </div>
+      <div class="gd-field gd-field--error">
+        <label class="gd-label" for="f2">Code conseillère</label>
+        <input class="gd-input" id="f2" value="00-42" aria-describedby="f2e">
+        <span class="gd-field__error" id="f2e">Ce code ne correspond à aucun compte actif.</span>
+      </div>
+      <div class="gd-field">
+        <label class="gd-label" for="f3">Ta question</label>
+        <textarea class="gd-textarea" id="f3" placeholder="Pose ta question…"></textarea>
+      </div>
+    </div>
+
+    <h3 class="sub">Cartes, panneaux et humeurs</h3>
+    <div class="grid grid--3">
+      <div class="gd-card">
+        <h4 class="gd-card__title">Carte posée</h4>
+        <p class="gd-text-soft" style="margin:0;font-size:var(--text-sm)">Surface blanche, filet, ombre douce. Le niveau par défaut.</p>
+      </div>
+      <div class="gd-card gd-card--warm gd-card--float">
+        <h4 class="gd-card__title">Carte flottante</h4>
+        <p class="gd-text-soft" style="margin:0;font-size:var(--text-sm)">Ombre pleine : un élément saisi ou survolé. Pas de quatrième niveau au-delà.</p>
+      </div>
+      <div class="gd-panel">
+        <h4 class="gd-card__title">Panneau</h4>
+        <p class="gd-text-soft" style="margin:0;font-size:var(--text-sm)">Ivoire chaud : navigation, colonne latérale.</p>
+      </div>
+    </div>
+    <div class="grid grid--4" style="margin-top:var(--space-4)">
+      <div class="gd-mood gd-mood--butter">Humeur accueil</div>
+      <div class="gd-mood gd-mood--mint">Humeur produit</div>
+      <div class="gd-mood gd-mood--rose">Humeur réseau</div>
+      <div class="gd-mood gd-mood--apricot">Humeur atelier</div>
+    </div>
+
+    <h3 class="sub">Conversation</h3>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3);align-items:flex-start">
+      <div style="align-self:flex-end"><span class="gd-bubble gd-bubble--user">Je peux cumuler la promo du mois avec le pack découverte&nbsp;?</span></div>
+      <span class="gd-bubble gd-bubble--ai">Bonne question 😊 Les deux ne se cumulent pas — je t'explique pourquoi et ce qui est le plus intéressant pour ton atelier de samedi.</span>
+      <span class="gd-bubble gd-bubble--ai gd-typing"><span></span><span></span><span></span></span>
+    </div>
+
+    <h3 class="sub">Alertes — statut uniquement</h3>
+    <div class="grid grid--3">
+      <div class="gd-alert gd-alert--success"><div>Ta fiche a bien été enregistrée.</div></div>
+      <div class="gd-alert gd-alert--error"><div>Impossible d'envoyer le lien : adresse inconnue.</div></div>
+      <div class="gd-alert gd-alert--warning"><div>Réponse indicative : vérifie auprès de l'URSSAF.</div></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="formes">
+    <h2>5 · Formes et matière</h2>
+    <p class="lead">
+      Rien n'est à angle vif : c'est un marqueur d'identité aussi fort que la couleur. Une
+      carte à 0 px de rayon sort de la charte même en crème et rouge. Les ombres ont une base
+      brune, jamais noire — une ombre grise refroidit le crème instantanément.
+    </p>
+    <div class="grid grid--4" id="radii"></div>
+    <h3 class="sub">Trois niveaux d'ombre, pas quatre</h3>
+    <div class="grid grid--3">
+      <div style="background:var(--gd-paper);border-radius:var(--radius-2xl);padding:var(--space-5);box-shadow:var(--gd-shadow-soft)"><b>--gd-shadow-soft</b><br><span class="gd-text-soft" style="font-size:var(--text-xs)">surface posée</span></div>
+      <div style="background:var(--gd-paper);border-radius:var(--radius-2xl);padding:var(--space-5);box-shadow:var(--gd-shadow)"><b>--gd-shadow</b><br><span class="gd-text-soft" style="font-size:var(--text-xs)">élément flottant</span></div>
+      <div style="background:var(--gd-paper);border-radius:var(--radius-2xl);padding:var(--space-5);box-shadow:var(--gd-shadow-lift)"><b>--gd-shadow-lift</b><br><span class="gd-text-soft" style="font-size:var(--text-xs)">élément saisi ou survolé</span></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="mouvement">
+    <h2>6 · Mouvement</h2>
+    <p class="lead">
+      Deux courbes, pas plus : <code>--ease-spring</code> pour tout ce qui est vivant (mascotte,
+      apparitions, poses), <code>--ease-out-soft</code> pour tout ce qui est interface (survol,
+      focus, ouverture de panneau). Cinq durées. Cliquez sur une piste pour la rejouer.
+    </p>
+    <div id="motion-demos"></div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="dodont">
+    <h2>7 · Do / Don't</h2>
+    <div class="dd">
+      <div class="dd__case">
+        <div class="dd__head dd__head--ok">✅ Fond crème, un seul rouge</div>
+        <div class="dd__body">
+          <button class="gd-btn">Envoyer</button>
+          <button class="gd-btn gd-btn--secondary">Annuler</button>
+        </div>
+      </div>
+      <div class="dd__case">
+        <div class="dd__head dd__head--ko">❌ Trois actions rouges côte à côte</div>
+        <div class="dd__body">
+          <button class="gd-btn">Envoyer</button>
+          <button class="gd-btn">Annuler</button>
+          <button class="gd-btn">Exporter</button>
+        </div>
+      </div>
+      <div class="dd__case">
+        <div class="dd__head dd__head--ok">✅ Ombre à base brune, coins arrondis</div>
+        <div class="dd__body"><div class="gd-card" style="width:100%">Une carte conforme.</div></div>
+      </div>
+      <div class="dd__case">
+        <div class="dd__head dd__head--ko">❌ Ombre grise, angles vifs, blanc pur</div>
+        <div class="dd__body"><div style="width:100%;background:#fff;padding:var(--space-6);border-radius:0;box-shadow:0 2px 12px rgba(0,0,0,.18)">La même carte, hors charte.</div></div>
+      </div>
+      <div class="dd__case">
+        <div class="dd__head dd__head--ok">✅ Corps de texte à 16 px</div>
+        <div class="dd__body"><p style="margin:0;font-size:var(--text-base)">Ta commission dépend de ton statut et du montant de l'atelier.</p></div>
+      </div>
+      <div class="dd__case">
+        <div class="dd__head dd__head--ko">❌ 13 px « pour faire moderne »</div>
+        <div class="dd__body"><p style="margin:0;font-size:13px">Ta commission dépend de ton statut et du montant de l'atelier.</p></div>
+      </div>
+      <div class="dd__case">
+        <div class="dd__head dd__head--ok">✅ La mascotte commente le statut</div>
+        <div class="dd__body"><span class="gd-bubble">Je regarde ça dans le kit Conseiller 🔍</span></div>
+      </div>
+      <div class="dd__case">
+        <div class="dd__head dd__head--ko">❌ La mascotte annonce un montant</div>
+        <div class="dd__body"><span class="gd-bubble">Ta commission est de 25 % ce mois-ci !</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section id="checklist">
+    <h2>8 · La checklist avant de livrer</h2>
+    <p class="lead">La même que dans <code>AGENTS.md</code>. Un écran qui coche tout passe le test en une seconde.</p>
+    <div class="gd-card">
+      <ul class="check">
+        <li><input type="checkbox" id="c1"><label for="c1">Le fond de page est <code>--gd-cream</code>, pas du blanc pur.</label></li>
+        <li><input type="checkbox" id="c2"><label for="c2">Aucune couleur, taille, rayon ou durée écrit en dur : uniquement des <code>var(--gd-*)</code>.</label></li>
+        <li><input type="checkbox" id="c3"><label for="c3">Un seul bouton rouge par zone.</label></li>
+        <li><input type="checkbox" id="c4"><label for="c4">Aucun texte sous 14 px ; le corps de texte est à 16 px.</label></li>
+        <li><input type="checkbox" id="c5"><label for="c5">Aucun texte secondaire en <code>--gd-ink-soft</code> sur crème sous 18 px (utiliser <code>.gd-text-soft</code>).</label></li>
+        <li><input type="checkbox" id="c6"><label for="c6">Rien n'est à angle vif.</label></li>
+        <li><input type="checkbox" id="c7"><label for="c7">Les ombres sont brunes, pas grises.</label></li>
+        <li><input type="checkbox" id="c8"><label for="c8">La mascotte est présente, unique, au-dessus de 40 px, et ne dit aucun chiffre.</label></li>
+        <li><input type="checkbox" id="c9"><label for="c9">Le lockup porte « par Guy Demarle ».</label></li>
+        <li><input type="checkbox" id="c10"><label for="c10">Cibles tactiles ≥ 44 px, focus visible partout, aucune info portée par la seule couleur.</label></li>
+        <li><input type="checkbox" id="c11"><label for="c11">Testé en thème sombre et en <code>prefers-reduced-motion</code>.</label></li>
+        <li><input type="checkbox" id="c12"><label for="c12">Zoom navigateur 200 % sans perte de fonction.</label></li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="end">
+    Banc d'essai du design system IA Guy Demarle · lit <code>gd-ai-tokens.css</code>,
+    <code>gd-ai-components.css</code> et <code>gd-ai-mascotte.js</code> en direct ·
+    le design system complet est dans <code>../README.md</code>, le mode d&rsquo;emploi pour une IA dans
+    <code>../AGENTS.md</code>.
+  </footer>
+
+</div>
+
+<script>
+(() => {
+  'use strict'
+  const root = document.documentElement
+  const css = (name) => getComputedStyle(root).getPropertyValue(name).trim()
+
+  /* ---- thème ------------------------------------------------------------ */
+  const themeButtons = [...document.querySelectorAll('[data-theme-set]')]
+  themeButtons.forEach(btn => btn.addEventListener('click', () => {
+    const mode = btn.dataset.themeSet
+    if (mode === 'auto') root.removeAttribute('data-theme')
+    else root.setAttribute('data-theme', mode)
+    themeButtons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)))
+    /* Les valeurs affichées sont lues dans le DOM : il faut les relire après
+       chaque bascule, sinon la planche ment sur le thème sombre. */
+    paintSwatches()
+  }))
+
+  /* ---- animations réduites (simulation) --------------------------------- */
+  const motionBtn = document.getElementById('motion-toggle')
+  let reduced = false
+  const reduceStyle = document.createElement('style')
+  reduceStyle.textContent = '*,*::before,*::after{animation:none !important;transition-duration:.001ms !important}'
+  motionBtn.addEventListener('click', () => {
+    reduced = !reduced
+    motionBtn.setAttribute('aria-pressed', String(reduced))
+    if (reduced) document.head.appendChild(reduceStyle)
+    else reduceStyle.remove()
+    /* Le shadow DOM de la mascotte n'est pas atteint par une feuille de la
+       page : le composant expose l'attribut `reduced` pour ça. */
+    document.querySelectorAll('gd-mascotte').forEach(m => {
+      if (reduced) m.setAttribute('reduced', '')
+      else m.removeAttribute('reduced')
+    })
+  })
+
+  /* ---- nuanciers -------------------------------------------------------- */
+  function paintSwatches() {
+    document.querySelectorAll('[data-swatches]').forEach(host => {
+      const tokens = host.dataset.swatches.split(',')
+      if (!host.children.length) {
+        host.innerHTML = tokens.map(t => `
+          <div class="sw">
+            <div class="sw__chip" style="background:var(${t})"></div>
+            <div class="sw__meta">
+              <span class="sw__name">${t}</span>
+              <span class="sw__val" data-token="${t}"></span>
+            </div>
+          </div>`).join('')
+      }
+      host.querySelectorAll('[data-token]').forEach(el => {
+        el.textContent = css(el.dataset.token) || '—'
+      })
+    })
+  }
+  paintSwatches()
+
+  /* ---- échelle typographique -------------------------------------------- */
+  const SCALE = [
+    ['--text-5xl', 'Hero, écran de démarrage'],
+    ['--text-4xl', "Accroche d'accueil"],
+    ['--text-3xl', "Titre de page, nom d'outil"],
+    ['--text-2xl', 'Grands titres'],
+    ['--text-xl',  'Titres de section'],
+    ['--text-lg',  'Petits titres'],
+    ['--text-md',  'Corps de texte confortable'],
+    ['--text-base','CORPS DE TEXTE PAR DÉFAUT'],
+    ['--text-sm',  'Petit corps de texte'],
+    ['--text-xs',  'Labels, aides de saisie — plancher absolu'],
+    ['--text-2xs', 'Badges, méta — décoratif uniquement'],
+  ]
+  document.getElementById('type-scale').innerHTML = SCALE.map(([token, usage]) => `
+    <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-2) var(--space-5);padding:var(--space-3) 0;border-bottom:1px solid var(--gd-border)">
+      <span style="width:150px;flex-shrink:0;font-size:var(--text-2xs);color:var(--gd-ink-soft-aa);font-family:ui-monospace,Menlo,Consolas,monospace">${token} · ${css(token)}</span>
+      <span style="min-width:0;font-size:var(${token});font-weight:${token === '--text-base' ? 600 : 400};line-height:1.25">${usage}</span>
+    </div>`).join('')
+
+  /* ---- rayons ----------------------------------------------------------- */
+  const RADII = ['--radius-sm', '--radius-lg', '--radius-2xl', '--radius-bubble', '--radius-pill']
+  const RADII_USE = {
+    '--radius-sm': 'détails',
+    '--radius-lg': 'boutons, champs, cartes',
+    '--radius-2xl': 'panneaux, modales',
+    '--radius-bubble': 'bulles de conversation',
+    '--radius-pill': 'badges, pastilles',
+  }
+  document.getElementById('radii').innerHTML = RADII.map(r => `
+    <div style="text-align:center">
+      <div style="height:72px;background:var(--gd-red-soft);border:1px solid var(--gd-red);border-radius:var(${r})"></div>
+      <div style="margin-top:8px;font-size:var(--text-2xs);color:var(--gd-ink-soft-aa)"><b style="color:var(--gd-ink)">${r}</b> ${css(r)}<br>${RADII_USE[r]}</div>
+    </div>`).join('')
+
+  /* ---- mouvement --------------------------------------------------------- */
+  const MOTION = [
+    ['--duration-press', '--ease-out-soft', "Enfoncement d'un bouton"],
+    ['--duration-state', '--ease-out-soft', 'Survol, changement de couleur'],
+    ['--duration-enter', '--ease-spring',   "Apparition d'un élément"],
+    ['--duration-move',  '--ease-spring',   "Déplacement à l'écran"],
+    ['--duration-travel','--ease-out-soft', 'Grande transition de mise en page'],
+  ]
+  document.getElementById('motion-demos').innerHTML = MOTION.map(([d, e, usage]) => `
+    <div class="mv">
+      <div class="mv__label"><b>${d}</b>${css(d)} · ${e.replace('--ease-', '')}</div>
+      <div class="mv__track" data-dur="${d}" data-ease="${e}" title="Cliquer pour rejouer"><span class="mv__dot"></span></div>
+      <div class="mv__label" style="width:auto;color:var(--gd-ink-soft-aa)">${usage}</div>
+    </div>`).join('')
+
+  document.querySelectorAll('.mv__track').forEach(track => {
+    const dot = track.querySelector('.mv__dot')
+    const run = () => {
+      dot.style.transition = 'none'
+      dot.style.transform = 'translateX(0)'
+      void dot.offsetWidth
+      dot.style.transition = `transform ${css(track.dataset.dur)} ${css(track.dataset.ease)}`
+      dot.style.transform = `translateX(${track.clientWidth - 34}px)`
+      setTimeout(() => {
+        dot.style.transition = 'none'
+        dot.style.transform = 'translateX(0)'
+      }, 1400)
+    }
+    track.addEventListener('click', run)
+    run()
+  })
+
+  /* ---- mascotte ---------------------------------------------------------- */
+  const star = document.getElementById('star')
+  const POSE_LABELS = {
+    repos: 'Repos', salut: 'Salue', presente: 'Présente',
+    reflechit: 'Réfléchit', bravo: 'Bravo', saut: 'Saute',
+  }
+  const poseButtons = document.getElementById('pose-buttons')
+  poseButtons.innerHTML = Object.entries(POSE_LABELS).map(([p, label]) =>
+    `<button class="gd-btn ${p === 'salut' ? '' : 'gd-btn--secondary'}" data-pose="${p}">${label}</button>`
+  ).join('')
+  poseButtons.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-pose]')
+    if (!btn) return
+    star.play(btn.dataset.pose)
+    poseButtons.querySelectorAll('.gd-btn').forEach(b => {
+      b.classList.toggle('gd-btn--secondary', b !== btn)
+    })
+  })
+
+  const SAY = [
+    ["Bonjour ! Qu'est-ce qu'on cherche aujourd'hui ? 👋", 'welcome'],
+    ['Je mijote ça…', 'thinking'],
+    ["Voilà ce que j'ai trouvé !", 'post'],
+    ['Ta commission est de 25 % ce mois-ci', ''],
+  ]
+  document.getElementById('say-buttons').innerHTML = SAY.map(([text, mood], i) =>
+    `<button class="gd-btn gd-btn--secondary" data-say="${i}">${mood ? mood : '⚠️ chiffre (voir la console)'}</button>`
+  ).join('') + '<button class="gd-btn gd-btn--ghost" data-hush>Se taire</button>'
+
+  document.getElementById('say-buttons').addEventListener('click', (e) => {
+    const say = e.target.closest('[data-say]')
+    if (say) {
+      const [text, mood] = SAY[Number(say.dataset.say)]
+      star.say(text, { mood })
+      return
+    }
+    if (e.target.closest('[data-hush]')) star.hush()
+  })
+
+  /* La planche des six poses et l'échelle : mêmes attributs que dans un vrai
+     outil, seule la duplication est propre à cette page. */
+  const planche = document.getElementById('pose-planche')
+  planche.innerHTML = Object.entries(POSE_LABELS).map(([p, label]) =>
+    `<div class="pose-item" data-replay="${p}" title="Cliquer pour rejouer"><gd-mascotte size="96" pose="${p}" no-poke></gd-mascotte><span>${label}</span></div>`
+  ).join('')
+  /* « Salue » et « Saute » sont des effets ponctuels : ils se rendent en 1,5 s
+     et la mascotte revient au repos. Sur une planche figée, les deux
+     ressembleraient à « Repos » — d'où le clic pour rejouer. */
+  planche.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-replay]')
+    if (item) item.querySelector('gd-mascotte').play(item.dataset.replay)
+  })
+
+  document.getElementById('scale-row').innerHTML = [40, 56, 72, 96, 140].map(s =>
+    `<div class="scale-item"><gd-mascotte size="${s}" no-poke></gd-mascotte><span>${s} px</span></div>`
+  ).join('') +
+    `<div class="scale-item"><gd-mascotte size="24" no-poke></gd-mascotte><span>24 px demandés<br>→ 40 px imposés</span></div>`
+})()
+</script>
+
+</body>
+</html>

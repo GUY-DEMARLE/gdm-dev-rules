@@ -131,6 +131,38 @@ try {
     Write-Warn "Impossible de mettre à jour docs-rules/ : $($_.Exception.Message)"
 }
 
+# Mise à jour du design system IA GDM (system-design/) — écrasement complet,
+# c'est une source de vérité : le kit ne se modifie pas dans les applications.
+# La liste des fichiers vient de MANIFEST.txt (le dossier a des sous-dossiers,
+# et raw.githubusercontent n'a pas la limite de 60 req/h de l'API GitHub).
+Write-Step "Mise à jour du design system (system-design/)..."
+$sdBase = "$RepoUrl/system-design"
+$prevProgress = $ProgressPreference
+$ProgressPreference = "SilentlyContinue"
+try {
+    $manifest = Invoke-RestMethod -Uri "$sdBase/MANIFEST.txt"
+    $sdFiles = $manifest -split "`n" |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne "" -and -not $_.StartsWith("#") }
+    if (-not $sdFiles) { throw "MANIFEST.txt vide ou illisible" }
+    foreach ($rel in $sdFiles) {
+        $target = "system-design/$rel"
+        $targetDir = Split-Path -Parent $target
+        if ($targetDir -and -not (Test-Path $targetDir)) {
+            New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+        }
+        # Invoke-WebRequest et pas Invoke-RestMethod : le kit contient un PNG,
+        # il faut une écriture binaire fidèle.
+        Invoke-WebRequest -Uri "$sdBase/$rel" -OutFile $target -UseBasicParsing
+        Write-Ok $target
+    }
+} catch {
+    Write-Warn "Impossible de mettre à jour system-design/ : $($_.Exception.Message)"
+    Write-Warn "Le reste des règles est à jour ; tu peux relancer plus tard."
+} finally {
+    $ProgressPreference = $prevProgress
+}
+
 # Mise à jour du workflow GitHub Actions Security OSS (écrasement complet, source de vérité)
 Write-Step "Mise à jour de .github/workflows/security-oss.yml..."
 try {
@@ -150,7 +182,7 @@ try {
 Write-Step "Changements détectés :"
 Write-Host ""
 $ErrorActionPreference = "Continue"
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ .github/ 2>$null
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/ 2>$null
 $ErrorActionPreference = "Stop"
 Write-Host ""
 
@@ -162,9 +194,9 @@ Write-Host ""
 Write-Host "Prochaines étapes :" -ForegroundColor White
 Write-Host ""
 Write-Host "  1. Vérifie le diff avec :" -ForegroundColor White
-Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ .github/" -ForegroundColor Gray
+Write-Host "       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  2. Si OK, commit :" -ForegroundColor White
-Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ .github/" -ForegroundColor Gray
+Write-Host "       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/" -ForegroundColor Gray
 Write-Host "       git commit -m `"chore: update GDM AI rules`"" -ForegroundColor Gray
 Write-Host ""

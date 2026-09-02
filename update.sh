@@ -140,11 +140,36 @@ else
     echo -e "${YELLOW}⚠ Impossible de lister docs-rules/ via l'API GitHub.${NC}"
 fi
 
+# Design system IA GDM (system-design/) — écrasement complet, c'est une source
+# de vérité : le kit ne se modifie pas dans les applications.
+# La liste des fichiers vient de MANIFEST.txt (le dossier a des sous-dossiers,
+# et raw.githubusercontent n'a pas la limite de 60 req/h de l'API GitHub).
+echo -e "${CYAN}→ Mise à jour du design system (system-design/)...${NC}"
+SD_BASE="$REPO_URL/system-design"
+sd_manifest=$(curl -sSL -f "$SD_BASE/MANIFEST.txt" || true)
+if [ -n "$sd_manifest" ]; then
+    # On enlève les CR (le manifeste peut arriver en CRLF), les commentaires
+    # et les lignes vides.
+    sd_files=$(printf '%s\n' "$sd_manifest" | tr -d '\r' \
+        | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$')
+    while IFS= read -r rel; do
+        [ -z "$rel" ] && continue
+        mkdir -p "system-design/$(dirname "$rel")"
+        if curl -sSL -f "$SD_BASE/$rel" -o "system-design/$rel"; then
+            echo -e "${GREEN}✓ system-design/$rel${NC}"
+        else
+            echo -e "${YELLOW}⚠ Échec du téléchargement de system-design/$rel${NC}"
+        fi
+    done <<< "$sd_files"
+else
+    echo -e "${YELLOW}⚠ Impossible de lire system-design/MANIFEST.txt (design system non mis à jour).${NC}"
+fi
+
 # Afficher le diff Git
 echo ""
 echo -e "${CYAN}→ Changements détectés :${NC}"
 echo ""
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ 2>/dev/null || true
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ 2>/dev/null || true
 echo ""
 
 # Message final
@@ -155,9 +180,9 @@ echo ""
 echo -e "${WHITE}Prochaines étapes :${NC}"
 echo ""
 echo -e "${WHITE}  1. Vérifie le diff avec :${NC}"
-echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/${NC}"
+echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/${NC}"
 echo ""
 echo -e "${WHITE}  2. Si OK, commit :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/${NC}"
 echo -e "${GRAY}       git commit -m \"chore: update GDM AI rules\"${NC}"
 echo ""

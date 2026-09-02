@@ -1,0 +1,21 @@
+# MANIFEST.txt — liste des fichiers du design system distribues dans chaque repo GDM.
+#
+# Les scripts install/update lisent ce fichier et telechargent chaque chemin depuis
+#   https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/system-design/<chemin>
+# vers  <racine du repo>/system-design/<chemin>
+#
+# Un chemin par ligne, relatif a system-design/. Les lignes vides et celles
+# commencant par # sont ignorees. Les sous-dossiers sont crees automatiquement.
+#
+# /!\ AJOUT OU SUPPRESSION D'UN FICHIER DU KIT => METTRE CETTE LISTE A JOUR.
+#     Sans ca, le fichier ne partira pas dans les applications.
+
+AGENTS.md
+README.md
+kit/demo.html
+kit/gd-ai-components.css
+kit/gd-ai-marque-o.png
+kit/gd-ai-mascotte.js
+kit/gd-ai-mascotte.svg
+kit/gd-ai-tokens.css
+outils/verifier-interface.mjs

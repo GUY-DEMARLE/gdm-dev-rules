@@ -194,6 +194,7 @@ Quand tu proposes ou modifies du code :
 10. Pour une app GDM active, proposer le workflow Security OSS et des monitors Sentry si absents.
 11. Ne jamais copier le gros workflow Security OSS dans un projet si un workflow central reutilisable existe ; installer seulement le caller qui reference `gdm-dev-rules`.
 12. Au démarrage d'un projet, proposer le bon couple stack/hébergement : API Supabase PostgREST/Edge par défaut (Render seulement si logique lourde), front statique → Gandi FTP, front avec rendu serveur → Vercel. Rappeler que sur Gandi + Supabase en accès direct, les RLS sont l'unique barrière (cf. `HEBERGEMENT_GANDI.md`).
+13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder, consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit.
 
 ## 6) Stack et conventions (rappel)
 
@@ -208,6 +209,7 @@ Quand tu proposes ou modifies du code :
 - **Branches** : `dev-prenom`, `feature/xxx`, `fix/xxx`.
 - **Commits** : Conventional commits (`feat`, `fix`, `chore`, etc.).
 - **Repo** : `gdm-<type>-<nom>` sous `GUY-DEMARLE`.
+- **Interface** : design system GDM obligatoire (`system-design/` a la racine, pose par `gdm-dev-rules`). Jetons `var(--gd-*)` et composants du kit, aucune valeur en dur, aucune librairie de composants empilee par-dessus.
 
 ## 7) References
 
@@ -217,3 +219,4 @@ Quand tu proposes ou modifies du code :
 - `HEBERGEMENT_GANDI.md` (hebergement Gandi FTP : quand le choisir, deploiement, securite)
 - `SECURITY_OSS_PIPELINE.md` (workflow GitHub Actions Security OSS)
 - `security-monitoring-process.md` (process Security OSS + Sentry)
+- `system-design/AGENTS.md` (design system GDM : jetons, composants, mascotte, checklist interface ; direction artistique complete dans `system-design/README.md`)

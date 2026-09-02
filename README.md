@@ -30,7 +30,7 @@ irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.ps1
 curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.sh | bash
 ```
 
-Le script télécharge 4 fichiers et les place aux bons endroits :
+Le script télécharge les fichiers et les place aux bons endroits :
 
 ```
 ton-repo/
@@ -39,6 +39,15 @@ ton-repo/
 ├── .cursor/
 │   └── rules/
 │       └── gdm-rules.mdc     ← Lu automatiquement par Cursor
+├── .github/
+│   └── workflows/
+│       └── security-oss.yml  ← Pipeline sécurité OSS (install.ps1/update.ps1 seulement)
+├── docs-rules/               ← Doc GDM détaillée (setup, archi, sécu, hébergement)
+├── system-design/            ← Design system GDM — interface (voir plus bas)
+│   ├── AGENTS.md             ← Le mode d'emploi pour l'IA qui produit l'UI
+│   ├── README.md             ← La direction artistique et ses arbitrages
+│   ├── kit/                  ← Jetons, composants, mascotte, marque, demo.html
+│   └── outils/               ← verifier-interface.mjs (contrôle automatique)
 ├── CLAUDE.md                 ← Lu automatiquement par Claude Code
 └── AGENTS.md                 ← Lu automatiquement par Codex
 ```
@@ -68,7 +77,7 @@ C'est ce qui aide l'IA à donner des réponses adaptées **à ton projet**, en p
 ### Commit
 
 ```bash
-git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md
+git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/
 git commit -m "chore: add GDM AI rules"
 ```
 
@@ -106,7 +115,7 @@ foreach ($repo in $repos) {
     Write-Host "`n=== $repo ===" -ForegroundColor Cyan
     cd $repo
     irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex
-    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md
+    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/
     git commit -m "chore: update GDM AI rules"
     git push
 }
@@ -124,11 +133,47 @@ for repo in "${repos[@]}"; do
     echo -e "\n=== $repo ==="
     cd "$repo"
     curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
-    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md
+    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/
     git commit -m "chore: update GDM AI rules"
     git push
 done
 ```
+
+---
+
+## Design system GDM (interface)
+
+Depuis la version 1.3 du design system, `install` et `update` posent aussi **`system-design/` à la racine de chaque app Guy Demarle**, à côté des règles dev et sécu. C'est la charte d'interface commune à tous les outils du réseau : jetons, composants, mascotte, marque.
+
+```
+system-design/
+├── AGENTS.md                  ← Le point d'entrée pour une IA : règles, interdits, checklist
+├── README.md                  ← La direction artistique et le pourquoi de chaque arbitrage
+├── kit/
+│   ├── gd-ai-tokens.css       ← Les jetons (couleurs clair/sombre, typo, rayons, ombres…)
+│   ├── gd-ai-components.css   ← Boutons, champs, cartes, bulles, pastilles, alertes, lockup
+│   ├── gd-ai-mascotte.js      ← La mascotte animée, élément natif <gd-mascotte>
+│   ├── gd-ai-mascotte.svg     ← Version statique (impression, e-mail, sans JS)
+│   ├── gd-ai-marque-o.png     ← La marque O du lockup
+│   └── demo.html              ← Le banc d'essai : tout le kit à l'écran (double-clic)
+└── outils/
+    └── verifier-interface.mjs ← Contrôle automatique des règles lisibles dans le code
+```
+
+Les `CLAUDE.md`, `AGENTS.md` et règles Cursor installés pointent dessus : l'IA lit `system-design/AGENTS.md` avant de produire la moindre interface.
+
+**Le dossier est écrasé à chaque `update`** — c'est une source de vérité, comme `.ai-rules/RULES.md`. Ne le modifie pas dans une app : une valeur qui ne convient pas est une évolution de la charte, elle se fait en PR sur ce repo (`templates/system-design/`).
+
+Côté app, il reste une chose à faire à la main : **servir les fichiers du kit depuis le front** (par exemple `public/gd-ai/`), puis dans le `<head>` :
+
+```html
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/gd-ai/gd-ai-tokens.css">
+<link rel="stylesheet" href="/gd-ai/gd-ai-components.css">
+<script src="/gd-ai/gd-ai-mascotte.js" defer></script>
+```
+
+Pour voir à quoi ça ressemble sans rien installer : ouvre `templates/system-design/kit/demo.html` par double-clic.
 
 ---
 
@@ -177,7 +222,7 @@ L'IA doit refuser et proposer l'architecture proxy à la place. Si elle le fait 
 
 Un template de pipeline GitHub Actions 100% open source est disponible ici :
 
-`templates/.github/workflows/security-oss.yml`
+`.github/workflows/security-oss.yml` (à la racine de ce repo — `install.ps1` / `update.ps1` le posent automatiquement)
 
 Il contient :
 
@@ -188,14 +233,14 @@ Copie rapide dans un repo projet :
 
 ```bash
 mkdir -p .github/workflows
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
+curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
 ```
 
 Version PowerShell :
 
 ```powershell
 New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
-Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
+Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
 ```
 
 Puis configure la variable GitHub `SECURITY_TARGET_URL` (URL à auditer en planifié).
@@ -215,26 +260,39 @@ Le contenu source unique est dans `templates/.ai-rules/RULES.md`. Quand tu modif
 
 Les fichiers `templates/CLAUDE.md`, `templates/AGENTS.md` et `templates/.cursor/rules/gdm-rules.mdc` sont des fichiers d'amorçage minimalistes qui pointent vers `.ai-rules/RULES.md`. Tu n'as normalement pas besoin de les modifier sauf changement de structure.
 
+### Modifier le design system
+
+La source est `templates/system-design/`. Même circuit : PR sur ce repo, puis `update` dans les apps.
+
+⚠️ **Si tu ajoutes ou supprimes un fichier du design system, mets `templates/system-design/MANIFEST.txt` à jour.** C'est cette liste que lisent `install` et `update` pour savoir quoi télécharger — un fichier absent du manifeste ne partira jamais dans les applications. (Le manifeste sert aussi à éviter l'API GitHub, limitée à 60 requêtes/heure sans token, et permet des sous-dossiers, ce que la liste dynamique de `docs-rules/` ne sait pas faire.)
+
 ---
 
 ## Structure du repo
 
 ```
 gdm-dev-rules/
-├── README.md              ← Ce fichier
-├── install.ps1            ← Script Windows install
-├── install.sh             ← Script Mac/Linux install
-├── update.ps1             ← Script Windows update
-├── update.sh              ← Script Mac/Linux update
+├── README.md                    ← Ce fichier
+├── install.ps1                  ← Script Windows install
+├── install.sh                   ← Script Mac/Linux install
+├── update.ps1                   ← Script Windows update
+├── update.sh                    ← Script Mac/Linux update
+├── .github/
+│   └── workflows/
+│       └── security-oss.yml     ← Le pipeline, distribué tel quel dans les apps
 └── templates/
     ├── .ai-rules/
-    │   └── RULES.md       ← LA source de vérité
+    │   └── RULES.md             ← LA source de vérité (dev + sécu)
     ├── .cursor/
     │   └── rules/
     │       └── gdm-rules.mdc
-    ├── .github/
-    │   └── workflows/
-    │       └── security-oss.yml
+    ├── docs-rules/              ← Doc détaillée (liste dynamique via l'API GitHub)
+    ├── system-design/           ← LA source de vérité (interface)
+    │   ├── MANIFEST.txt         ← Liste des fichiers à distribuer — à tenir à jour
+    │   ├── AGENTS.md
+    │   ├── README.md
+    │   ├── kit/
+    │   └── outils/
     ├── CLAUDE.md
     └── AGENTS.md
 ```

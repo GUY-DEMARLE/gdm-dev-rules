@@ -21,6 +21,12 @@ Ce projet suit les règles de développement et de sécurité de Guy Demarle.
 
 Respecte ces règles dans tout ce que tu génères. Si une demande te paraît contraire à une règle, explique pourquoi c'est risqué et propose l'alternative correcte.
 
+## Design system
+
+Le dossier `system-design/` est à la racine du repo, posé et mis à jour par `gdm-dev-rules` — ne le modifie pas ici.
+
+**Avant toute création ou modification d'interface, lis `system-design/AGENTS.md`.** Jetons, composants et mascotte sont fournis dans `system-design/kit/` : rien à redessiner, aucune couleur / taille / rayon / durée en dur, uniquement des `var(--gd-*)`. Rendu visuel : `system-design/kit/demo.html`. Contrôle : `node system-design/outils/verifier-interface.mjs <dossier du front>`.
+
 ## Rappel des points critiques
 
 1. **Jamais de clé en dur**, même en exemple ou en commentaire. Utilise des placeholders ou `process.env.X`.
@@ -31,3 +37,4 @@ Respecte ces règles dans tout ce que tu génères. Si une demande te paraît co
 6. **Vérifie les patterns de clés** dans le code généré : aucune chaîne ne doit matcher `AIza...`, `sk-ant-...`, `sk_live_...`, `AKIA...`, `ghp_...`.
 7. **Security OSS centralise** : si un workflow reutilisable existe dans `GUY-DEMARLE/gdm-dev-rules`, les apps doivent installer le caller, pas copier le gros workflow.
 8. **Sentry en prod** : pour les apps actives, prevoir erreurs, performance, routes lentes, tokens et couts IA si applicable.
+9. **Interface = design system GDM** : lis `system-design/AGENTS.md` avant de coder une UI, consomme les jetons `var(--gd-*)` et ne réécris pas un composant déjà fourni par le kit.

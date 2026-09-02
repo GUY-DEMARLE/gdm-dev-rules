@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 0 153 148" width="153" height="148" role="img" aria-labelledby="gdAiMascotteTitle">
+  <title id="gdAiMascotteTitle">Mascotte des outils IA Guy Demarle</title>
+
+  <!--
+    Version statique et autonome de la mascotte de l'environnement IA Guy Demarle.
+    Tracé de référence, identique à celui du chatbot Ohracle
+    (frontend/src/components/MascotFigure.jsx) et du teaser d'annonce.
+
+    À utiliser telle quelle. NE PAS recolorer, ne pas modifier les courbes,
+    ne pas retirer de membre : la silhouette est le signe de reconnaissance
+    de l'environnement, elle doit être identique d'un outil à l'autre.
+
+    Taille minimale d'affichage : 40 px de large. En dessous, les jambes se
+    dissolvent — deux déclinaisons de repli (bras rangés 24-40 px, coquille
+    seule < 24 px) sont prévues mais pas encore produites.
+
+    Ce fichier est figé, et réservé aux contextes SANS JavaScript : e-mail,
+    impression, PDF, export. Partout ailleurs, utiliser le composant animé
+    gd-ai-mascotte.js (<gd-mascotte>) : respiration, clignement, poses,
+    parole, et les garde-fous de la charte.
+  -->
+
+  <defs>
+    <radialGradient id="gdAiMascotteBody" cx="40%" cy="26%" r="84%">
+      <stop offset="0%" stop-color="#FCE9AF"/>
+      <stop offset="42%" stop-color="#F3C86C"/>
+      <stop offset="76%" stop-color="#DFA246"/>
+      <stop offset="100%" stop-color="#B8762F"/>
+    </radialGradient>
+    <linearGradient id="gdAiMascotteShade" x1="0" y1=".38" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7A3F10" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#7A3F10" stop-opacity=".44"/>
+    </linearGradient>
+    <linearGradient id="gdAiMascotteLimb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EFC470"/>
+      <stop offset="100%" stop-color="#C6873A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- jambes : dessinées avant le corps pour passer dessous -->
+  <g>
+    <path d="M53 99 C 51 108 48 118 46 127" stroke="url(#gdAiMascotteLimb)" stroke-width="11.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="42" cy="133" rx="11.5" ry="6.3" fill="#D9A252" stroke="#A8692B" stroke-width="1.6"/>
+  </g>
+  <g>
+    <path d="M67 99 C 69 108 72 118 74 127" stroke="url(#gdAiMascotteLimb)" stroke-width="11.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="78" cy="133" rx="11.5" ry="6.3" fill="#D9A252" stroke="#A8692B" stroke-width="1.6"/>
+  </g>
+
+  <!-- bras -->
+  <g>
+    <path d="M30 76 C 19 84 6 93 -2 99" stroke="url(#gdAiMascotteLimb)" stroke-width="11" fill="none" stroke-linecap="round"/>
+    <circle cx="-4" cy="102" r="8.5" fill="#EFC470" stroke="#A8692B" stroke-width="1.6"/>
+  </g>
+  <g>
+    <path d="M90 76 C 101 84 114 93 122 99" stroke="url(#gdAiMascotteLimb)" stroke-width="11" fill="none" stroke-linecap="round"/>
+    <circle cx="124" cy="102" r="8.5" fill="#EFC470" stroke="#A8692B" stroke-width="1.6"/>
+  </g>
+
+  <!-- coquille de madeleine : base étroite, éventail cannelé, bord festonné à 5 lobes -->
+  <path d="M60 108 C38 106 18 88 14 64 Q4.6 45.9 22.8 37 Q25.7 16.8 45.8 20.3 Q60 5.7 74.2 20.3 Q94.3 16.8 97.2 37 Q115.4 45.9 106 64 C102 88 82 106 60 108 Z" fill="url(#gdAiMascotteBody)"/>
+  <g stroke="#A9662A" stroke-width="1.7" fill="none" opacity=".34" stroke-linecap="round">
+    <path d="M60 99 Q44 76 25.8 40.3"/>
+    <path d="M60 99 Q54 70 47.2 24.1"/>
+    <path d="M60 99 Q66 70 72.8 24.1"/>
+    <path d="M60 99 Q76 76 94.2 40.3"/>
+  </g>
+  <g stroke="#FCE7AE" stroke-width="1.5" fill="none" opacity=".42" stroke-linecap="round">
+    <path d="M60 99 Q36 82 16 52"/>
+    <path d="M60 99 Q46 68 33 27"/>
+    <path d="M60 99 L60 18"/>
+    <path d="M60 99 Q74 68 87 27"/>
+    <path d="M60 99 Q84 82 104 52"/>
+  </g>
+  <path d="M60 108 C38 106 18 88 14 64 Q4.6 45.9 22.8 37 Q25.7 16.8 45.8 20.3 Q60 5.7 74.2 20.3 Q94.3 16.8 97.2 37 Q115.4 45.9 106 64 C102 88 82 106 60 108 Z" fill="url(#gdAiMascotteShade)"/>
+  <ellipse cx="40" cy="35" rx="15" ry="8.5" fill="#FFF3CE" opacity=".38" transform="rotate(-26 40 35)"/>
+  <path d="M60 108 C38 106 18 88 14 64 Q4.6 45.9 22.8 37 Q25.7 16.8 45.8 20.3 Q60 5.7 74.2 20.3 Q94.3 16.8 97.2 37 Q115.4 45.9 106 64 C102 88 82 106 60 108 Z" fill="none" stroke="#8B4E1C" stroke-width="2.1" stroke-linejoin="round" opacity=".82"/>
+
+  <!-- joues -->
+  <ellipse cx="31" cy="72" rx="7" ry="4.4" fill="#E79A9A" opacity=".5"/>
+  <ellipse cx="89" cy="72" rx="7" ry="4.4" fill="#E79A9A" opacity=".5"/>
+
+  <!-- yeux -->
+  <g>
+    <ellipse cx="45" cy="58" rx="6.4" ry="7.8" fill="#40291A"/>
+    <circle cx="47.4" cy="54.6" r="2.3" fill="#fff"/>
+    <circle cx="42.8" cy="61.6" r="1.2" fill="#fff" opacity=".45"/>
+  </g>
+  <g>
+    <ellipse cx="75" cy="58" rx="6.4" ry="7.8" fill="#40291A"/>
+    <circle cx="77.4" cy="54.6" r="2.3" fill="#fff"/>
+    <circle cx="72.8" cy="61.6" r="1.2" fill="#fff" opacity=".45"/>
+  </g>
+
+  <!-- bouche au repos -->
+  <path d="M51 73 Q60 82 69 73 Q60 76.6 51 73 Z" fill="#40291A"/>
+</svg>
