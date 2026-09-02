@@ -318,12 +318,13 @@ Crée le fichier suivant dans le repo applicatif :
 .github/workflows/security-oss.yml
 ```
 
-Le repo `gdm-dev-rules` reste la source de vérité. Selon l'état de centralisation :
+Le repo `gdm-dev-rules` reste la source de vérité, et le workflow est distribué **en copie complète** dans chaque app par `install` / `update`. C'est un choix assumé, pas un état transitoire.
 
-- Si le workflow central est disponible en workflow réutilisable, le repo applicatif ne doit contenir qu'un caller léger vers `GUY-DEMARLE/gdm-dev-rules`.
-- Sinon, copie temporairement la version validée de `.github/workflows/security-oss.yml` depuis `gdm-dev-rules`.
+Une app n'appelle **jamais** un workflow hébergé dans un autre dépôt. Un caller `workflow_call` vers `gdm-dev-rules` ferait tourner du code central dans la CI de l'app, **avec les secrets de l'app**, et toute modification poussée dans le dépôt central s'exécuterait immédiatement partout. On préfère que chaque app soit autonome et qu'une évolution du pipeline se relise app par app.
 
-Objectif à terme : quand on corrige le workflow central, toutes les apps récupèrent la correction sans devoir recopier 5 fois le gros fichier.
+**Ne remplace jamais cette copie par un caller.** `security-oss.yml` n'a d'ailleurs pas de déclencheur `workflow_call` : un caller vers lui échouerait avec « invalid workflow file », et le pipeline cesserait de bloquer les PR.
+
+Contrepartie assumée : quand le workflow central évolue, il faut relancer `update` sur chaque app pour récupérer la correction.
 
 ### Configuration GitHub du repo
 

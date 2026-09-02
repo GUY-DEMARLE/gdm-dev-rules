@@ -12,6 +12,7 @@ set -e
 
 REPO_URL="${REPO_URL:-https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates}"
 DOCS_API_URL="${DOCS_API_URL:-https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main}"
+WORKFLOW_URL="${WORKFLOW_URL:-https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml}"
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
@@ -165,11 +166,22 @@ else
     echo -e "${YELLOW}⚠ Impossible de lire system-design/MANIFEST.txt (design system non mis à jour).${NC}"
 fi
 
+# Workflow GitHub Actions Security OSS — obligatoire sur toute app GDM
+# (RULES.md § 2.6 : Gitleaks/Semgrep/OSV bloquants sur PR, audit complet chaque lundi).
+echo -e "${CYAN}→ Mise à jour de .github/workflows/security-oss.yml...${NC}"
+mkdir -p .github/workflows
+if curl -sSL -f "$WORKFLOW_URL" -o ".github/workflows/security-oss.yml"; then
+    echo -e "${GREEN}✓ .github/workflows/security-oss.yml${NC}"
+else
+    echo -e "${YELLOW}⚠ Impossible de télécharger le workflow security-oss.${NC}"
+    echo -e "${YELLOW}⚠ Il est OBLIGATOIRE (RULES.md § 2.6) : relance le script.${NC}"
+fi
+
 # Afficher le diff Git
 echo ""
 echo -e "${CYAN}→ Changements détectés :${NC}"
 echo ""
-git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ 2>/dev/null || true
+git diff --stat .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/ 2>/dev/null || true
 echo ""
 
 # Message final
@@ -180,9 +192,9 @@ echo ""
 echo -e "${WHITE}Prochaines étapes :${NC}"
 echo ""
 echo -e "${WHITE}  1. Vérifie le diff avec :${NC}"
-echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/${NC}"
+echo -e "${GRAY}       git diff .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/${NC}"
 echo ""
 echo -e "${WHITE}  2. Si OK, commit :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/${NC}"
 echo -e "${GRAY}       git commit -m \"chore: update GDM AI rules\"${NC}"
 echo ""

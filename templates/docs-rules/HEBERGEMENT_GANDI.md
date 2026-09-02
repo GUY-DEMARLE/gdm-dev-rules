@@ -181,7 +181,7 @@ Le workflow Security OSS s'applique aussi à ces repos :
 - Scan du bundle front compilé (patterns de secrets — cf. `ARCHITECTURE_SECURITE_GDM.md` Étape 5).
 - OWASP ZAP sur l'URL publique via la variable `SECURITY_TARGET_URL`.
 
-Installer le caller Security OSS qui référence `GUY-DEMARLE/gdm-dev-rules` (ne pas copier le gros workflow central).
+Vérifier que `.github/workflows/security-oss.yml` est bien présent (il est posé par `install` / `update` de `gdm-dev-rules`) et configurer la variable GitHub `SECURITY_TARGET_URL`.
 
 ---
 

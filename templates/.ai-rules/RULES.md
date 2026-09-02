@@ -191,8 +191,8 @@ Quand tu proposes ou modifies du code :
 7. Documenter les variables dans `.env.example` avec placeholders.
 8. Si la demande viole une regle, expliquer le risque et proposer l'alternative sure.
 9. Pour une demande d'audit securite app exposee, inclure un plan `supabomb` + controles auth/RLS.
-10. Pour une app GDM active, proposer le workflow Security OSS et des monitors Sentry si absents.
-11. Ne jamais copier le gros workflow Security OSS dans un projet si un workflow central reutilisable existe ; installer seulement le caller qui reference `gdm-dev-rules`.
+10. Le workflow Security OSS est **obligatoire** sur toute app GDM (cf. 2.6) : il est pose a la racine par les scripts `gdm-dev-rules`. S'il manque dans `.github/workflows/`, le signaler et le remettre avant tout merge. Proposer en plus des monitors Sentry si absents.
+11. Le workflow Security OSS est distribue **en copie complete** dans `.github/workflows/security-oss.yml` de chaque app, et c'est **voulu**. Une app n'appelle jamais un workflow heberge dans un autre depot : un `workflow_call` vers `gdm-dev-rules` ferait tourner du code central dans la CI de l'app avec les secrets de l'app, a chaque modification du depot central. **Ne pas remplacer cette copie par un caller**, ne pas la modifier localement, ne pas en ecrire un second. Toute evolution se fait dans `gdm-dev-rules` et se recupere avec `update`.
 12. Au démarrage d'un projet, proposer le bon couple stack/hébergement : API Supabase PostgREST/Edge par défaut (Render seulement si logique lourde), front statique → Gandi FTP, front avec rendu serveur → Vercel. Rappeler que sur Gandi + Supabase en accès direct, les RLS sont l'unique barrière (cf. `HEBERGEMENT_GANDI.md`).
 13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder, consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit.
 

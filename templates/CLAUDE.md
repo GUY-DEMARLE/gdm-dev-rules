@@ -14,7 +14,7 @@ Ce projet suit les règles de développement et de sécurité de Guy Demarle.
 
 Tu dois respecter ces règles dans tout ce que tu génères. Si une demande te paraît contraire à une règle, explique pourquoi c'est risqué et propose l'alternative correcte.
 
-Si tu ajoutes ou modifies un pipeline securite, ne copie pas le gros workflow central dans une app si un workflow reutilisable existe. L'app doit seulement contenir le caller qui reference `GUY-DEMARLE/gdm-dev-rules`.
+Le pipeline de sécurité `.github/workflows/security-oss.yml` est **obligatoire** (`RULES.md` § 2.6) et posé automatiquement par `gdm-dev-rules`. Il est distribué en **copie complète, délibérément** : une app n'appelle jamais un workflow hébergé dans un autre dépôt. **Ne remplace pas cette copie par un caller `workflow_call`**, ne la modifie pas localement, n'en écris pas un second — toute évolution se fait dans la source et arrive par `update`.
 
 ## Design system Guy Demarle
 

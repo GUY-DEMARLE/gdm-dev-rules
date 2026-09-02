@@ -41,7 +41,7 @@ ton-repo/
 │       └── gdm-rules.mdc     ← Lu automatiquement par Cursor
 ├── .github/
 │   └── workflows/
-│       └── security-oss.yml  ← Pipeline sécurité OSS (install.ps1/update.ps1 seulement)
+│       └── security-oss.yml  ← Pipeline sécurité OSS (obligatoire)
 ├── docs-rules/               ← Doc GDM détaillée (setup, archi, sécu, hébergement)
 ├── system-design/            ← Design system GDM — interface (voir plus bas)
 │   ├── AGENTS.md             ← Le mode d'emploi pour l'IA qui produit l'UI
@@ -218,32 +218,34 @@ L'IA doit refuser et proposer l'architecture proxy à la place. Si elle le fait 
 
 ---
 
-## Pipeline sécurité OSS (optionnel)
+## Pipeline sécurité OSS (obligatoire)
 
-Un template de pipeline GitHub Actions 100% open source est disponible ici :
-
-`.github/workflows/security-oss.yml` (à la racine de ce repo — `install.ps1` / `update.ps1` le posent automatiquement)
+**Ce pipeline n'est pas optionnel.** `RULES.md` § 2.6 (« Audit periodique et monitoring (obligatoire) ») impose : Gitleaks / Semgrep / OSV bloquants avant chaque merge, et audit complet chaque lundi. `install` et `update` le posent donc automatiquement dans `.github/workflows/security-oss.yml`, sur les quatre scripts (Windows et Mac/Linux).
 
 Il contient :
 
 - Jobs PR bloquants : `gitleaks`, `semgrep`, `osv-scanner`
-- Job planifié non bloquant : `zap baseline` + `supabomb` avec artefacts
+- Job planifié non bloquant : `zap baseline` + `supabomb` avec artefacts, rapports en Slack et en artifacts GitHub Actions
 
-Copie rapide dans un repo projet :
+**Une chose reste à faire à la main dans chaque app** : configurer la variable GitHub `SECURITY_TARGET_URL` (l'URL à auditer en planifié). Sans elle, les jobs ZAP et Supabomb sont sautés — le reste du pipeline tourne quand même.
+
+Si jamais tu dois le reposer seul (le script a échoué sur cette étape, par exemple) :
 
 ```bash
 mkdir -p .github/workflows
 curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
 ```
 
-Version PowerShell :
-
 ```powershell
 New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
 Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
 ```
 
-Puis configure la variable GitHub `SECURITY_TARGET_URL` (URL à auditer en planifié).
+> **Pourquoi une copie complète et pas un caller.** Chaque app reçoit les ~900 lignes du workflow, et c'est un choix assumé. Un caller `workflow_call` vers ce dépôt ferait tourner du code central dans la CI de chaque app, **avec les secrets de l'app**, et toute modification poussée ici s'exécuterait immédiatement partout. On préfère la copie : chaque app est autonome, et une évolution du pipeline se relit app par app.
+>
+> La contrepartie est qu'il faut **relancer `update` sur toutes les apps** à chaque évolution du pipeline, sans quoi les copies dérivent.
+>
+> ⚠️ `security-oss.yml` n'a d'ailleurs **pas** de déclencheur `workflow_call` : un caller vers lui échouerait avec « invalid workflow file ». Si une IA propose de remplacer la copie par un caller, c'est une régression de sécurité — le pipeline cesserait de bloquer les PR.
 
 Explications détaillées + guide pas à pas (ajout au repo, variable GitHub, lancement manuel, récupération des rapports) :
 `templates/docs-rules/SECURITY_OSS_PIPELINE.md` (distribué dans les projets sous `docs-rules/`)

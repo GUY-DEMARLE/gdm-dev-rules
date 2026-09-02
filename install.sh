@@ -13,6 +13,7 @@ set -e
 # Configuration
 REPO_URL="${REPO_URL:-https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/templates}"
 DOCS_API_URL="${DOCS_API_URL:-https://api.github.com/repos/GUY-DEMARLE/gdm-dev-rules/contents/templates/docs-rules?ref=main}"
+WORKFLOW_URL="${WORKFLOW_URL:-https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml}"
 FORCE="${FORCE:-false}"
 
 # Couleurs
@@ -129,10 +130,21 @@ else
     echo -e "${YELLOW}⚠ Impossible de lire system-design/MANIFEST.txt (design system non installé).${NC}"
 fi
 
+# Workflow GitHub Actions Security OSS — obligatoire sur toute app GDM
+# (RULES.md § 2.6 : Gitleaks/Semgrep/OSV bloquants sur PR, audit complet chaque lundi).
+echo -e "${CYAN}→ Téléchargement de .github/workflows/security-oss.yml...${NC}"
+mkdir -p .github/workflows
+if curl -sSL -f "$WORKFLOW_URL" -o ".github/workflows/security-oss.yml"; then
+    echo -e "${GREEN}✓ .github/workflows/security-oss.yml${NC}"
+else
+    echo -e "${YELLOW}⚠ Impossible de télécharger le workflow security-oss.${NC}"
+    echo -e "${YELLOW}⚠ Il est OBLIGATOIRE (RULES.md § 2.6) : relance le script avant de merger.${NC}"
+fi
+
 # Vérifier le .gitignore
 echo -e "${CYAN}→ Vérification du .gitignore...${NC}"
 if [ -f ".gitignore" ]; then
-    patterns=(".ai-rules" ".cursor" "CLAUDE.md" "AGENTS.md" "docs-rules" "system-design")
+    patterns=(".ai-rules" ".cursor" "CLAUDE.md" "AGENTS.md" "docs-rules" "system-design" ".github/workflows")
     ignored_files=()
     for pattern in "${patterns[@]}"; do
         if grep -qF "$pattern" .gitignore; then
@@ -164,7 +176,7 @@ echo -e "${WHITE}  1. Ouvre CLAUDE.md et remplis les sections 'Contexte du proje
 echo -e "${WHITE}     et 'Règles spécifiques à ce projet'.${NC}"
 echo ""
 echo -e "${WHITE}  2. Commit les fichiers :${NC}"
-echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/${NC}"
+echo -e "${GRAY}       git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/${NC}"
 echo -e "${GRAY}       git commit -m \"chore: add GDM AI rules\"${NC}"
 echo ""
 echo -e "${WHITE}  3. Vérifie que ça marche :${NC}"
