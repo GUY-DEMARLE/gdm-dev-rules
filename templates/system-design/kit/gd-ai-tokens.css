@@ -57,6 +57,21 @@
   --gd-apricot: #F2C19F;
   --gd-apricot-soft: #f9dfc8;
 
+  /* ===== Ambiance de page =================================================
+     Le fond n'est pas un aplat : c'est le crème traversé par quatre halos
+     gourmands très dilués, qui dérivent lentement. Ces valeurs sont
+     volontairement basses — on doit sentir le fond, pas le regarder.
+     Mise en œuvre : gd-ai-ambiance.css · Justification : README § 8. */
+  --gd-halo-red: rgba(200, 55, 59, 0.10);
+  --gd-halo-butter: rgba(248, 215, 122, 0.22);
+  --gd-halo-rose: rgba(239, 185, 185, 0.22);
+  --gd-halo-mint: rgba(184, 223, 208, 0.20);
+
+  --gd-ambient-drift: 22s;   /* dérive du fond : lente au point qu'on ne la surprend pas */
+  --gd-ambient-float: 18s;   /* montée d'un objet flottant */
+  --gd-ambient-veil: 0.25;   /* opacité de la couche flottante — monter/descendre pour doser */
+  --gd-ambient-size: 28px;   /* taille de référence d'un objet flottant (décor, hors échelle de texte) */
+
   /* ===== Couleurs sémantiques ============================================= */
   --color-success: #43a047;
   --color-success-deep: #2e7d32;
@@ -200,6 +215,13 @@
   --gd-mint-soft: #1f2e2a;
   --gd-apricot: #e8b48f;
   --gd-apricot-soft: #3a2a20;
+  /* Sur le brun anthracite, les mêmes halos virent au néon : les valeurs
+     claires sont à peu près divisées par deux. Le rouge, lui, remonte à
+     peine — c'est lui qui porte la chaleur quand tout le reste s'éteint. */
+  --gd-halo-red: rgba(232, 90, 94, 0.12);
+  --gd-halo-butter: rgba(240, 201, 107, 0.10);
+  --gd-halo-rose: rgba(232, 168, 168, 0.10);
+  --gd-halo-mint: rgba(168, 212, 196, 0.09);
 
   --color-success: #66bb6a;
   --color-success-deep: #43a047;
@@ -255,6 +277,13 @@
     --gd-mint-soft: #1f2e2a;
     --gd-apricot: #e8b48f;
     --gd-apricot-soft: #3a2a20;
+    /* Sur le brun anthracite, les mêmes halos virent au néon : les valeurs
+       claires sont à peu près divisées par deux. Le rouge, lui, remonte à
+       peine — c'est lui qui porte la chaleur quand tout le reste s'éteint. */
+    --gd-halo-red: rgba(232, 90, 94, 0.12);
+    --gd-halo-butter: rgba(240, 201, 107, 0.10);
+    --gd-halo-rose: rgba(232, 168, 168, 0.10);
+    --gd-halo-mint: rgba(168, 212, 196, 0.09);
 
     --color-success: #66bb6a;
     --color-success-deep: #43a047;

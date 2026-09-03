@@ -13,6 +13,7 @@
 AGENTS.md
 README.md
 kit/demo.html
+kit/gd-ai-ambiance.css
 kit/gd-ai-components.css
 kit/gd-ai-marque-o.png
 kit/gd-ai-mascotte.js

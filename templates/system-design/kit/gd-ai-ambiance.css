@@ -1,0 +1,207 @@
+/* ============================================================================
+   gd-ai-ambiance.css — l'ambiance de page de l'environnement IA Guy Demarle
+   ----------------------------------------------------------------------------
+   Le fond crème seul ne suffit pas.
+
+   Ce qui fait reconnaître un outil IA GD en une seconde, ce n'est pas un beige :
+   c'est du crème TRAVERSÉ par quatre halos gourmands très dilués qui dérivent
+   lentement, une couche d'objets de cuisine qui montent en arrière-plan, et le
+   fait que rien n'apparaisse sèchement à l'écran. Sans ça on obtient une page
+   beige correcte — et parfaitement anonyme.
+
+   Trois briques, dans cet ordre d'importance :
+     1. .gd-ambient          le fond vivant (obligatoire — AGENTS.md § 2 règle 14)
+     2. .gd-ambient__layer   les objets flottants (fortement recommandé)
+     3. .gd-enter/.gd-settle les entrées d'éléments (à utiliser partout)
+
+   Dépend de gd-ai-tokens.css : à charger APRÈS lui.
+   Justification et dosage : README.md § 8.
+   ========================================================================== */
+
+/* ============================================================================
+   1. La surface d'ambiance
+   Se pose sur la coquille plein écran de l'application — pas sur un élément
+   qui doit défiler : la classe découpe ce qui dépasse pour que la dérive ne
+   fabrique jamais de barre de défilement horizontale.
+
+   Le halo vit dans un ::before à z-index négatif, et `isolation: isolate`
+   l'enferme dans la boîte : le contenu passe devant sans que personne ait à
+   écrire un seul z-index. C'est le piège n°1 de ce motif quand on le refait à
+   la main — on se retrouve à repêcher chaque zone au-dessus du décor.
+   ========================================================================== */
+.gd-ambient {
+  position: relative;
+  isolation: isolate;
+  background: var(--gd-cream);
+  overflow: hidden;
+}
+
+/* `clip` découpe sans créer de conteneur de défilement : les en-têtes collants
+   et les menus déroulants continuent de fonctionner. Repli en `hidden` sur les
+   appareils anciens du parc Conseillers.
+
+   ⚠ Sur `<body>`, `overflow` se propage à la fenêtre : un découpage y coupe le
+   défilement de toute la page. C'est ce qu'on veut pour une coquille plein
+   écran (rien ne défile au niveau du document, une zone interne s'en charge) et
+   c'est une page bloquée pour un document long. Dans ce second cas, la variante
+   `--fixed` juste en dessous est OBLIGATOIRE. */
+@supports (overflow: clip) {
+  .gd-ambient { overflow: clip; }
+}
+
+.gd-ambient::before {
+  content: '';
+  position: absolute;
+  inset: -20%;              /* déborde largement : la dérive ne découvre aucun bord */
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 22%, var(--gd-halo-red) 0%, transparent 38%),
+    radial-gradient(circle at 80% 18%, var(--gd-halo-butter) 0%, transparent 42%),
+    radial-gradient(circle at 78% 78%, var(--gd-halo-rose) 0%, transparent 45%),
+    radial-gradient(circle at 22% 82%, var(--gd-halo-mint) 0%, transparent 42%);
+  animation: gd-ambient-drift var(--gd-ambient-drift) var(--ease-out-soft) infinite alternate;
+  will-change: transform;
+}
+
+/* ----------------------------------------------------------------------------
+   Variante : page qui défile au lieu d'une coquille plein écran
+   Sur un document long (page de réglages, documentation, formulaire à rallonge),
+   le décor étiré sur toute la hauteur donne quatre halos géants et invisibles.
+   `--fixed` l'accroche à la fenêtre : la page défile, l'ambiance reste.
+
+     <body class="gd-ambient gd-ambient--fixed">
+
+   C'est aussi ce qui rétablit le défilement quand la classe est posée sur
+   `<body>` : `overflow: visible` ne se propage pas à la fenêtre.
+
+   Le découpage est rendu inutile (un élément fixe ne déborde pas du document et
+   ne fabrique pas de barre de défilement), et on le retire : `overflow: clip`
+   sur l'ancêtre d'un élément fixe donne des résultats variables d'un moteur à
+   l'autre.
+   -------------------------------------------------------------------------- */
+.gd-ambient--fixed { overflow: visible; }
+
+.gd-ambient--fixed::before,
+.gd-ambient--fixed > .gd-ambient__layer {
+  position: fixed;
+}
+
+@keyframes gd-ambient-drift {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%  { transform: translate3d(-3%, 2%, 0) rotate(1.5deg); }
+  100% { transform: translate3d(2%, -2%, 0) rotate(-1.5deg); }
+}
+
+/* ============================================================================
+   2. Les objets flottants
+   Sept éléments décoratifs qui montent lentement en fond. Des emojis de cuisine
+   dans la plupart des outils — c'est l'univers de la maison, et ça ne demande
+   aucune ressource à charger.
+
+     <div class="gd-ambient__layer" aria-hidden="true">
+       <span>🥐</span><span>🍓</span><span>🧁</span><span>🥖</span>
+       <span>🍰</span><span>🥄</span><span>🍯</span>
+     </div>
+
+   Positions, tailles et décalages sont portés par le kit : sept enfants, dans
+   n'importe quel ordre, suffisent. Les décalages sont NÉGATIFS et tous
+   différents — la boucle démarre déjà entamée, donc au premier affichage la
+   scène est en mouvement au lieu de s'allumer d'un bloc.
+
+   `aria-hidden` n'est pas optionnel : pour un lecteur d'écran, sept emojis
+   énoncés à l'entrée d'une page sont sept obstacles.
+   ========================================================================== */
+.gd-ambient__layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: var(--gd-ambient-veil);
+}
+
+.gd-ambient__layer > * {
+  position: absolute;
+  opacity: 0;
+  line-height: 1;
+  font-size: var(--gd-ambient-size);
+  filter: drop-shadow(var(--gd-shadow-soft));
+  animation: gd-ambient-float var(--gd-ambient-float) var(--ease-out-soft) infinite;
+}
+
+.gd-ambient__layer > :nth-child(1) { top: 12%; left: 8%;   font-size: calc(var(--gd-ambient-size) * 0.86); animation-delay: -1s; }
+.gd-ambient__layer > :nth-child(2) { top: 28%; right: 10%; font-size: calc(var(--gd-ambient-size) * 0.79); animation-delay: -4s; }
+.gd-ambient__layer > :nth-child(3) { top: 58%; left: 5%;   font-size: calc(var(--gd-ambient-size) * 1.14); animation-delay: -7s; }
+.gd-ambient__layer > :nth-child(4) { top: 72%; right: 6%;  font-size: var(--gd-ambient-size);              animation-delay: -11s; }
+.gd-ambient__layer > :nth-child(5) { top: 38%; left: 48%;  font-size: calc(var(--gd-ambient-size) * 0.71); animation-delay: -2s; }
+.gd-ambient__layer > :nth-child(6) { top: 82%; left: 38%;  font-size: calc(var(--gd-ambient-size) * 0.79); animation-delay: -9s; }
+.gd-ambient__layer > :nth-child(7) { top: 18%; left: 62%;  font-size: calc(var(--gd-ambient-size) * 0.64); animation-delay: -13s; }
+
+@keyframes gd-ambient-float {
+  0%   { transform: translate3d(0, 0, 0) rotate(-6deg); opacity: 0; }
+  10%  { opacity: 0.7; }
+  50%  { transform: translate3d(6px, -14px, 0) rotate(8deg); opacity: 0.8; }
+  90%  { opacity: 0.6; }
+  100% { transform: translate3d(-4px, -4px, 0) rotate(-6deg); opacity: 0; }
+}
+
+/* ============================================================================
+   3. Les entrées
+   Dans un outil GD, rien n'apparaît sec. Deux gestes, et pas un de plus :
+
+     .gd-enter    l'interface qui arrive       — monte de 8 px, courbe d'interface
+     .gd-settle   ce qui est vivant, qui se pose — léger dépassement, courbe ressort
+
+   Une réponse d'IA, une bulle, une carte de résultat : .gd-settle.
+   Un panneau, une ligne de liste, un bloc de contenu : .gd-enter.
+
+   Pour une liste, échelonner avec --gd-enter-delay (jamais plus de 5 ou 6
+   éléments : au-delà, l'attente devient une lenteur) :
+     <li class="gd-enter" style="--gd-enter-delay: 60ms">
+   ========================================================================== */
+.gd-enter {
+  animation: gd-enter var(--duration-enter) var(--ease-out-soft) both;
+  animation-delay: var(--gd-enter-delay, 0s);
+}
+
+.gd-settle {
+  animation: gd-settle var(--duration-move) var(--ease-spring) both;
+  animation-delay: var(--gd-enter-delay, 0s);
+}
+
+@keyframes gd-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes gd-settle {
+  from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ============================================================================
+   4. Mouvement réduit
+   L'ambiance ne DISPARAÎT pas quand le mouvement est refusé : elle s'immobilise.
+   Une personne qui coupe les animations veut moins de mouvement, pas un outil
+   qui perd son identité.
+
+   Le détail qui compte : les flottants démarrent à `opacity: 0` et ne
+   deviennent visibles que par leur animation. Couper l'animation sans rendre
+   l'opacité les efface — c'est l'erreur qu'on ne voit pas, parce qu'on ne teste
+   presque jamais avec le réglage activé.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .gd-ambient::before { animation: none; }
+
+  .gd-ambient__layer > * {
+    animation: none;
+    opacity: 0.75;
+    transform: none;
+  }
+
+  .gd-enter,
+  .gd-settle {
+    animation: none;
+  }
+}

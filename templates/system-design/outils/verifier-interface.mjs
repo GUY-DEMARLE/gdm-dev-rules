@@ -12,6 +12,10 @@
    lisent dans le code. Le reste de la checklist (un seul bouton rouge par zone,
    lockup complet, test en une seconde) demande un œil sur l'écran réel.
 
+   Deux étages : les règles de LIGNE (une couleur en dur, un angle vif…) et les
+   contrôles D'ENSEMBLE, qui portent sur le projet entier — aujourd'hui
+   l'ambiance de page, qu'aucune ligne prise séparément ne trahit.
+
    Un outil de repérage, pas un juge : il montre où regarder. Une ligne
    légitimement hors règle se neutralise en ajoutant `gd-ok:` suivi de la
    raison, en commentaire sur la même ligne.
@@ -128,6 +132,46 @@ const REGLES = [
 ]
 
 /* -------------------------------------------------------------------------- */
+/* Contrôles d'ensemble                                                        */
+/* -------------------------------------------------------------------------- */
+
+/* Certaines règles ne se lisent pas sur une ligne mais sur le projet entier.
+   Une page peut être irréprochable ligne à ligne — bons jetons, bons composants,
+   zéro valeur en dur — et rendre un crème nu, c'est-à-dire une page beige
+   anonyme qui échoue au test en une seconde. C'est le cas que ce contrôle
+   attrape, et c'est le plus fréquent quand une IA produit l'interface.
+
+   Échappatoire, pour un outil qui a une vraie raison de s'en passer : écrire
+   `gd-ok: ambiance` suivi du motif, en commentaire, n'importe où dans le front. */
+const CONTROLES_ENSEMBLE = [
+  {
+    id: 'ambiance-absente',
+    gravite: 'erreur',
+    titre: 'Ambiance de page absente — la page principale porte `.gd-ambient` (AGENTS.md § 2.14)',
+    message: 'Aucune trace de `gd-ambient` dans le front : le fond est un crème nu. '
+           + 'Charger `kit/gd-ai-ambiance.css`, poser `class="gd-ambient"` sur la coquille '
+           + 'plein écran et y ajouter `.gd-ambient__layer`. Voir README § 8.',
+    test: (sources) => !sources.some((src) => /gd-ambient\b/.test(src)),
+    neutralise: (sources) => sources.some((src) => /gd-ok\s*:\s*ambiance/i.test(src)),
+  },
+]
+
+function controlerEnsemble(sources, cible) {
+  if (!sources.length) return []
+  return CONTROLES_ENSEMBLE
+    .filter((c) => !c.neutralise(sources) && c.test(sources))
+    .map((c) => ({
+      regle: c.id,
+      gravite: c.gravite,
+      titre: c.titre,
+      fichier: cible,
+      ligne: 0,
+      ensemble: true,
+      extrait: c.message,
+    }))
+}
+
+/* -------------------------------------------------------------------------- */
 /* Parcours                                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -191,7 +235,11 @@ const json = args.includes('--json')
 const cibles = args.filter((a) => !a.startsWith('--'))
 if (!cibles.length) cibles.push(process.cwd())
 
-const trouvailles = cibles.flatMap((c) => fichiers(c).flatMap(analyser))
+const trouvailles = cibles.flatMap((c) => {
+  const liste = fichiers(c)
+  const lues = liste.map((f) => { try { return readFileSync(f, 'utf8') } catch { return '' } })
+  return [...liste.flatMap(analyser), ...controlerEnsemble(lues, c)]
+})
 const erreurs = trouvailles.filter((t) => t.gravite === 'erreur')
 const avertis = trouvailles.filter((t) => t.gravite === 'avertissement')
 
@@ -223,6 +271,11 @@ for (const gravite of ['erreur', 'avertissement']) {
   for (const [, items] of parRegle) {
     console.log(`\n  ${items[0].titre}`)
     for (const t of items.slice(0, PLAFOND)) {
+      if (t.ensemble) {
+        console.log(`    ${court(t.fichier)} — sur l'ensemble du périmètre`)
+        console.log(`      ${t.extrait}`)
+        continue
+      }
       console.log(`    ${court(t.fichier)}:${t.ligne}`)
       console.log(`      ${t.extrait}`)
     }

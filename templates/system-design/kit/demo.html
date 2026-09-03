@@ -30,6 +30,7 @@
 
 <link rel="stylesheet" href="gd-ai-tokens.css">
 <link rel="stylesheet" href="gd-ai-components.css">
+<link rel="stylesheet" href="gd-ai-ambiance.css">
 
 <script>
   /* Cette planche affiche volontairement plusieurs exemplaires de la mascotte
@@ -86,6 +87,7 @@
 
   .row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
   .grid { display: grid; gap: var(--space-4); }
+  .grid--2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
   .grid--3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   .grid--4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 
@@ -151,7 +153,16 @@
   footer.end { border-top: 1px solid var(--gd-border); padding-top: var(--space-6); font-size: var(--text-xs); color: var(--gd-ink-soft-aa); }
 </style>
 </head>
-<body>
+<body class="gd-ambient gd-ambient--fixed">
+
+<!-- L'ambiance de page (§ 7 plus bas). La planche est un document qui défile,
+     d'où la variante `--fixed` : le décor s'accroche à la fenêtre au lieu de
+     s'étirer sur 6 000 px de hauteur. Dans une application à coquille plein
+     écran, `gd-ambient` seul suffit. -->
+<div class="gd-ambient__layer" aria-hidden="true">
+  <span>🥐</span><span>🍓</span><span>🧁</span><span>🥖</span>
+  <span>🍰</span><span>🥄</span><span>🍯</span>
+</div>
 
 <header class="top">
   <div class="wrap top__row">
@@ -183,6 +194,7 @@
     <a href="#composants">Composants</a>
     <a href="#formes">Formes &amp; ombres</a>
     <a href="#mouvement">Mouvement</a>
+    <a href="#ambiance">Ambiance</a>
     <a href="#dodont">Do / Don't</a>
     <a href="#checklist">Checklist</a>
   </nav>
@@ -494,8 +506,80 @@ m.poke()                                  // saut ponctuel
   </section>
 
   <!-- ===================================================================== -->
+  <section id="ambiance">
+    <h2>7 · L'ambiance de page</h2>
+    <p class="lead">
+      Le crème nu ne suffit pas. Ce qui fait reconnaître un outil IA GD en une seconde,
+      c'est le crème <b>traversé</b> par quatre halos gourmands très dilués qui dérivent en
+      22 secondes, une couche d'objets de cuisine qui montent en fond, et le fait que rien
+      n'apparaît sec. <b>Cette page en est un exemple</b> : le fond que vous regardez est
+      <code>.gd-ambient</code>. Justification et dosage : README § 8.
+    </p>
+
+    <div class="grid grid--2">
+      <div class="gd-card">
+        <h3 class="gd-card__title">Le crème nu</h3>
+        <div style="height:190px;border-radius:var(--radius-2xl);border:1px solid var(--gd-border);background:var(--gd-cream);display:flex;align-items:center;justify-content:center">
+          <span class="gd-text-soft" style="font-size:var(--text-xs)">conforme ligne à ligne… et anonyme</span>
+        </div>
+      </div>
+      <div class="gd-card">
+        <h3 class="gd-card__title">Avec l'ambiance</h3>
+        <div class="gd-ambient" style="height:190px;border-radius:var(--radius-2xl);border:1px solid var(--gd-border);display:flex;align-items:center;justify-content:center">
+          <div class="gd-ambient__layer" aria-hidden="true">
+            <span>🥐</span><span>🍓</span><span>🧁</span><span>🥖</span>
+            <span>🍰</span><span>🥄</span><span>🍯</span>
+          </div>
+          <span class="gd-text-soft" style="font-size:var(--text-xs)">le même crème, vivant</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">Ce qu'on écrit</h3>
+    <pre class="code"><code>&lt;body class="gd-ambient"&gt;
+  &lt;div class="gd-ambient__layer" aria-hidden="true"&gt;
+    &lt;span&gt;🥐&lt;/span&gt;&lt;span&gt;🍓&lt;/span&gt;&lt;span&gt;🧁&lt;/span&gt;&lt;span&gt;🥖&lt;/span&gt;
+    &lt;span&gt;🍰&lt;/span&gt;&lt;span&gt;🥄&lt;/span&gt;&lt;span&gt;🍯&lt;/span&gt;
+  &lt;/div&gt;
+  …
+&lt;/body&gt;</code></pre>
+    <p class="gd-text-soft" style="font-size:var(--text-xs)">
+      Sept enfants, dans n'importe quel ordre : positions, tailles et décalages viennent du
+      kit. Les emojis, eux, appartiennent à l'outil — univers de la maison uniquement, jamais
+      de symbole d'interface ni de statut. Sur un document qui défile plutôt qu'une coquille
+      plein écran, ajouter <code>gd-ambient--fixed</code>.
+    </p>
+
+    <h3 class="sub">Les entrées : rien n'apparaît sec</h3>
+    <p class="lead" style="margin-top:0">
+      Deux gestes, pas un de plus. Cliquez pour rejouer.
+    </p>
+    <div class="grid grid--2" id="entrees-demo">
+      <div class="gd-card" data-entree="gd-enter">
+        <h3 class="gd-card__title"><code>.gd-enter</code></h3>
+        <p class="gd-text-soft" style="font-size:var(--text-xs);margin:0">L'interface qui arrive : un panneau, une ligne de liste, un bloc. Courbe d'interface.</p>
+      </div>
+      <div class="gd-card" data-entree="gd-settle">
+        <h3 class="gd-card__title"><code>.gd-settle</code></h3>
+        <p class="gd-text-soft" style="font-size:var(--text-xs);margin:0">Ce qui est vivant et se pose : une réponse d'IA, une bulle, une carte de résultat. Courbe ressort.</p>
+      </div>
+    </div>
+
+    <h3 class="sub">Le dosage</h3>
+    <p class="lead" style="margin-top:0">
+      <b>Un fond qu'on remarque est un fond raté.</b> Les halos vivent entre 10 et 22 % :
+      au-delà de 25 %, le fond devient une image et le texte y perd du contraste. La dérive
+      est à 22 s parce qu'en dessous de 15 s l'œil l'attrape et se met à la suivre.
+      En <b>thème sombre</b>, les mêmes valeurs vireraient au néon : elles sont divisées par
+      deux, sauf le rouge qui remonte à peine. Basculez le thème pour voir.
+      En <b>animations réduites</b>, tout se fige mais <b>rien ne disparaît</b> — essayez le
+      bouton en haut : les halos et les objets flottants sont toujours là, immobiles.
+    </p>
+  </section>
+
+  <!-- ===================================================================== -->
   <section id="dodont">
-    <h2>7 · Do / Don't</h2>
+    <h2>8 · Do / Don't</h2>
     <div class="dd">
       <div class="dd__case">
         <div class="dd__head dd__head--ok">✅ Fond crème, un seul rouge</div>
@@ -541,7 +625,7 @@ m.poke()                                  // saut ponctuel
 
   <!-- ===================================================================== -->
   <section id="checklist">
-    <h2>8 · La checklist avant de livrer</h2>
+    <h2>9 · La checklist avant de livrer</h2>
     <p class="lead">La même que dans <code>AGENTS.md</code>. Un écran qui coche tout passe le test en une seconde.</p>
     <div class="gd-card">
       <ul class="check">
@@ -557,13 +641,16 @@ m.poke()                                  // saut ponctuel
         <li><input type="checkbox" id="c10"><label for="c10">Cibles tactiles ≥ 44 px, focus visible partout, aucune info portée par la seule couleur.</label></li>
         <li><input type="checkbox" id="c11"><label for="c11">Testé en thème sombre et en <code>prefers-reduced-motion</code>.</label></li>
         <li><input type="checkbox" id="c12"><label for="c12">Zoom navigateur 200 % sans perte de fonction.</label></li>
+        <li><input type="checkbox" id="c13"><label for="c13">La page principale porte <code>.gd-ambient</code> et sa couche d&rsquo;objets flottants — le fond n&rsquo;est pas un crème nu.</label></li>
+        <li><input type="checkbox" id="c14"><label for="c14">Ce qui arrive à l&rsquo;écran entre en <code>.gd-enter</code> ou <code>.gd-settle</code> : rien n&rsquo;apparaît sec.</label></li>
       </ul>
     </div>
   </section>
 
   <footer class="end">
     Banc d'essai du design system IA Guy Demarle · lit <code>gd-ai-tokens.css</code>,
-    <code>gd-ai-components.css</code> et <code>gd-ai-mascotte.js</code> en direct ·
+    <code>gd-ai-components.css</code>, <code>gd-ai-ambiance.css</code> et
+    <code>gd-ai-mascotte.js</code> en direct ·
     le design system complet est dans <code>../README.md</code>, le mode d&rsquo;emploi pour une IA dans
     <code>../AGENTS.md</code>.
   </footer>
@@ -588,11 +675,30 @@ m.poke()                                  // saut ponctuel
     paintSwatches()
   }))
 
+  /* ---- entrées : rejouer au clic ---------------------------------------- */
+  document.querySelectorAll('#entrees-demo [data-entree]').forEach((carte) => {
+    const classe = carte.dataset.entree
+    const rejouer = () => {
+      carte.classList.remove(classe)
+      void carte.offsetWidth          // force le navigateur à reprendre l'animation
+      carte.classList.add(classe)
+    }
+    carte.style.cursor = 'pointer'
+    carte.addEventListener('click', rejouer)
+    rejouer()
+  })
+
   /* ---- animations réduites (simulation) --------------------------------- */
   const motionBtn = document.getElementById('motion-toggle')
   let reduced = false
   const reduceStyle = document.createElement('style')
-  reduceStyle.textContent = '*,*::before,*::after{animation:none !important;transition-duration:.001ms !important}'
+  /* Couper les animations ne suffit pas à simuler la règle : les objets flottants
+     partent de `opacity: 0` et ne deviennent visibles QUE par leur animation.
+     Sans la seconde ligne, la couche disparaîtrait — et la simulation
+     montrerait le bug que le kit corrige au lieu du comportement attendu. */
+  reduceStyle.textContent =
+    '*,*::before,*::after{animation:none !important;transition-duration:.001ms !important}'
+    + '.gd-ambient__layer>*{opacity:.75 !important;transform:none !important}'
   motionBtn.addEventListener('click', () => {
     reduced = !reduced
     motionBtn.setAttribute('aria-pressed', String(reduced))

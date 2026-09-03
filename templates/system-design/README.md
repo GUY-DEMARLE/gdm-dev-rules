@@ -1,6 +1,6 @@
 # Design system — Environnement IA Guy Demarle
 
-Version 1.3 · 2 septembre 2026 · dérivé d'Ohracle
+Version 1.4 · 3 septembre 2026 · dérivé d'Ohracle
 
 Ce document définit la direction artistique commune à **tous les outils d'intelligence artificielle mis à disposition des Conseillers Culinaires Guy Demarle**. Il est né d'Ohracle, le premier de ces outils, dont il extrait ce qui doit devenir transverse.
 
@@ -11,10 +11,10 @@ Il vit dans le dossier **`system-design/`**, qui se pose **à la racine du dép�
 > | Vous êtes… | Allez à |
 > |---|---|
 > | **une IA** (Claude, Copilot, Cursor…) qui doit produire une interface | **[`AGENTS.md`](AGENTS.md)** — les consignes exécutables, dans l'ordre, avec la checklist de fin |
-> | **un développeur** qui démarre un outil | **[`kit/demo.html`](kit/demo.html)** (ouvrir par double-clic) puis § 12 ci-dessous |
+> | **un développeur** qui démarre un outil | **[`kit/demo.html`](kit/demo.html)** (ouvrir par double-clic) puis § 13 ci-dessous |
 > | **un designer / un décideur** | ce document, dans l'ordre |
 >
-> Le kit — jetons, composants, mascotte animée, marque — se copie tel quel. Rien n'est à redessiner. Voir § 12.
+> Le kit — jetons, composants, mascotte animée, marque — se copie tel quel. Rien n'est à redessiner. Voir § 13.
 
 > ### Ce que contient le dossier
 >
@@ -22,7 +22,7 @@ Il vit dans le dossier **`system-design/`**, qui se pose **à la racine du dép�
 > |---|---|
 > | [`AGENTS.md`](AGENTS.md) | Le point d'entrée pour une IA : installation, règles vérifiables, interdits, checklist de fin. |
 > | `README.md` | Ce document : la direction artistique, et le pourquoi de chaque arbitrage. |
-> | [`kit/`](kit/) | Les fichiers à servir : jetons, composants, mascotte, marque, banc d'essai. |
+> | [`kit/`](kit/) | Les fichiers à servir : jetons, composants, ambiance, mascotte, marque, banc d'essai. |
 > | [`outils/`](outils/) | Le contrôle automatique des règles qui se lisent dans le code. |
 
 Ce document pose l'esprit, la palette, la typographie et les règles d'usage de la mascotte. Le **rendu des briques communes** (bouton, champ, carte, bulle, pastille, alerte, lockup) et le **personnage** sont fournis prêts à l'emploi : ce sont eux qui font la reconnaissance d'un outil à l'autre. Tout le reste — mise en page, navigation, architecture des écrans, pile technique — reste libre, du moment que le résultat passe le test ci-dessous.
@@ -76,15 +76,16 @@ Un nom court, prononçable au téléphone, français ou francisé, qui ne se con
 
 ---
 
-## 2. Les cinq signes de reconnaissance
+## 2. Les six signes de reconnaissance
 
-Ce sont les cinq choses qui, ensemble, font passer le test en une seconde. Un outil de l'environnement IA les porte toutes.
+Ce sont les six choses qui, ensemble, font passer le test en une seconde. Un outil de l'environnement IA les porte toutes.
 
 1. **Le fond crème `#F5F0EB`.** Jamais de blanc pur en fond de page. C'est le signe le plus immédiat, et le moins cher à respecter : c'est ce qui distingue un outil IA GD d'un outil web quelconque.
-2. **Le rouge en accent unique.** Un seul accent d'action à l'écran. Le rouge dit « c'est ici que tu agis ». S'il y en a partout, il ne dit plus rien.
-3. **La mascotte.** Présente, vivante, jamais décorative-inerte. Voir § 5.
-4. **La typographie Poppins à l'échelle confort.** Corps de texte à 16 px minimum, jamais moins de 14 px nulle part.
-5. **La signature « par Guy Demarle ».** Dans le lockup, et rappelée en pied de page.
+2. **L'ambiance qui vit dessus.** Le crème nu ne suffit pas : quatre halos gourmands très dilués le traversent et dérivent lentement, des objets de cuisine montent en fond, et rien n'apparaît sec à l'écran. C'est le signe le plus souvent oublié — et celui dont l'absence donne une page beige correcte et anonyme. Voir § 8.
+3. **Le rouge en accent unique.** Un seul accent d'action à l'écran. Le rouge dit « c'est ici que tu agis ». S'il y en a partout, il ne dit plus rien.
+4. **La mascotte.** Présente, vivante, jamais décorative-inerte. Voir § 5.
+5. **La typographie Poppins à l'échelle confort.** Corps de texte à 16 px minimum, jamais moins de 14 px nulle part.
+6. **La signature « par Guy Demarle ».** Dans le lockup, et rappelée en pied de page.
 
 ---
 
@@ -309,7 +310,72 @@ Trois niveaux et pas plus : `--gd-shadow-soft` (surface posée), `--gd-shadow` (
 
 ---
 
-## 8. Ton de voix
+## 8. L'ambiance de page
+
+### 8.1 Pourquoi un chapitre entier pour un fond
+
+Les versions précédentes de cette charte décrivaient le fond en une ligne : **`--gd-cream`, jamais de blanc pur**. C'était vrai, et c'était insuffisant. Une équipe qui applique consciencieusement tous les jetons obtient une page beige, propre, avec les bons boutons — et qui ne ressemble pas à Ohracle. Le critère du test en une seconde n'est pas tenu, alors qu'aucune règle n'est enfreinte.
+
+Ce qui manquait n'était pas une couleur, c'était un **état** : dans Ohracle, le fond est vivant. Il n'est pas plat, il n'est pas fixe, et rien n'y apparaît brutalement. On ne le remarque jamais consciemment — c'est exactement le but — mais on remarque tout de suite son absence.
+
+Le fond est donc traité comme un composant à part entière : [`kit/gd-ai-ambiance.css`](kit/gd-ai-ambiance.css), obligatoire au même titre que les boutons.
+
+### 8.2 Les trois couches
+
+**1 · Les halos qui dérivent.** Quatre disques flous — rouge, beurre, rose, menthe — posés aux quatre coins, à 10-22 % d'opacité, qui dérivent en 22 secondes et repartent en sens inverse. Le rouge est volontairement le plus faible (10 %) : c'est un accent d'action, il ne doit pas colorer la page.
+
+Trois détails font la différence entre ce fond et un dégradé quelconque :
+
+- **La lenteur.** 22 secondes, c'est en dessous du seuil auquel l'œil attrape un mouvement. On perçoit que quelque chose n'est pas figé, sans jamais pouvoir dire quoi. À 8 secondes, le fond devient un objet qui bouge — et il capte l'attention destinée au contenu.
+- **`alternate`.** L'animation fait l'aller puis le retour au lieu de sauter à sa position de départ. Sans ça, un à-coup toutes les 22 secondes, et l'illusion tombe.
+- **Le débord de 20 %.** Le calque dépasse largement de la page : la dérive ne découvre jamais un bord vide.
+
+**2 · Les objets flottants.** Sept emojis de cuisine qui montent lentement, à 25 % d'opacité globale, avec des décalages tous différents pour que la boucle ne se laisse pas deviner — le même principe que les trois périodes de respiration de la mascotte (§ 7).
+
+C'est la couche la moins chère de tout le design system : aucun fichier à charger, aucune illustration à commander, et l'univers de la maison est posé en sept caractères. Les emojis appartiennent à chaque outil ; le kit ne fournit que les positions, les tailles et les décalages.
+
+Deux garde-fous : `aria-hidden` — sept emojis énumérés à l'entrée d'une page sont sept obstacles pour un lecteur d'écran — et **aucun symbole d'interface ni de statut** (⚙️, 📊, ✅, ⚠️). Le décor ne doit jamais pouvoir passer pour une information.
+
+**3 · Les entrées.** Rien n'apparaît sec. Deux gestes, pas un de plus : `.gd-enter` pour l'interface qui arrive (8 px de montée, courbe d'interface), `.gd-settle` pour ce qui est vivant et se pose (léger dépassement, courbe ressort). Une réponse d'IA se pose ; un panneau entre.
+
+Sur une liste, échelonner avec `--gd-enter-delay` — et pas au-delà de cinq ou six éléments : le décalé en cascade est charmant sur cinq lignes et devient une lenteur sur vingt.
+
+### 8.3 Le dosage
+
+| Jeton | Valeur | Ce qui arrive si on y touche |
+|---|---|---|
+| `--gd-halo-*` | 10 à 22 % | Au-dessus de 25 %, le fond devient une image et le texte perd du contraste. |
+| `--gd-ambient-drift` | 22 s | En dessous de 15 s, le mouvement devient perceptible et distrait. |
+| `--gd-ambient-float` | 18 s | Idem. |
+| `--gd-ambient-veil` | 0,25 | Le seul jeton qu'il est légitime d'ajuster : monter à 0,35 sur un outil très aéré, descendre à 0,15 sur un outil dense. |
+
+**La règle qui résume tout : un fond qu'on remarque est un fond raté.** La tentation, en intégration, est de monter les valeurs « pour qu'on voie mieux le travail ». C'est l'inverse du but.
+
+Un mot sur la règle « la palette gourmande n'est jamais un aplat de fond sur plus d'un quart de l'écran » (§ 3.3) : les halos couvrent tout l'écran, mais à 10-22 % ce sont des **voiles**, pas des aplats. L'exception est assumée et bornée par les jetons ci-dessus — elle ne s'étend à aucune autre surface.
+
+### 8.4 Où se pose la classe
+
+Deux formes d'application, et le choix n'est pas cosmétique.
+
+Sur une **coquille plein écran** — un chat, un tableau de bord, tout ce qui occupe la fenêtre et confie le défilement à une zone interne — `gd-ambient` seul convient : le décor épouse la coquille et ce qui dépasse est découpé.
+
+Sur un **document qui défile** — réglages, documentation, long formulaire — il faut `gd-ambient--fixed`, pour deux raisons. La première est visuelle : étiré sur 6 000 px de hauteur, le décor donne quatre halos géants qu'on ne voit plus. La seconde est un piège de CSS qui coûte cher à diagnostiquer : sur `<body>`, la propriété `overflow` **se propage à la fenêtre**. Un découpage posé sur le `<body>` d'un document long bloque le défilement de la page entière. La variante `--fixed` accroche le décor à la fenêtre et rend tout découpage inutile.
+
+### 8.5 Mode sombre
+
+Les mêmes valeurs sur le brun anthracite donnent du néon : sur fond sombre, un voile clair **ajoute** de la lumière au lieu d'en retirer. Les halos sombres sont donc à peu près divisés par deux, sauf le rouge qui remonte légèrement — c'est lui qui porte la chaleur quand tout le reste s'éteint. Le résultat visuel visé : des braises, pas une enseigne.
+
+### 8.6 Mouvement réduit
+
+**L'ambiance ne disparaît pas, elle s'immobilise.** Une personne qui coupe les animations demande moins de mouvement, pas un autre produit : elle doit voir le même outil, arrêté.
+
+Le piège concret, et il est facile à manquer : les objets flottants démarrent à `opacity: 0` et ne deviennent visibles que par leur animation. Couper l'animation sans redonner une opacité les efface — la couche disparaît entièrement, et personne ne s'en aperçoit parce qu'on ne teste presque jamais avec le réglage activé. Le kit le traite ; une réécriture maison, presque jamais.
+
+> **À corriger dans Ohracle.** L'application, qui est la source de ce motif, n'a **pas** ce garde-fou : `meshDrift` (22 s) et `floatDrift` (18 s) tournent en boucle infinie sans être coupés par `prefers-reduced-motion`. C'est un écart de la source par rapport à la charte, pas l'inverse.
+
+---
+
+## 9. Ton de voix
 
 L'IA s'adresse à une Conseillère comme **une collègue expérimentée**, pas comme un service client ni comme un assistant générique.
 
@@ -325,7 +391,7 @@ Ces règles valent pour tous les outils IA du réseau, quel que soit leur métie
 
 ---
 
-## 9. Accessibilité
+## 10. Accessibilité
 
 La cible est un réseau de 4000+ Conseillers, majoritairement des femmes, dont une part importante entre 45 et 65 ans, souvent sur mobile, parfois dans de mauvaises conditions de lumière. L'accessibilité n'est pas une option de fin de projet.
 
@@ -339,7 +405,7 @@ La cible est un réseau de 4000+ Conseillers, majoritairement des femmes, dont u
 
 ---
 
-## 10. Do / Don't
+## 11. Do / Don't
 
 | ✅ | ❌ |
 |---|---|
@@ -359,16 +425,16 @@ La cible est un réseau de 4000+ Conseillers, majoritairement des femmes, dont u
 
 ---
 
-## 11. Ce qui est fourni, ce qui reste libre
+## 12. Ce qui est fourni, ce qui reste libre
 
-**Fourni, et à utiliser tel quel** (`gd-ai-components.css`) : bouton, pastille, badge, champ, carte, panneau, humeur, bulle de conversation, indicateur d'attente, alerte, lockup, colonne de lecture. Ce sont les briques qu'une Conseillère voit sur deux outils à cinq minutes d'intervalle : si elles diffèrent, la famille ne se voit plus. **N'en réécris pas une qui existe** — c'est exactement là que deux outils divergent.
+**Fourni, et à utiliser tel quel** (`gd-ai-components.css`) : bouton, pastille, badge, champ, carte, panneau, humeur, bulle de conversation, indicateur d'attente, alerte, lockup, colonne de lecture. Et (`gd-ai-ambiance.css`) : le fond vivant, les objets flottants, les deux entrées. Ce sont les briques qu'une Conseillère voit sur deux outils à cinq minutes d'intervalle : si elles diffèrent, la famille ne se voit plus. **N'en réécris pas une qui existe** — c'est exactement là que deux outils divergent.
 
 > **Pourquoi ce durcissement.** La version 1 de cette charte laissait les composants libres. À l'usage, deux équipes qui partent des mêmes jetons produisent quand même deux boutons différents : pas la même hauteur, pas le même rayon, pas la même ombre au survol. Les jetons garantissent la couleur, pas la reconnaissance. La mise en page, elle, reste libre : c'est le métier qui la dicte, et l'uniformiser n'apporterait rien.
 
 **Libre, et qui appartient à chaque outil :**
 
 - sa **mise en page** et sa navigation, dictées par son métier ;
-- ses **illustrations** et son iconographie propre ;
+- ses **illustrations** et son iconographie propre — dont les **sept emojis** de la couche flottante (§ 8.2) : le kit porte les positions, l'outil choisit les objets ;
 - ses **micro-interactions** spécifiques ;
 - sa **pile technique** — React, Vue, Svelte, rendu serveur, peu importe : le kit est du CSS et un élément natif ;
 - ses **composants métier**, tant qu'ils consomment les jetons.
@@ -377,7 +443,7 @@ Aucune bibliothèque tierce n'est imposée — et aucune n'est souhaitable **par
 
 ---
 
-## 12. Adopter le design system
+## 13. Adopter le design system
 
 Il n'y a **rien à copier à la main** : `install.ps1` / `install.sh` de `gdm-dev-rules` posent `system-design/` à la racine du dépôt en même temps que les règles GDM, et `update.ps1` / `update.sh` le remettent à jour. Reste à faire, côté application : **servir les fichiers du kit depuis le front** (par exemple sous `public/gd-ai/`). C'est tout — aucun build, aucune dépendance, aucun paquet à installer.
 
@@ -396,6 +462,7 @@ curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/insta
 | [`AGENTS.md`](AGENTS.md) | Les consignes exécutables pour une IA qui produit l'interface : installation, squelette, règles vérifiables, interdits, checklist de fin. | ⭐ |
 | [`kit/gd-ai-tokens.css`](kit/gd-ai-tokens.css) | Tous les jetons (couleurs clair + sombre, typo, espacement, rayons, ombres, mouvement) + le socle minimal. | obligatoire |
 | [`kit/gd-ai-components.css`](kit/gd-ai-components.css) | Les briques communes : bouton, champ, carte, bulle, pastille, alerte, lockup. | obligatoire |
+| [`kit/gd-ai-ambiance.css`](kit/gd-ai-ambiance.css) | L'ambiance de page : les halos qui dérivent, les objets flottants, les deux entrées. | obligatoire |
 | [`kit/gd-ai-mascotte.js`](kit/gd-ai-mascotte.js) | La mascotte animée, élément natif `<gd-mascotte>`. | dès qu'il y a une mascotte |
 | [`kit/gd-ai-marque-o.png`](kit/gd-ai-marque-o.png) | La marque O du lockup. | recommandé |
 | [`kit/gd-ai-mascotte.svg`](kit/gd-ai-mascotte.svg) | La mascotte statique, pour les contextes sans JavaScript. | au besoin |
@@ -425,7 +492,7 @@ Il ne remplace pas le regard sur l'écran — un seul bouton rouge par zone, loc
 
 ---
 
-## 13. Décisions ouvertes
+## 14. Décisions ouvertes
 
 | Sujet | État |
 |---|---|
@@ -437,6 +504,7 @@ Il ne remplace pas le regard sur l'écran — un seul bouton rouge par zone, loc
 | **`--gd-ink-soft` sous le seuil AA** | `--gd-ink-soft-aa` est fourni, et la classe `.gd-text-soft` l'applique. Reste à décider si Ohracle bascule dessus ou si l'on remonte les tailles concernées. |
 | **Favicon et icônes d'application** | Ohracle a les siennes. Une règle de famille (même gabarit, initiale variable) reste à poser. |
 | **Mode sombre** | Complet côté jetons et composants, testable dans `demo.html`, non exposé aujourd'hui dans l'interface d'Ohracle. |
+| **`prefers-reduced-motion` dans Ohracle** | Écart connu, non corrigé : les deux animations de fond de l'application (`meshDrift`, `floatDrift`) ne sont pas coupées. Le kit, lui, les fige. À reprendre dans l'application, indépendamment de l'adoption du kit (§ 8.6). |
 | **Ohracle n'a pas encore adopté le kit** | L'application vit sur ses propres thèmes et ses propres composants, dont le kit est dérivé. Tant qu'elle n'en consomme pas les fichiers, les deux peuvent diverger : c'est la charte qui fait foi. |
 
 ---
@@ -445,9 +513,10 @@ Il ne remplace pas le regard sur l'écran — un seul bouton rouge par zone, loc
 
 | Version | Date | Ce qui change |
 |---|---|---|
+| 1.4 | 3 septembre 2026 | **L'ambiance de page entre dans le kit** ([`kit/gd-ai-ambiance.css`](kit/gd-ai-ambiance.css), § 8) : les quatre halos gourmands qui dérivent, les sept objets flottants, les deux entrées `.gd-enter` / `.gd-settle`. Motif : un outil pouvait respecter tous les jetons et rendre une page beige anonyme — le fond était décrit comme une couleur alors que c'est un état. Les signes de reconnaissance passent de cinq à six (§ 2), deux règles vérifiables sont ajoutées (AGENTS § 2, règles 14 et 15) et le contrôle automatique refuse désormais un front sans ambiance. |
 | 1.3 | 2 septembre 2026 | Le design system devient **distribué** : il quitte le dépôt d'Ohracle pour `GUY-DEMARLE/gdm-dev-rules` (`templates/system-design/`), d'où `install`/`update` le posent à la racine de **chaque application Guy Demarle**, à côté des règles dev et sécu. Le rappel de lecture est ajouté aux `CLAUDE.md`, `AGENTS.md` et règles Cursor distribués. Contenu de la charte inchangé. |
 | 1.2 | 2 septembre 2026 | La charte devient le **design system** de l'environnement IA : le dossier passe de `docs/charte-ia/` à **`system-design/`, à la racine** du dépôt, pour être copié tel quel dans chaque application. Le kit passe sous [`kit/`](kit/), et [`outils/verifier-interface.mjs`](outils/verifier-interface.mjs) contrôle automatiquement les règles qui se lisent dans le code. Périmètre inchangé : l'interface, rien que l'interface. |
-| 1.1 | 26 août 2026 | Le kit devient exécutable : `AGENTS.md` (consignes pour une IA), `gd-ai-components.css` (les briques communes, § 11), `gd-ai-mascotte.js` (le personnage animé en élément natif, § 5.1), `gd-ai-marque-o.png`, `demo.html` (banc d'essai). Les composants passent de « libres » à « fournis ». |
+| 1.1 | 26 août 2026 | Le kit devient exécutable : `AGENTS.md` (consignes pour une IA), `gd-ai-components.css` (les briques communes, § 12), `gd-ai-mascotte.js` (le personnage animé en élément natif, § 5.1), `gd-ai-marque-o.png`, `demo.html` (banc d'essai). Les composants passent de « libres » à « fournis ». |
 | 1 | 5 août 2026 | Première charte, dérivée d'Ohracle : architecture de marque, palette, typographie, mascotte, formes, mouvement, ton, accessibilité. |
 
 ---

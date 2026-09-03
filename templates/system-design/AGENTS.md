@@ -22,13 +22,14 @@ back-office de commandes, pas sur un site web, pas sur un outil générique. Un 
 
 ## 0 · Installation — avant d'écrire la moindre ligne d'interface
 
-Copie les cinq fichiers de [`kit/`](kit/) dans le projet (par exemple sous `public/gd-ai/`
+Copie les six fichiers de [`kit/`](kit/) dans le projet (par exemple sous `public/gd-ai/`
 ou `assets/gd-ai/`) :
 
 | Fichier | Rôle |
 |---|---|
 | `kit/gd-ai-tokens.css` | Tous les jetons : couleurs clair + sombre, typo, espacement, rayons, ombres, mouvement. **Obligatoire.** |
 | `kit/gd-ai-components.css` | Boutons, champs, cartes, bulles, pastilles, alertes, lockup. **Obligatoire** — c'est ce qui rend deux outils reconnaissables comme la même famille. |
+| `kit/gd-ai-ambiance.css` | L'ambiance de page : le fond vivant, les objets flottants, les entrées. **Obligatoire** — c'est ce qui sépare un outil IA GD d'une page beige anonyme (§ 2 règle 14). |
 | `kit/gd-ai-mascotte.js` | La mascotte animée, en élément natif `<gd-mascotte>`. Obligatoire dès qu'il y a une mascotte à l'écran. |
 | `kit/gd-ai-marque-o.png` | La marque O du lockup. |
 | `kit/gd-ai-mascotte.svg` | Version statique de la mascotte (impression, e-mail, contexte sans JS). |
@@ -39,10 +40,12 @@ Puis, dans le `<head>` :
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/gd-ai/gd-ai-tokens.css">
 <link rel="stylesheet" href="/gd-ai/gd-ai-components.css">
+<link rel="stylesheet" href="/gd-ai/gd-ai-ambiance.css">
 <script src="/gd-ai/gd-ai-mascotte.js" defer></script>
 ```
 
-Ces deux feuilles se chargent **avant** toute feuille du projet. Ne les modifie pas : si une
+L'ordre compte : `gd-ai-ambiance.css` lit les jetons, il vient après eux. Ces trois feuilles
+se chargent **avant** toute feuille du projet. Ne les modifie pas : si une
 valeur ne convient pas, c'est une évolution du design system, elle se discute — voir § 8.
 
 **Ne recopie jamais une valeur de ces fichiers dans ton code.** Uniquement `var(--gd-*)`.
@@ -53,7 +56,15 @@ C'est ce qui permettra de faire évoluer la charte sans rouvrir chaque applicati
 ## 1 · Le squelette d'une page conforme
 
 ```html
-<body>
+<body class="gd-ambient gd-ambient--fixed">
+
+  <!-- Le décor : sept objets qui montent lentement en fond. aria-hidden,
+       toujours — un lecteur d'écran n'a pas à énumérer sept emojis. -->
+  <div class="gd-ambient__layer" aria-hidden="true">
+    <span>🥐</span><span>🍓</span><span>🧁</span><span>🥖</span>
+    <span>🍰</span><span>🥄</span><span>🍯</span>
+  </div>
+
   <header>
     <div class="gd-lockup">
       <img class="gd-lockup__mark" src="/gd-ai/gd-ai-marque-o.png" alt="">
@@ -65,7 +76,7 @@ C'est ce qui permettra de faire évoluer la charte sans rouvrir chaque applicati
   </header>
 
   <main>
-    <div class="gd-card">
+    <div class="gd-card gd-enter">
       <h2 class="gd-card__title">Un titre</h2>
       <p class="gd-prose">Le corps de texte, à 16 px, sur 65 à 75 caractères de large.</p>
       <button class="gd-btn">L'action principale</button>
@@ -78,7 +89,24 @@ C'est ce qui permettra de faire évoluer la charte sans rouvrir chaque applicati
 ```
 
 C'est tout. Le fond crème, la police, la couleur du texte et le mode sombre viennent des
-jetons — il n'y a rien à écrire pour les obtenir.
+jetons — il n'y a rien à écrire pour les obtenir. `gd-ambient` ajoute par-dessus les quatre
+halos gourmands et leur dérive : c'est **cette** page-là qui passe le test en une seconde, pas
+la même en crème nu.
+
+`gd-ambient` se pose sur la coquille plein écran (ici `<body>`, ailleurs le conteneur qui
+occupe la fenêtre), **pas** sur un élément qui doit défiler : la classe découpe ce qui
+dépasse. Dans une application à zone de contenu qui scrolle, le schéma est « coquille en
+`gd-ambient`, enfant en `overflow-y: auto` ».
+
+**Laquelle des deux poses choisir ?** Le squelette ci-dessus prend `gd-ambient--fixed`, qui
+est le cas le plus courant : une page qui défile. Le décor s'accroche alors à la fenêtre au
+lieu de s'étirer sur toute la hauteur du document — sans quoi on obtient quatre halos
+géants et invisibles. Retire `--fixed` **uniquement** si la classe est posée sur une coquille
+plein écran (hauteur de la fenêtre, défilement confié à une zone interne), comme un chat.
+
+⚠ Ce n'est pas cosmétique : sur `<body>`, `overflow` se propage à la fenêtre. `gd-ambient`
+seul sur le `<body>` d'un document long **bloque le défilement de la page**. En cas de doute,
+`--fixed`.
 
 ---
 
@@ -94,7 +122,7 @@ node system-design/outils/verifier-interface.mjs <dossier du front>
 
 | # | Règle | Comment tu vérifies |
 |---|---|---|
-| 1 | **Fond crème, jamais blanc pur.** `--gd-cream` en fond de page. | 🤖 Aucun `background: #fff` ni `white` en fond de page. Le blanc est réservé aux surfaces posées dessus. |
+| 1 | **Fond crème, jamais blanc pur.** `--gd-cream` en fond de page — et jamais nu, voir règle 14. | 🤖 Aucun `background: #fff` ni `white` en fond de page. Le blanc est réservé aux surfaces posées dessus. |
 | 2 | **Un seul accent rouge par zone.** Le second bouton passe en `--secondary`, le troisième en `--ghost`. | Compte les `.gd-btn` sans modificateur visibles en même temps : il en faut **un**. |
 | 3 | **Le rouge n'est jamais un fond de page ni un bandeau pleine largeur.** | Bouton, première lettre, filet, pastille — rien de plus. |
 | 4 | **Corps de texte 16 px, plancher absolu 14 px.** | 🤖 Aucune valeur `font-size` sous `--text-xs`. |
@@ -106,7 +134,9 @@ node system-design/outils/verifier-interface.mjs <dossier du front>
 | 10 | **Cibles tactiles ≥ 44 × 44 px**, focus visible partout. | 🤖 Ne jamais faire `outline: none` sans remplacement. `.gd-btn--sm` est réservé à l'admin au pointeur. |
 | 11 | **Aucune information portée par la seule couleur.** | Une erreur en rouge porte aussi un texte ou une icône. |
 | 12 | **`prefers-reduced-motion` coupe toutes les animations.** | Déjà géré par les jetons et par la mascotte. Ne le contourne pas avec `!important`. |
-| 13 | **La palette gourmande n'est jamais du texte ni un aplat de fond** sur plus d'un quart de l'écran. | Beurre, rose, menthe, abricot : accents, filets, humeurs. |
+| 13 | **La palette gourmande n'est jamais du texte ni un aplat de fond** sur plus d'un quart de l'écran. | Beurre, rose, menthe, abricot : accents, filets, humeurs. Les halos de `.gd-ambient` sont l'exception admise — ce sont des voiles à 10-22 %, pas des aplats, et leurs valeurs viennent des jetons. |
+| 14 | **Toute page principale porte `.gd-ambient`.** Un fond crème nu n'est pas conforme : c'est le fond vivant, pas le beige, qui fait reconnaître l'outil. La couche `.gd-ambient__layer` va avec, sauf raison écrite. | 🤖 Le contrôle cherche `gd-ambient` dans le front. Si le terme n'apparaît nulle part, l'ambiance n'est pas posée. |
+| 15 | **Rien n'apparaît sec.** Ce qui arrive à l'écran entre en `.gd-enter` (interface) ou `.gd-settle` (réponse, bulle, ce qui est vivant). | Une carte, une bulle, un panneau qui surgit d'un coup : il manque la classe. |
 
 **Répartition visée : 60 / 30 / 10.** 60 % de crème (fond), 30 % de blanc papier (cartes,
 bulles, champs), 10 % de rouge et de gourmand (accents). Le rouge dépasse rarement 5 %.
@@ -131,12 +161,19 @@ divergent.
 | `.gd-typing` | Les trois points d'attente | — |
 | `.gd-alert` | Statut uniquement | `--success` `--error` `--warning` |
 | `.gd-lockup` | Marque O + nom + signature | `--sm` `--lg` ; `.gd-lockup__mark--tint` sur un `<span>` vide au lieu de l'`<img>` = la marque suit le thème, **à préférer si l'outil a un mode sombre** |
+| `.gd-ambient` + `.gd-ambient__layer` | L'ambiance de page : halos qui dérivent + objets flottants | `--fixed` (document qui défile au lieu d'une coquille plein écran) |
+| `.gd-enter` / `.gd-settle` | Les deux entrées : interface / vivant. Échelonner avec `--gd-enter-delay` | — |
 | `.gd-prose` | Colonne de lecture 65-75 caractères | — |
 | `.gd-text-soft` | Texte secondaire conforme AA | — |
 | `.gd-sr-only` | Visible des lecteurs d'écran uniquement | — |
 
 Ce qui **n'est pas** fourni et t'appartient : la grille, la navigation, l'architecture des
 écrans, les icônes, les illustrations, les micro-interactions propres à ton métier.
+
+Les objets flottants, eux, sont les tiens : le kit porte les positions, les tailles et les
+décalages, tu choisis les **sept** emojis. Reste dans l'univers de la maison (cuisine,
+pâtisserie, ingrédients). Pas de symboles d'interface (⚙️, 📊), pas de visages, pas de
+signes de statut (✅, ⚠️) : le décor ne doit jamais ressembler à une information.
 
 ---
 
@@ -224,6 +261,11 @@ Ne fais **jamais** ça, même si on te le demande vite fait :
 
 - Écrire une couleur, une taille de texte, un rayon ou une durée **en dur**.
 - Mettre un fond **blanc pur** en fond de page, ou un **bandeau rouge** pleine largeur.
+- Livrer une page principale sur un **crème nu**, sans `.gd-ambient`.
+- **Faire disparaître** l'ambiance en `prefers-reduced-motion` : elle s'immobilise, elle ne
+  s'éteint pas. Une personne qui coupe le mouvement ne demande pas un autre produit.
+- Monter les halos ou `--gd-ambient-veil` « pour qu'on les voie mieux » : un fond qu'on
+  remarque est un fond raté, et le texte passe dessus.
 - Modifier `gd-ai-tokens.css` ou `gd-ai-components.css` pour un besoin local.
 - Ajouter une **deuxième police**, une deuxième courbe d'animation, un quatrième niveau
   d'ombre.
@@ -242,6 +284,9 @@ Ne fais **jamais** ça, même si on te le demande vite fait :
 Ne réponds pas « c'est fait » avant d'avoir vérifié, sur l'écran réel :
 
 - [ ] Fond de page en `--gd-cream`, pas de blanc pur.
+- [ ] **`.gd-ambient` sur la coquille**, halos visibles mais discrets, objets flottants
+      présents et `aria-hidden`.
+- [ ] Rien n'apparaît sec : `.gd-enter` / `.gd-settle` sur ce qui arrive à l'écran.
 - [ ] Zéro valeur en dur : uniquement des `var(--gd-*)`.
 - [ ] Un seul bouton rouge par zone.
 - [ ] Aucun texte sous 14 px, corps de texte à 16 px.
@@ -250,8 +295,10 @@ Ne réponds pas « c'est fait » avant d'avoir vérifié, sur l'écran réel :
 - [ ] Lockup complet, « par Guy Demarle » présent.
 - [ ] Mascotte : une seule, ≥ 40 px, aucun chiffre dans sa bulle.
 - [ ] Cibles tactiles ≥ 44 px, focus visible, aucune info portée par la seule couleur.
-- [ ] Testé en **thème sombre** (`data-theme="dark"` sur `<html>`) et en
-      **`prefers-reduced-motion`**.
+- [ ] Testé en **thème sombre** (`data-theme="dark"` sur `<html>`) : les halos doivent rester
+      des braises, jamais du néon.
+- [ ] Testé en **`prefers-reduced-motion`** : plus rien ne bouge, et l'ambiance est
+      **toujours là** — halos visibles, objets flottants visibles.
 - [ ] Zoom navigateur 200 % sans perte de fonction.
 - [ ] **Le test en une seconde** : cache le titre et le logo — l'écran dit encore « outil IA
       Guy Demarle » ?
@@ -282,8 +329,10 @@ statut, et nommer l'outil ou la mascotte.
 | À quoi ça ressemble, tester la mascotte | [`kit/demo.html`](kit/demo.html) |
 | Les jetons, un par un, commentés | [`kit/gd-ai-tokens.css`](kit/gd-ai-tokens.css) |
 | Les composants, un par un, commentés | [`kit/gd-ai-components.css`](kit/gd-ai-components.css) |
+| L'ambiance : halos, flottants, entrées | [`kit/gd-ai-ambiance.css`](kit/gd-ai-ambiance.css) |
 | Le rig de la mascotte, les timings, les pivots | [`kit/gd-ai-mascotte.js`](kit/gd-ai-mascotte.js) |
-| Décisions encore ouvertes | `README.md` § 13 |
+| Pourquoi une ambiance et pas juste un fond | `README.md` § 8 |
+| Décisions encore ouvertes | `README.md` § 14 |
 
 Règles de développement et de sécurité Guy Demarle (secrets, RLS, architecture front/back) :
 elles vivent ailleurs, dans `.ai-rules/RULES.md` du dépôt concerné. Ce fichier-ci ne traite
