@@ -150,7 +150,7 @@ system-design/
 ├── AGENTS.md                  ← Le point d'entrée pour une IA : règles, interdits, checklist
 ├── README.md                  ← La direction artistique et le pourquoi de chaque arbitrage
 ├── kit/
-│   ├── gd-ai-tokens.css       ← Les jetons (couleurs clair/sombre, typo, rayons, ombres…)
+│   ├── gd-ai-tokens.css       ← Les jetons (palette claire, typo, rayons, ombres…)
 │   ├── gd-ai-components.css   ← Boutons, champs, cartes, bulles, pastilles, alertes, lockup
 │   ├── gd-ai-mascotte.js      ← La mascotte animée, élément natif <gd-mascotte>
 │   ├── gd-ai-mascotte.svg     ← Version statique (impression, e-mail, sans JS)
