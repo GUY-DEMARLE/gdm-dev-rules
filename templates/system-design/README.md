@@ -1,6 +1,6 @@
 # Design system — Environnement IA Guy Demarle
 
-Version 1.4 · 3 septembre 2026 · dérivé d'Ohracle
+Version 1.5 · 17 septembre 2026 · dérivé d'Ohracle
 
 Ce document définit la direction artistique commune à **tous les outils d'intelligence artificielle mis à disposition des Conseillers Culinaires Guy Demarle**. Il est né d'Ohracle, le premier de ces outils, dont il extrait ce qui doit devenir transverse.
 
@@ -68,7 +68,7 @@ Le bloc de marque se compose ainsi, de gauche à droite :
 
 **Tailles minimales.** Lockup complet : 120 px de large. En dessous, on ne garde que la marque O seule (min. 20 px), jamais le nom sans la marque.
 
-**Sur fond sombre**, le nom passe en `--gd-ink` (crème) et la marque O en `--gd-red` version sombre (`#e85a5e`). Le lockup n'est jamais posé sur du rouge, ni sur une photo sans voile de lisibilité.
+Le lockup se pose sur les surfaces claires du kit, jamais sur du rouge ni sur une photo sans voile de lisibilité.
 
 ### 1.3 Nommer un nouvel outil
 
@@ -93,24 +93,26 @@ Ce sont les six choses qui, ensemble, font passer le test en une seconde. Un out
 
 ### 3.1 Les couleurs de marque
 
-| Rôle | Jeton | Clair | Sombre |
-|---|---|---|---|
-| Accent principal | `--gd-red` | `#C8373B` | `#e85a5e` |
-| Accent enfoncé | `--gd-red-deep` | `#a42a2e` | `#C8373B` |
-| Accent atténué | `--gd-red-soft` | `#f2dadb` | `#3d1f21` |
-| Fond d'application | `--gd-cream` | `#F5F0EB` | `#1c1814` |
-| Fond enfoncé | `--gd-cream-deep` | `#ebe3d6` | `#26211c` |
-| Navigation / panneaux | `--gd-sidebar` | `#FCFAF6` | `#211c17` |
-| Surface posée | `--gd-paper` | `#ffffff` | `#2a2420` |
-| Surface « accueil » | `--gd-paper-warm` | `#fffdf6` | `#2f2822` |
-| Texte courant | `--gd-ink` | `#383634` | `#f1e8dc` |
-| Texte secondaire | `--gd-ink-soft` | `#7a6f65` | `#a89c8e` |
-| Filets et contours | `--gd-border` | `#e4dbce` | `#3a3128` |
+**Une seule apparence : claire.** Le kit conserve cette palette quelle que soit la préférence de l'appareil. Aucun sélecteur de thème ni bascule automatique n'est proposé ; `color-scheme: only light` garde aussi les contrôles natifs du navigateur en clair.
+
+| Rôle | Jeton | Valeur |
+|---|---|---|
+| Accent principal | `--gd-red` | `#C8373B` |
+| Accent enfoncé | `--gd-red-deep` | `#a42a2e` |
+| Accent atténué | `--gd-red-soft` | `#f2dadb` |
+| Fond d'application | `--gd-cream` | `#F5F0EB` |
+| Fond enfoncé | `--gd-cream-deep` | `#ebe3d6` |
+| Navigation / panneaux | `--gd-sidebar` | `#FCFAF6` |
+| Surface posée | `--gd-paper` | `#ffffff` |
+| Surface « accueil » | `--gd-paper-warm` | `#fffdf6` |
+| Texte courant | `--gd-ink` | `#383634` |
+| Texte secondaire | `--gd-ink-soft` | `#7a6f65` |
+| Filets et contours | `--gd-border` | `#e4dbce` |
 
 Deux choix qui ne sont pas des détails :
 
 - **Le texte n'est pas noir** (`#383634`). Le noir pur sur du crème est trop dur, il casse la chaleur.
-- **Le fond sombre est brun anthracite**, pas gris-noir. Un gris neutre transforme instantanément l'univers cuisine en univers tech.
+- **Le fond reste crème**, avec des surfaces blanc papier : ce contraste doux fait partie de l'identité des outils.
 
 ### 3.2 La palette gourmande
 
@@ -144,8 +146,6 @@ Mesurés (WCAG 2.1, seuil AA = 4,5:1 pour du texte courant, 3:1 à partir de 18 
 | `--gd-ink-soft` sur `--gd-paper` (blanc) | 4,9:1 | AA ✅ |
 | **`--gd-ink-soft` sur `--gd-cream`** | **4,3:1** | **échoue AA en corps de texte** ⚠️ |
 | `--gd-ink-soft-aa` sur `--gd-cream` | 5,4:1 | AA ✅ |
-
-En thème sombre, tous les couples équivalents passent AA (le plus serré est le rouge sur fond, à 5,1:1).
 
 > ⚠️ **Point d'attention hérité d'Ohracle.** `--gd-ink-soft` (`#7a6f65`) tient sur une carte blanche (4,9:1) mais **pas sur le fond crème** (4,3:1) — or c'est justement là qu'il sert d'aide de saisie et de texte secondaire à 14-15 px. Sur une cible 50-60 ans, ce n'est pas théorique.
 >
@@ -361,11 +361,7 @@ Sur une **coquille plein écran** — un chat, un tableau de bord, tout ce qui o
 
 Sur un **document qui défile** — réglages, documentation, long formulaire — il faut `gd-ambient--fixed`, pour deux raisons. La première est visuelle : étiré sur 6 000 px de hauteur, le décor donne quatre halos géants qu'on ne voit plus. La seconde est un piège de CSS qui coûte cher à diagnostiquer : sur `<body>`, la propriété `overflow` **se propage à la fenêtre**. Un découpage posé sur le `<body>` d'un document long bloque le défilement de la page entière. La variante `--fixed` accroche le décor à la fenêtre et rend tout découpage inutile.
 
-### 8.5 Mode sombre
-
-Les mêmes valeurs sur le brun anthracite donnent du néon : sur fond sombre, un voile clair **ajoute** de la lumière au lieu d'en retirer. Les halos sombres sont donc à peu près divisés par deux, sauf le rouge qui remonte légèrement — c'est lui qui porte la chaleur quand tout le reste s'éteint. Le résultat visuel visé : des braises, pas une enseigne.
-
-### 8.6 Mouvement réduit
+### 8.5 Mouvement réduit
 
 **L'ambiance ne disparaît pas, elle s'immobilise.** Une personne qui coupe les animations demande moins de mouvement, pas un autre produit : elle doit voir le même outil, arrêté.
 
@@ -460,13 +456,13 @@ curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/insta
 | Fichier | Rôle | Statut |
 |---|---|---|
 | [`AGENTS.md`](AGENTS.md) | Les consignes exécutables pour une IA qui produit l'interface : installation, squelette, règles vérifiables, interdits, checklist de fin. | ⭐ |
-| [`kit/gd-ai-tokens.css`](kit/gd-ai-tokens.css) | Tous les jetons (couleurs clair + sombre, typo, espacement, rayons, ombres, mouvement) + le socle minimal. | obligatoire |
+| [`kit/gd-ai-tokens.css`](kit/gd-ai-tokens.css) | Tous les jetons (palette claire, typo, espacement, rayons, ombres, mouvement) + le socle minimal. | obligatoire |
 | [`kit/gd-ai-components.css`](kit/gd-ai-components.css) | Les briques communes : bouton, champ, carte, bulle, pastille, alerte, lockup. | obligatoire |
 | [`kit/gd-ai-ambiance.css`](kit/gd-ai-ambiance.css) | L'ambiance de page : les halos qui dérivent, les objets flottants, les deux entrées. | obligatoire |
 | [`kit/gd-ai-mascotte.js`](kit/gd-ai-mascotte.js) | La mascotte animée, élément natif `<gd-mascotte>`. | dès qu'il y a une mascotte |
 | [`kit/gd-ai-marque-o.png`](kit/gd-ai-marque-o.png) | La marque O du lockup. | recommandé |
 | [`kit/gd-ai-mascotte.svg`](kit/gd-ai-mascotte.svg) | La mascotte statique, pour les contextes sans JavaScript. | au besoin |
-| [`kit/demo.html`](kit/demo.html) | Le banc d'essai : tout le kit rendu à l'écran, la mascotte pilotable, clair/sombre, animations réduites. Ouvrable par double-clic. | ⭐ |
+| [`kit/demo.html`](kit/demo.html) | Le banc d'essai : tout le kit rendu à l'écran, la mascotte pilotable, apparence claire, animations réduites. Ouvrable par double-clic. | ⭐ |
 | [`outils/verifier-interface.mjs`](outils/verifier-interface.mjs) | Le contrôle automatique des règles qui se lisent dans le code (`node …/verifier-interface.mjs frontend/src`). | recommandé |
 
 ```html
@@ -500,11 +496,11 @@ Il ne remplace pas le regard sur l'écran — un seul bouton rouge par zone, loc
 | **Nom de la mascotte** | À trancher. Shortlist et recommandation au § 5.1. Bloque toute communication qui la nomme ; d'ici là, écrire « la mascotte ». |
 | **Déclinaisons petite taille** | Non produites. Bras rangés (24-40 px) et coquille seule (< 24 px) restent à dessiner. En attendant, le composant remonte de force à 40 px. |
 | **Planche d'expressions** | Six poses existent et sont jouables (§ 5.2). Une planche complète de 8 à 12 états reste à dessiner pour couvrir des outils plus variés que le chat. |
-| **Marque O sans version vectorielle** | Le kit n'a que le PNG. La variante teintée `.gd-lockup__mark--tint` le contourne (le fichier sert de masque, la couleur vient des jetons) et donne le bon rouge en thème sombre, mais une vraie source SVG reste souhaitable pour les grands formats et l'impression. |
+| **Marque O sans version vectorielle** | Le kit n'a que le PNG. La variante teintée `.gd-lockup__mark--tint` utilise ce fichier comme masque et prend sa couleur dans les jetons, mais une vraie source SVG reste souhaitable pour les grands formats et l'impression. |
 | **`--gd-ink-soft` sous le seuil AA** | `--gd-ink-soft-aa` est fourni, et la classe `.gd-text-soft` l'applique. Reste à décider si Ohracle bascule dessus ou si l'on remonte les tailles concernées. |
 | **Favicon et icônes d'application** | Ohracle a les siennes. Une règle de famille (même gabarit, initiale variable) reste à poser. |
-| **Mode sombre** | Complet côté jetons et composants, testable dans `demo.html`, non exposé aujourd'hui dans l'interface d'Ohracle. |
-| **`prefers-reduced-motion` dans Ohracle** | Écart connu, non corrigé : les deux animations de fond de l'application (`meshDrift`, `floatDrift`) ne sont pas coupées. Le kit, lui, les fige. À reprendre dans l'application, indépendamment de l'adoption du kit (§ 8.6). |
+| **Apparence claire uniquement** | **Tranché en version 1.5.** Le mode sombre et sa détection automatique sont retirés du kit. Les applications gardent la palette claire, sans sélecteur de thème. |
+| **`prefers-reduced-motion` dans Ohracle** | Écart connu, non corrigé : les deux animations de fond de l'application (`meshDrift`, `floatDrift`) ne sont pas coupées. Le kit, lui, les fige. À reprendre dans l'application, indépendamment de l'adoption du kit (§ 8.5). |
 | **Ohracle n'a pas encore adopté le kit** | L'application vit sur ses propres thèmes et ses propres composants, dont le kit est dérivé. Tant qu'elle n'en consomme pas les fichiers, les deux peuvent diverger : c'est la charte qui fait foi. |
 
 ---
@@ -513,6 +509,7 @@ Il ne remplace pas le regard sur l'écran — un seul bouton rouge par zone, loc
 
 | Version | Date | Ce qui change |
 |---|---|---|
+| 1.5 | 17 septembre 2026 | **Apparence claire uniquement** : suppression des jetons sombres, de la détection automatique et du sélecteur de thème de la démo. Les contrôles natifs restent clairs via `color-scheme: only light`. La documentation et la checklist suivent cette décision. |
 | 1.4 | 3 septembre 2026 | **L'ambiance de page entre dans le kit** ([`kit/gd-ai-ambiance.css`](kit/gd-ai-ambiance.css), § 8) : les quatre halos gourmands qui dérivent, les sept objets flottants, les deux entrées `.gd-enter` / `.gd-settle`. Motif : un outil pouvait respecter tous les jetons et rendre une page beige anonyme — le fond était décrit comme une couleur alors que c'est un état. Les signes de reconnaissance passent de cinq à six (§ 2), deux règles vérifiables sont ajoutées (AGENTS § 2, règles 14 et 15) et le contrôle automatique refuse désormais un front sans ambiance. |
 | 1.3 | 2 septembre 2026 | Le design system devient **distribué** : il quitte le dépôt d'Ohracle pour `GUY-DEMARLE/gdm-dev-rules` (`templates/system-design/`), d'où `install`/`update` le posent à la racine de **chaque application Guy Demarle**, à côté des règles dev et sécu. Le rappel de lecture est ajouté aux `CLAUDE.md`, `AGENTS.md` et règles Cursor distribués. Contenu de la charte inchangé. |
 | 1.2 | 2 septembre 2026 | La charte devient le **design system** de l'environnement IA : le dossier passe de `docs/charte-ia/` à **`system-design/`, à la racine** du dépôt, pour être copié tel quel dans chaque application. Le kit passe sous [`kit/`](kit/), et [`outils/verifier-interface.mjs`](outils/verifier-interface.mjs) contrôle automatiquement les règles qui se lisent dans le code. Périmètre inchangé : l'interface, rien que l'interface. |

@@ -27,7 +27,7 @@ ou `assets/gd-ai/`) :
 
 | Fichier | Rôle |
 |---|---|
-| `kit/gd-ai-tokens.css` | Tous les jetons : couleurs clair + sombre, typo, espacement, rayons, ombres, mouvement. **Obligatoire.** |
+| `kit/gd-ai-tokens.css` | Tous les jetons : palette claire, typo, espacement, rayons, ombres, mouvement. **Obligatoire.** |
 | `kit/gd-ai-components.css` | Boutons, champs, cartes, bulles, pastilles, alertes, lockup. **Obligatoire** — c'est ce qui rend deux outils reconnaissables comme la même famille. |
 | `kit/gd-ai-ambiance.css` | L'ambiance de page : le fond vivant, les objets flottants, les entrées. **Obligatoire** — c'est ce qui sépare un outil IA GD d'une page beige anonyme (§ 2 règle 14). |
 | `kit/gd-ai-mascotte.js` | La mascotte animée, en élément natif `<gd-mascotte>`. Obligatoire dès qu'il y a une mascotte à l'écran. |
@@ -88,8 +88,9 @@ C'est ce qui permettra de faire évoluer la charte sans rouvrir chaque applicati
 </body>
 ```
 
-C'est tout. Le fond crème, la police, la couleur du texte et le mode sombre viennent des
-jetons — il n'y a rien à écrire pour les obtenir. `gd-ambient` ajoute par-dessus les quatre
+C'est tout. Le fond crème, la police et la couleur du texte viennent des jetons — il n'y a
+rien à écrire pour les obtenir. **L'apparence est toujours claire**, quelle que soit la
+préférence de l'appareil : ne propose pas de sélecteur de thème. `gd-ambient` ajoute les quatre
 halos gourmands et leur dérive : c'est **cette** page-là qui passe le test en une seconde, pas
 la même en crème nu.
 
@@ -160,7 +161,7 @@ divergent.
 | `.gd-bubble` | Bulle de conversation | `--user` `--ai` |
 | `.gd-typing` | Les trois points d'attente | — |
 | `.gd-alert` | Statut uniquement | `--success` `--error` `--warning` |
-| `.gd-lockup` | Marque O + nom + signature | `--sm` `--lg` ; `.gd-lockup__mark--tint` sur un `<span>` vide au lieu de l'`<img>` = la marque suit le thème, **à préférer si l'outil a un mode sombre** |
+| `.gd-lockup` | Marque O + nom + signature | `--sm` `--lg` ; `.gd-lockup__mark--tint` sur un `<span>` vide au lieu de l'`<img>` = la marque utilise le jeton `--gd-red` |
 | `.gd-ambient` + `.gd-ambient__layer` | L'ambiance de page : halos qui dérivent + objets flottants | `--fixed` (document qui défile au lieu d'une coquille plein écran) |
 | `.gd-enter` / `.gd-settle` | Les deux entrées : interface / vivant. Échelonner avec `--gd-enter-delay` | — |
 | `.gd-prose` | Colonne de lecture 65-75 caractères | — |
@@ -295,8 +296,8 @@ Ne réponds pas « c'est fait » avant d'avoir vérifié, sur l'écran réel :
 - [ ] Lockup complet, « par Guy Demarle » présent.
 - [ ] Mascotte : une seule, ≥ 40 px, aucun chiffre dans sa bulle.
 - [ ] Cibles tactiles ≥ 44 px, focus visible, aucune info portée par la seule couleur.
-- [ ] Testé en **thème sombre** (`data-theme="dark"` sur `<html>`) : les halos doivent rester
-      des braises, jamais du néon.
+- [ ] L'interface reste **claire**, même si l'appareil préfère le sombre ; aucun sélecteur
+      de thème n'est proposé.
 - [ ] Testé en **`prefers-reduced-motion`** : plus rien ne bouge, et l'ambiance est
       **toujours là** — halos visibles, objets flottants visibles.
 - [ ] Zoom navigateur 200 % sans perte de fonction.

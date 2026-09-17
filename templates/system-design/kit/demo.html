@@ -16,7 +16,7 @@
   À quoi ça sert :
   1. voir à quoi ressemble un outil IA GD conforme, avant d'écrire une ligne ;
   2. tester la mascotte (poses, effets, bulle, échelle, reduced-motion) ;
-  3. vérifier le rendu en thème clair ET sombre en un clic ;
+  3. vérifier le rendu clair et simuler les animations réduites ;
   4. servir de référence de non-régression quand la charte évolue.
 
   Le CSS de CETTE page ne concerne que sa mise en page de planche : il n'est
@@ -113,7 +113,6 @@
     overflow-x: auto; font-size: 13px; line-height: 1.6;
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
-  :root[data-theme="dark"] pre.code { background: #120f0c; }
 
   /* scène de la mascotte */
   .stage {
@@ -174,11 +173,6 @@
       </span>
     </div>
     <div class="top__spacer"></div>
-    <div class="switch" role="group" aria-label="Thème">
-      <button type="button" data-theme-set="auto" aria-pressed="true">Auto</button>
-      <button type="button" data-theme-set="light" aria-pressed="false">Clair</button>
-      <button type="button" data-theme-set="dark" aria-pressed="false">Sombre</button>
-    </div>
     <div class="switch" role="group" aria-label="Animations">
       <button type="button" id="motion-toggle" aria-pressed="false">Simuler « animations réduites »</button>
     </div>
@@ -304,7 +298,7 @@ m.poke()                                  // saut ponctuel
     <p class="lead">
       Répartition visée : 60 % de crème (fond), 30 % de blanc papier (cartes, bulles, champs),
       10 % de rouge et de gourmand (accents) — le rouge dépasse rarement 5 %. Les valeurs
-      ci-dessous sont lues en direct : basculez en thème sombre, elles changent.
+      ci-dessous sont lues en direct dans les jetons. L'apparence reste toujours claire.
     </p>
 
     <h3 class="sub">Couleurs de marque</h3>
@@ -391,8 +385,8 @@ m.poke()                                  // saut ponctuel
       La première lettre passe en rouge toute seule (<code>::first-letter</code>) : la
       signature typographique de la famille ne dépend pas du soin de celui qui écrit le HTML.
       « par Guy Demarle » est obligatoire. À gauche, la marque teintée
-      (<code>.gd-lockup__mark--tint</code>) qui suit le thème ; à droite, le PNG posé en
-      <code>&lt;img&gt;</code> — basculez en sombre pour voir la différence.
+      (<code>.gd-lockup__mark--tint</code>) utilise le jeton <code>--gd-red</code> ;
+      à droite, le PNG est posé en <code>&lt;img&gt;</code>.
     </p>
 
     <h3 class="sub">Boutons — un seul rouge par zone</h3>
@@ -570,8 +564,6 @@ m.poke()                                  // saut ponctuel
       <b>Un fond qu'on remarque est un fond raté.</b> Les halos vivent entre 10 et 22 % :
       au-delà de 25 %, le fond devient une image et le texte y perd du contraste. La dérive
       est à 22 s parce qu'en dessous de 15 s l'œil l'attrape et se met à la suivre.
-      En <b>thème sombre</b>, les mêmes valeurs vireraient au néon : elles sont divisées par
-      deux, sauf le rouge qui remonte à peine. Basculez le thème pour voir.
       En <b>animations réduites</b>, tout se fige mais <b>rien ne disparaît</b> — essayez le
       bouton en haut : les halos et les objets flottants sont toujours là, immobiles.
     </p>
@@ -639,7 +631,7 @@ m.poke()                                  // saut ponctuel
         <li><input type="checkbox" id="c8"><label for="c8">La mascotte est présente, unique, au-dessus de 40 px, et ne dit aucun chiffre.</label></li>
         <li><input type="checkbox" id="c9"><label for="c9">Le lockup porte « par Guy Demarle ».</label></li>
         <li><input type="checkbox" id="c10"><label for="c10">Cibles tactiles ≥ 44 px, focus visible partout, aucune info portée par la seule couleur.</label></li>
-        <li><input type="checkbox" id="c11"><label for="c11">Testé en thème sombre et en <code>prefers-reduced-motion</code>.</label></li>
+        <li><input type="checkbox" id="c11"><label for="c11">L'interface reste claire même si l'appareil préfère le sombre ; testée en <code>prefers-reduced-motion</code>.</label></li>
         <li><input type="checkbox" id="c12"><label for="c12">Zoom navigateur 200 % sans perte de fonction.</label></li>
         <li><input type="checkbox" id="c13"><label for="c13">La page principale porte <code>.gd-ambient</code> et sa couche d&rsquo;objets flottants — le fond n&rsquo;est pas un crème nu.</label></li>
         <li><input type="checkbox" id="c14"><label for="c14">Ce qui arrive à l&rsquo;écran entre en <code>.gd-enter</code> ou <code>.gd-settle</code> : rien n&rsquo;apparaît sec.</label></li>
@@ -662,18 +654,6 @@ m.poke()                                  // saut ponctuel
   'use strict'
   const root = document.documentElement
   const css = (name) => getComputedStyle(root).getPropertyValue(name).trim()
-
-  /* ---- thème ------------------------------------------------------------ */
-  const themeButtons = [...document.querySelectorAll('[data-theme-set]')]
-  themeButtons.forEach(btn => btn.addEventListener('click', () => {
-    const mode = btn.dataset.themeSet
-    if (mode === 'auto') root.removeAttribute('data-theme')
-    else root.setAttribute('data-theme', mode)
-    themeButtons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)))
-    /* Les valeurs affichées sont lues dans le DOM : il faut les relire après
-       chaque bascule, sinon la planche ment sur le thème sombre. */
-    paintSwatches()
-  }))
 
   /* ---- entrées : rejouer au clic ---------------------------------------- */
   document.querySelectorAll('#entrees-demo [data-entree]').forEach((carte) => {

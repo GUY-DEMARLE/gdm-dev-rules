@@ -19,8 +19,8 @@
    sur deux outils à cinq minutes d'intervalle. Les jetons garantissent la
    couleur, pas la reconnaissance.
 
-   Toutes les valeurs sont des var(--gd-*) : le thème sombre bascule tout seul,
-   il n'y a AUCUNE règle de thème sombre à écrire ici.
+   Toutes les valeurs sont des var(--gd-*) : les composants partagent la
+   palette claire définie dans les jetons.
 
    Convention de nommage : .gd-composant, .gd-composant--variante,
    .gd-composant__partie. Pas d'imbrication, pas de sélecteur d'élément nu :
@@ -96,10 +96,8 @@
 
        <span class="gd-lockup__mark gd-lockup__mark--tint"></span>
 
-   La marque prend alors la couleur du thème. Ce n'est pas une coquetterie :
-   en thème sombre la charte demande le rouge éclairci (#e85a5e), et un PNG
-   figé dans le rouge clair reste trop sombre sur fond anthracite. Le fichier
-   sert de masque, la couleur vient des jetons — la forme est intacte.
+   La marque prend alors la couleur --gd-red. Le fichier sert de masque,
+   la couleur vient des jetons — la forme est intacte.
 
    Le masque est embarqué en data URI et pas référencé par chemin, pour deux
    raisons : un chemin oblige chaque projet à savoir où il a rangé le fichier,
