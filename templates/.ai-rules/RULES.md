@@ -221,5 +221,6 @@ Quand tu proposes ou modifies du code :
 - `ARCHITECTURE_SECURITE_GDM.md` (reference complete)
 - `HEBERGEMENT_GANDI.md` (hebergement Gandi FTP : quand le choisir, deploiement, securite)
 - `SECURITY_OSS_PIPELINE.md` (workflow GitHub Actions Security OSS)
+- `CONFIG_GITHUB.md` (liste des Variables et Secrets GitHub a creer, et dans quel onglet ; reglages du repo). Si un workflow saute une etape faute de configuration, commencer par ce doc.
 - `security-monitoring-process.md` (process Security OSS + Sentry)
 - `system-design/AGENTS.md` (design system GDM : jetons, composants, mascotte, checklist interface ; direction artistique complete dans `system-design/README.md`)

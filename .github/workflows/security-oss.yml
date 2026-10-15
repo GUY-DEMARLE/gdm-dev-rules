@@ -605,7 +605,16 @@ jobs:
 
       - name: Record skipped web scan
         if: steps.detect.outputs.has_target_url != 'true'
-        run: echo "Skipped ZAP and Supabomb because SECURITY_TARGET_URL is not configured." > reports/web-scan-skipped.txt
+        env:
+          # Seulement un booleen : la valeur du secret n'est jamais utilisee.
+          URL_IN_SECRETS: ${{ secrets.SECURITY_TARGET_URL != '' }}
+        run: |
+          echo "Skipped ZAP and Supabomb because SECURITY_TARGET_URL is not configured." > reports/web-scan-skipped.txt
+          if [ "$URL_IN_SECRETS" = "true" ]; then
+            echo "::warning::ZAP et Supabomb sautes : SECURITY_TARGET_URL est definie dans l'onglet Secrets. Elle doit etre dans Settings > Secrets and variables > Actions > onglet Variables (Repository variables)."
+          else
+            echo "::warning::ZAP et Supabomb sautes : variable SECURITY_TARGET_URL absente (Settings > Secrets and variables > Actions > onglet Variables)."
+          fi
 
       - name: Build audit summary
         if: always()
