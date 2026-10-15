@@ -576,30 +576,92 @@ jobs:
       - name: ZAP baseline scan if SECURITY_TARGET_URL exists
         id: zap
         if: steps.detect.outputs.has_target_url == 'true'
+        shell: bash
         run: |
-          docker run --rm -v "${GITHUB_WORKSPACE}/reports:/zap/wrk/:rw" -t ghcr.io/zaproxy/zaproxy:stable \
+          # Le conteneur ZAP tourne avec l'utilisateur zap (uid 1000), pas celui du runner :
+          # sans ce chmod, il ne peut pas ecrire son rapport (Permission denied sur /zap/wrk)
+          # et le resume IA conclut a tort qu'il n'y a aucune alerte.
+          chmod a+rwx reports
+          set +e
+          docker run --rm -v "${GITHUB_WORKSPACE}/reports:/zap/wrk/:rw" ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t "$TARGET_URL" -a -J zap-report.json -w zap-report.md -r zap-report.html
+          code=$?
+          # Codes de sortie de zap-baseline : 0 rien, 2 avertissements (WARN), 1 alertes graves
+          # (FAIL), autre = ZAP n'a pas pu terminer. Des avertissements ne sont pas une panne.
+          case "$code" in
+            0) status=ok ;;
+            2) status=warnings; echo "::notice::ZAP : avertissements trouves, aucune alerte grave. Detail dans zap-report.md." ;;
+            1) status=alerts;   echo "::warning::ZAP : alertes graves (FAIL) trouvees. Detail dans zap-report.md." ;;
+            *) status=error;    echo "::error::ZAP n'a pas pu terminer le scan (code $code)." ;;
+          esac
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = alerts ] || [ "$status" = error ]; then exit 1; fi
         continue-on-error: true
 
       - name: Setup uv for Supabomb
         if: steps.detect.outputs.has_target_url == 'true'
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
 
+      - name: Setup Katana for Supabomb
+        # Katana parcourt le site et liste tous les fichiers JS, y compris ceux charges
+        # a la demande (code splitting Vite/Next). Sans lui, Supabomb ne lit que les
+        # <script> de la page HTML et rate l'URL Supabase d'une app decoupee en chunks.
+        if: steps.detect.outputs.has_target_url == 'true'
+        shell: bash
+        env:
+          KATANA_VERSION: "1.7.0"
+          KATANA_SHA256: "fe1142d92f418549338ea46d67a472124878482e225d279e9a42700c75d76a4d"
+        run: |
+          curl -sSfL -o /tmp/katana.zip \
+            "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_amd64.zip"
+          echo "${KATANA_SHA256}  /tmp/katana.zip" | sha256sum -c -
+          unzip -o -q /tmp/katana.zip katana -d /tmp/katana-bin
+          echo "/tmp/katana-bin" >> "$GITHUB_PATH"
+        continue-on-error: true
+
       - name: Supabomb discover if SECURITY_TARGET_URL exists
         id: supabomb
         if: steps.detect.outputs.has_target_url == 'true'
         shell: bash
+        env:
+          # Version figee : on n'execute pas en CI le dernier commit d'un depot tiers.
+          SUPABOMB_COMMIT: "3ccc6befa598ea015f48d3e3563d0f9ac417a4f6"
         run: |
           set +e
-          git clone --depth 1 https://github.com/ModernPentest/supabomb.git /tmp/supabomb
-          clone_code=$?
-          if [ "$clone_code" -ne 0 ]; then
-            echo "Supabomb skipped: unable to clone https://github.com/ModernPentest/supabomb.git" | tee reports/supabomb-report.txt
-            exit 0
+          report="$GITHUB_WORKSPACE/reports/supabomb-report.txt"
+          mkdir -p /tmp/supabomb && cd /tmp/supabomb \
+            && git init -q && git remote add origin https://github.com/ModernPentest/supabomb.git \
+            && git fetch -q --depth 1 origin "$SUPABOMB_COMMIT" && git checkout -q FETCH_HEAD
+          if [ $? -ne 0 ]; then
+            echo "Supabomb non lance : recuperation du depot impossible." | tee "$report"
+            echo "status=error" >> "$GITHUB_OUTPUT"
+            echo "::error::Supabomb : impossible de recuperer l'outil."
+            exit 1
           fi
 
-          cd /tmp/supabomb
-          uv run supabomb discover --url "$TARGET_URL" 2>&1 | tee "$GITHUB_WORKSPACE/reports/supabomb-report.txt"
+          katana_opt=""
+          if command -v katana >/dev/null 2>&1; then
+            katana_opt="--katana"
+          else
+            echo "::warning::Katana indisponible : Supabomb n'analyse que les scripts de la page HTML (les chunks charges a la demande sont ignores)."
+          fi
+          uv run supabomb discover --url "$TARGET_URL" $katana_opt 2>&1 | tee "$report"
+          code=${PIPESTATUS[0]}
+
+          if [ "$code" -ne 0 ]; then
+            status=error
+            echo "::error::Supabomb a echoue (code $code), voir supabomb-report.txt."
+          elif grep -q "No Supabase instance" "$report"; then
+            status=not_found
+            echo "::notice::Supabomb : aucune instance Supabase trouvee sur $TARGET_URL. Normal si l'app n'utilise pas Supabase depuis le front."
+          elif grep -q "Supabase instance found!" "$report"; then
+            status=found
+          else
+            status=not_found
+            echo "::notice::Supabomb : aucune instance Supabase trouvee sur $TARGET_URL. Normal si l'app n'utilise pas Supabase depuis le front."
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          [ "$status" = error ] && exit 1
           exit 0
         continue-on-error: true
 
@@ -636,8 +698,8 @@ jobs:
           - npm audit: ${{ steps.npm_audit.outcome || 'skipped' }}
           - pip-audit: ${{ steps.pip_audit.outcome || 'skipped' }}
           - Docker/Trivy scan: ${{ steps.docker_scan.outcome || 'skipped' }}
-          - ZAP baseline: ${{ steps.zap.outcome || 'skipped' }}
-          - Supabomb: ${{ steps.supabomb.outcome || 'skipped' }}
+          - ZAP baseline: ${{ steps.zap.outputs.status || steps.zap.outcome || 'skipped' }}
+          - Supabomb: ${{ steps.supabomb.outputs.status || steps.supabomb.outcome || 'skipped' }}
 
           ## Detected project files
 
@@ -662,8 +724,8 @@ jobs:
           NPM_OUTCOME: ${{ steps.npm_audit.outcome || 'skipped' }}
           PIP_AUDIT_OUTCOME: ${{ steps.pip_audit.outcome || 'skipped' }}
           DOCKER_OUTCOME: ${{ steps.docker_scan.outcome || 'skipped' }}
-          ZAP_OUTCOME: ${{ steps.zap.outcome || 'skipped' }}
-          SUPABOMB_OUTCOME: ${{ steps.supabomb.outcome || 'skipped' }}
+          ZAP_OUTCOME: ${{ steps.zap.outputs.status || steps.zap.outcome || 'skipped' }}
+          SUPABOMB_OUTCOME: ${{ steps.supabomb.outputs.status || steps.supabomb.outcome || 'skipped' }}
         shell: bash
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
@@ -798,7 +860,11 @@ jobs:
                   "Tu es un analyste securite applicative et un mainteneur logiciel senior. "
                   "Tu lis un audit automatique GitHub Actions et tu produis une synthese Slack courte, "
                   "en francais, actionnable, sans dramatiser. "
-                  "Priorise les actions concretes. Ne demande jamais de coller des secrets."
+                  "Priorise les actions concretes. Ne demande jamais de coller des secrets. "
+                  "Statuts ZAP : ok = rien trouve, warnings = avertissements sans alerte grave (pas une panne), "
+                  "alerts = alertes graves, error = le scan n'a pas pu se terminer. "
+                  "Statuts Supabomb : found = instance Supabase detectee depuis le front, "
+                  "not_found = aucune instance detectee, error = l'outil a echoue."
               ),
               "input": (
                   "Analyse ce contexte JSON d'audit securite et de maintenance des dependances. "
@@ -861,8 +927,8 @@ jobs:
           NPM_OUTCOME: ${{ steps.npm_audit.outcome || 'skipped' }}
           PIP_AUDIT_OUTCOME: ${{ steps.pip_audit.outcome || 'skipped' }}
           DOCKER_OUTCOME: ${{ steps.docker_scan.outcome || 'skipped' }}
-          ZAP_OUTCOME: ${{ steps.zap.outcome || 'skipped' }}
-          SUPABOMB_OUTCOME: ${{ steps.supabomb.outcome || 'skipped' }}
+          ZAP_OUTCOME: ${{ steps.zap.outputs.status || steps.zap.outcome || 'skipped' }}
+          SUPABOMB_OUTCOME: ${{ steps.supabomb.outputs.status || steps.supabomb.outcome || 'skipped' }}
         shell: bash
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then

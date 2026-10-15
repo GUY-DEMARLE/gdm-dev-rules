@@ -429,6 +429,17 @@ detecter des problemes visibles depuis l'exterieur
 avoir un rapport HTML lisible
 ```
 
+Statut dans le rapport et dans Slack (lu depuis le code de sortie de ZAP) :
+
+```text
+ok        -> aucune alerte
+warnings  -> avertissements a lire, aucune alerte grave (ce n'est PAS une panne)
+alerts    -> alertes graves (FAIL) a traiter
+error     -> ZAP n'a pas pu terminer le scan
+```
+
+Avant octobre 2026, le conteneur ZAP ne pouvait pas ecrire dans `reports/` (utilisateur different de celui du runner) : le rapport etait perdu, le job affichait `failure` et la synthese IA concluait a tort a « aucun finding ». Le workflow donne maintenant les droits d'ecriture avant le scan.
+
 Limite : le scan baseline n'est pas un scan authentifie complet. Il teste surtout ce qui est publiquement accessible.
 
 ### 12. Supabomb
@@ -439,11 +450,23 @@ Cette etape s'execute seulement si `SECURITY_TARGET_URL` est configuree.
 
 Supabomb est utile surtout pour les applications qui utilisent Supabase. Il cherche des signaux lies a une surface Supabase exposee ou mal configuree.
 
-Important : Supabomb n'est pas lance via `uvx supabomb`, car l'outil n'est pas publie comme package Python classique dans le registry. Le workflow clone le repository GitHub officiel puis execute :
+Important : Supabomb n'est pas lance via `uvx supabomb`, car l'outil n'est pas publie comme package Python classique dans le registry. Le workflow recupere le repository GitHub officiel **a un commit fige** (on n'execute pas en CI le dernier commit d'un depot tiers), installe **Katana** (version figee, empreinte SHA-256 verifiee) puis execute :
 
 ```bash
-uv run supabomb discover --url "$TARGET_URL"
+uv run supabomb discover --url "$TARGET_URL" --katana
 ```
+
+Pourquoi Katana : sans lui, Supabomb ne lit que les `<script>` ecrits dans la page HTML. Une app Vite/Next qui charge ses ecrans a la demande (code splitting) range l'URL Supabase dans des fichiers JS charges ensuite : Supabomb passait a cote et concluait « aucune instance ». Katana parcourt le site et fournit tous les fichiers JS.
+
+Statut dans le rapport et dans Slack :
+
+```text
+found      -> instance Supabase detectee depuis le front (lire le rapport : cle anon, Edge Functions...)
+not_found  -> aucune instance detectee (normal si le front n'utilise pas Supabase)
+error      -> l'outil a echoue (avant octobre 2026, ce cas s'affichait a tort en "success")
+```
+
+Pour mettre a jour Supabomb ou Katana : changer `SUPABOMB_COMMIT`, ou `KATANA_VERSION` et `KATANA_SHA256` (empreinte prise dans le fichier `checksums.txt` de la release), dans `gdm-dev-rules` uniquement.
 
 Interet :
 

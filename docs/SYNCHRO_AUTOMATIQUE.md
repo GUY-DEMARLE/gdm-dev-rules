@@ -15,7 +15,7 @@ PR « chore(gdm-rules): synchro des règles GDM » dans l'app
         │  vers dev (ou la branche par défaut si l'app n'a pas de dev)
         ▼
 Merge automatique si les checks sont verts
-        │  (sauf si la PR touche aux workflows ou à CODEOWNERS : validation du lead)
+        │  (sauf la toute première installation dans une app : validation du lead)
         ▼
 Les devs font git pull → Claude, Codex et Cursor lisent les nouvelles règles
 ```
@@ -132,7 +132,7 @@ Les noms de checks n'apparaissent dans la liste de GitHub qu'après leur premier
 
 1. `gdm-dev-rules` → **Actions** → **Synchro des apps** → **Run workflow**, coche **Simulation**. Le résumé liste, pour chaque app, ce qui changerait.
 2. Si c'est bon, relance sans la simulation.
-3. La première PR de chaque app touche aux workflows : elle attend ta validation. Relis-la et merge-la. Les suivantes (règles, docs, design system) passeront toutes seules.
+3. La première PR de chaque app (installation) attend ta validation : vérifie qu'elle n'entre pas en conflit avec les workflows ou le CODEOWNERS existants, puis merge-la. Toutes les suivantes, workflows compris, passeront toutes seules.
 
 Une fois le robot en place, tu peux passer `gdm-dev-rules` en **privé** : le robot s'authentifie avec son App. Seuls les anciens scripts `install` / `update` (téléchargement sans authentification) cesseront de fonctionner, et ils ne sont plus nécessaires.
 
@@ -144,7 +144,7 @@ Une fois le robot en place, tu peux passer `gdm-dev-rules` en **privé** : le ro
 
 1. Modifie `gdm-dev-rules` sur une branche, ouvre une PR, merge sur `main`.
 2. Quelques minutes plus tard : **Actions → Synchro des apps** affiche un tableau par app (à jour / PR en merge automatique / PR à valider / échec).
-3. Les PR « à valider » touchent aux workflows ou à CODEOWNERS : relis-les et merge-les.
+3. Les PR « à valider » sont des premières installations (app nouvellement marquée) : relis-les et merge-les.
 
 **Pour les devs : rien à faire.** Les règles arrivent dans `dev` comme n'importe quel commit. Il suffit de faire `git pull` en début de session, et les fichiers `CLAUDE.md` / `AGENTS.md` demandent à l'IA de le rappeler.
 
