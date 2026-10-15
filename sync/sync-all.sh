@@ -11,10 +11,12 @@
 #   DRY_RUN=1   tout calculer sans rien pousser ni ouvrir de PR
 #
 # Règles de merge :
-#   - règles, docs, design system, CLAUDE.md / AGENTS.md → merge automatique
-#     dès que les checks sont verts ;
-#   - tout changement sous .github/ (workflows) ou dans CODEOWNERS → PR qui
-#     attend la validation de GDM_LEAD.
+#   - première installation dans une app (pas encore de .ai-rules/MANAGED.sha256)
+#     → PR qui attend la validation de GDM_LEAD : elle ajoute des workflows et un
+#     bloc CODEOWNERS qui peuvent entrer en conflit avec l'existant ;
+#   - toutes les synchros suivantes, workflows compris → merge automatique dès
+#     que les checks sont verts (le lead a déjà relu le changement dans
+#     gdm-dev-rules).
 
 set -euo pipefail
 
@@ -83,6 +85,9 @@ sync_repo() {
     fi
     git -C "$dir" checkout --quiet -B "$GDM_SYNC_BRANCH" "origin/$target"
 
+    local first_install=0
+    [ -f "$dir/.ai-rules/MANAGED.sha256" ] || first_install=1
+
     GDM_LEAD="$GDM_LEAD" GDM_NOTES="$notes" GDM_TOUCHED="$touched" \
         bash "$HERE/apply.sh" "$SRC" "$dir"
 
@@ -104,11 +109,8 @@ sync_repo() {
         return 0
     fi
 
-    local changed sensitive=0
+    local changed
     changed=$(git -C "$dir" diff --cached --name-status)
-    if git -C "$dir" diff --cached --name-only | grep -qE '^(\.github/|docs/CODEOWNERS$|CODEOWNERS$)'; then
-        sensitive=1
-    fi
 
     if [ "$DRY_RUN" = 1 ]; then
         report "$repo" "$target" "changements détectés (dry run, rien poussé)"
@@ -125,8 +127,8 @@ sync_repo() {
         echo ""
         echo "Ces fichiers évoluent uniquement dans gdm-dev-rules : ne les modifie pas dans cette app."
         echo ""
-        if [ "$sensitive" = 1 ]; then
-            echo "**⚠ Cette PR touche aux workflows GitHub ou à CODEOWNERS : elle attend une validation humaine.**"
+        if [ "$first_install" = 1 ]; then
+            echo "**⚠ Première installation des règles GDM dans cette app : elle attend une validation humaine.** Vérifie qu'elle n'entre pas en conflit avec les workflows ou le CODEOWNERS existants. Les synchros suivantes se mergeront automatiquement."
         else
             echo "Merge automatique dès que les checks sont verts."
         fi
@@ -156,14 +158,11 @@ sync_repo() {
     fi
     local url="https://github.com/$full/pull/$pr"
 
-    if [ "$sensitive" = 1 ]; then
-        # Une PR réutilisée peut avoir gardé le merge auto d'une synchro
-        # précédente : on le coupe, un humain doit valider.
-        gh pr merge "$pr" -R "$full" --disable-auto >/dev/null 2>&1 || true
+    if [ "$first_install" = 1 ]; then
         if [ -n "$GDM_LEAD" ]; then
             gh pr edit "$pr" -R "$full" --add-reviewer "${GDM_LEAD#@}" >/dev/null 2>&1 || true
         fi
-        report "$repo" "$target" "[PR #$pr]($url) à valider (workflows / CODEOWNERS)"
+        report "$repo" "$target" "[PR #$pr]($url) à valider (première installation)"
         return 0
     fi
 

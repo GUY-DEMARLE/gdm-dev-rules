@@ -22,7 +22,7 @@ Sans ces fichiers, l'IA répond "selon les habitudes générales du web" — qui
 Le lead modifie gdm-dev-rules → merge sur main
   → PR automatique « chore(gdm-rules) » dans chaque app qui porte le topic gdm-managed
   → merge automatique si les checks sont verts
-     (validation du lead si la PR touche aux workflows ou à CODEOWNERS)
+     (seule la toute première installation dans une app attend la validation du lead)
   → les devs font git pull, et leur IA lit les nouvelles règles
 ```
 
@@ -227,7 +227,7 @@ Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/ma
 
 > **Pourquoi une copie complète et pas un caller.** Chaque app reçoit les ~900 lignes du workflow, et c'est un choix assumé. Un caller `workflow_call` vers ce dépôt ferait tourner du code central dans la CI de chaque app, **avec les secrets de l'app**, et toute modification poussée ici s'exécuterait immédiatement partout. On préfère la copie : chaque app est autonome, et une évolution du pipeline se relit app par app.
 >
-> La contrepartie, garder toutes les copies à jour, est assurée par le robot de synchro : chaque évolution du pipeline arrive dans chaque app sous forme de PR, que le lead relit avant merge.
+> La contrepartie, garder toutes les copies à jour, est assurée par le robot de synchro : chaque évolution du pipeline, relue une fois par le lead dans ce dépôt, arrive dans chaque app sous forme de PR.
 >
 > ⚠️ `security-oss.yml` n'a d'ailleurs **pas** de déclencheur `workflow_call` : un caller vers lui échouerait avec « invalid workflow file ». Si une IA propose de remplacer la copie par un caller, c'est une régression de sécurité — le pipeline cesserait de bloquer les PR.
 
