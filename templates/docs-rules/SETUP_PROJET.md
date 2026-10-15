@@ -96,7 +96,7 @@ ton-repo/
 
 Ces fichiers ne se modifient **jamais** dans l'app : ils évoluent dans `gdm-dev-rules` et arrivent par le robot. Seules les sections « Contexte du projet » et « Règles spécifiques » de `CLAUDE.md` / `AGENTS.md` t'appartiennent.
 
-Pense aussi à cocher **Settings → General → Allow auto-merge** : les mises à jour suivantes des règles se mergeront alors toutes seules.
+Une fois cette première PR mergée, le lead pose la protection des branches avec `sync/proteger-repos.sh` (voir étape 7). Les mises à jour suivantes des règles seront mergées par le robot dès que les checks sont verts.
 
 ### Personnaliser CLAUDE.md
 
@@ -131,7 +131,7 @@ L'IA doit te répondre en listant les 6 règles (gitleaks, RLS Supabase, branch 
 
 ### Mise à jour des règles plus tard
 
-Rien à faire : quand les règles GDM évoluent, le robot ouvre une PR dans le repo, qui se merge automatiquement si les checks sont verts. Fais simplement `git pull` en début de session (ton IA te le rappellera). Les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` sont toujours préservées.
+Rien à faire : quand les règles GDM évoluent, le robot ouvre une PR dans le repo, que le robot merge lui-même dès que les checks sont verts. Fais simplement `git pull` en début de session (ton IA te le rappellera). Les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` sont toujours préservées.
 
 ---
 
@@ -393,6 +393,10 @@ Si tu veux tester le blocage, pousse une branche test avec un faux secret dans u
 ## 7. Branch protection rules
 
 **Pourquoi** : empêcher tout push direct sur `main` et `staging`. Les modifications passent par PR, avec review et CI qui doivent valider avant merge.
+
+> **Méthode standard : ne règle rien à la main.** Le lead lance `bash sync/proteger-repos.sh <app>` depuis `gdm-dev-rules`, après le merge de la première PR du robot. Le script pose la règle commune `gdm-protection` (branche par défaut, `main`, `staging`, `dev`) : pas de push direct ni de force push, PR avec 1 approbation d'une autre personne que l'auteur de la dernière modification, conversations résolues, checks `PR Security - Secrets + SAST`, `PR Security - OSV Scanner` et `GDM Rules Guard` bloquants. Le robot de synchro y est en exception pour merger ses propres PR. Nécessite le plan GitHub Team (en plan Free, aucune protection n'est possible sur un repo privé).
+>
+> La configuration manuelle ci-dessous reste comme référence, pour un repo hors du dispositif.
 
 ### Configuration sur GitHub
 
