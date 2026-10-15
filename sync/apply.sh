@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# apply.sh — Pose ou met à jour, dans une app, tous les fichiers gérés par
+# gdm-dev-rules. Fonctionne sur n'importe quelle app, quelle que soit sa stack.
+#
+# Utilisé par le robot de synchro (sync-all.sh). Peut aussi se lancer à la main :
+#   bash sync/apply.sh <dossier gdm-dev-rules> <dossier de l'app>
+#
+# Variables optionnelles :
+#   GDM_LEAD     propriétaire des fichiers gérés dans CODEOWNERS (ex : @pseudo)
+#   GDM_NOTES    fichier où écrire les remarques (reprises dans la PR)
+#   GDM_TOUCHED  fichier où lister les chemins posés ou supprimés (pour git add)
+#
+# Ce que fait le script :
+#   - écrase les fichiers gérés en entier (règles, docs-rules, design system,
+#     workflows Security OSS et GDM Rules Guard, script de vérification) ;
+#   - met à jour la partie GDM de CLAUDE.md / AGENTS.md en préservant
+#     « ## Contexte du projet » et tout ce qui suit ;
+#   - pose le bloc gdm-dev-rules dans CODEOWNERS sans toucher au reste ;
+#   - supprime les fichiers qui ne sont plus gérés (retirés de la source) ;
+#   - régénère .ai-rules/MANAGED.sha256, lu par la CI GDM Rules Guard.
+
+set -euo pipefail
+
+if [ $# -ne 2 ]; then
+    echo "Usage : $0 <dossier gdm-dev-rules> <dossier de l'app>" >&2
+    exit 2
+fi
+
+SRC=$(cd "$1" && pwd)
+DST=$(cd "$2" && pwd)
+TPL="$SRC/templates"
+NOTES="${GDM_NOTES:-/dev/null}"
+TOUCHED="${GDM_TOUCHED:-/dev/null}"
+LEAD="${GDM_LEAD:-}"
+MANIFEST_REL=".ai-rules/MANAGED.sha256"
+
+entries=()
+
+note()       { echo "- $*" >> "$NOTES"; echo "  ⚠ $*" >&2; }
+mark()       { echo "$1" >> "$TOUCHED"; }
+managed()    { entries+=("$1 $2"); mark "$2"; }
+
+copy_full() { # copy_full <source> <chemin dans l'app>
+    mkdir -p "$DST/$(dirname "$2")"
+    cp "$1" "$DST/$2"
+    managed full "$2"
+}
+
+merge_header() { # merge_header <template> <chemin dans l'app>
+    local tpl=$1 rel=$2 dst="$DST/$2"
+    if [ ! -f "$dst" ]; then
+        cp "$tpl" "$dst"
+        note "\`$rel\` créé : pense à remplir la section « Contexte du projet »."
+    elif grep -q '^## Contexte du projet' "$dst"; then
+        {
+            awk '/^## Contexte du projet/{exit} {print}' "$tpl"
+            awk '/^## Contexte du projet/{f=1} f' "$dst"
+        } > "$dst.gdm-tmp"
+        mv "$dst.gdm-tmp" "$dst"
+    else
+        # On ne sait pas isoler la partie projet : on ne touche à rien plutôt
+        # que d'écraser du contenu personnalisé.
+        note "\`$rel\` n'a pas de section « ## Contexte du projet » : laissé intact, sa partie GDM n'est pas synchronisée."
+        return 0
+    fi
+    managed header "$rel"
+}
+
+codeowners_block() {
+    if [ -z "$LEAD" ]; then
+        note "GDM_LEAD non configuré dans sync/config.env : bloc CODEOWNERS non posé."
+        return 0
+    fi
+    # GitHub lit le premier CODEOWNERS trouvé dans cet ordre : on réutilise
+    # celui qui existe déjà pour ne pas le masquer.
+    local rel=.github/CODEOWNERS c
+    for c in .github/CODEOWNERS CODEOWNERS docs/CODEOWNERS; do
+        if [ -f "$DST/$c" ]; then rel=$c; break; fi
+    done
+    local dst="$DST/$rel" kept=""
+    mkdir -p "$(dirname "$dst")"
+    if [ -f "$dst" ]; then
+        kept=$(awk '/^# >>> gdm-dev-rules/{f=1} !f{print} /^# <<< gdm-dev-rules/{f=0}' "$dst")
+    fi
+    # Le bloc est en fin de fichier : dans CODEOWNERS, la dernière règle qui
+    # correspond l'emporte.
+    {
+        if [ -n "$kept" ]; then printf '%s\n\n' "$kept"; fi
+        cat <<EOF
+# >>> gdm-dev-rules : bloc géré automatiquement, ne pas modifier ici >>>
+/.ai-rules/ $LEAD
+/.cursor/rules/gdm-rules.mdc $LEAD
+/docs-rules/ $LEAD
+/system-design/ $LEAD
+/.github/workflows/security-oss.yml $LEAD
+/.github/workflows/gdm-rules-guard.yml $LEAD
+/CLAUDE.md $LEAD
+/AGENTS.md $LEAD
+/$rel $LEAD
+# <<< gdm-dev-rules <<<
+EOF
+    } > "$dst"
+    managed block "$rel"
+}
+
+# Fichiers gérés lors de la synchro précédente (pour supprimer ceux retirés).
+previous=()
+if [ -f "$DST/$MANIFEST_REL" ]; then
+    while read -r _hash mode path; do
+        case "$_hash" in ''|'#'*) continue ;; esac
+        [ "$mode" = full ] && previous+=("$path")
+    done < "$DST/$MANIFEST_REL"
+fi
+
+# 1. Règles IA et script de vérification
+copy_full "$TPL/.ai-rules/RULES.md"             ".ai-rules/RULES.md"
+copy_full "$TPL/.ai-rules/verify-managed.sh"    ".ai-rules/verify-managed.sh"
+copy_full "$TPL/.cursor/rules/gdm-rules.mdc"    ".cursor/rules/gdm-rules.mdc"
+
+# 2. Workflows : pipeline sécurité (copie complète, voulue) et garde
+copy_full "$SRC/.github/workflows/security-oss.yml"      ".github/workflows/security-oss.yml"
+copy_full "$TPL/.github/workflows/gdm-rules-guard.yml"   ".github/workflows/gdm-rules-guard.yml"
+
+# 3. Documentation GDM
+for f in "$TPL/docs-rules/"*; do
+    [ -f "$f" ] && copy_full "$f" "docs-rules/$(basename "$f")"
+done
+
+# 4. Design system (liste dans MANIFEST.txt, qui gère les sous-dossiers)
+while IFS= read -r rel; do
+    rel=${rel%$'\r'}
+    case "$rel" in ''|'#'*) continue ;; esac
+    copy_full "$TPL/system-design/$rel" "system-design/$rel"
+done < "$TPL/system-design/MANIFEST.txt"
+
+# 5. Instructions IA : partie GDM mise à jour, partie projet préservée
+merge_header "$TPL/CLAUDE.md" "CLAUDE.md"
+merge_header "$TPL/AGENTS.md" "AGENTS.md"
+
+# 6. CODEOWNERS : le lead valide toute modification des fichiers gérés
+codeowners_block
+
+# 7. Fichiers qui ne sont plus gérés : on les retire
+for old in ${previous[@]+"${previous[@]}"}; do
+    still=0
+    for e in "${entries[@]}"; do
+        [ "$e" = "full $old" ] && { still=1; break; }
+    done
+    [ "$still" = 1 ] && continue
+    case "$old" in
+        *..*) continue ;;
+        .ai-rules/*|.cursor/rules/*|docs-rules/*|system-design/*|.github/workflows/*)
+            if [ -f "$DST/$old" ]; then
+                rm -f "$DST/$old"
+                mark "$old"
+                note "\`$old\` supprimé : il n'est plus distribué par gdm-dev-rules."
+            fi
+            ;;
+    esac
+done
+
+# 8. Empreintes lues par la CI GDM Rules Guard
+(cd "$DST" && printf '%s\n' "${entries[@]}" | bash .ai-rules/verify-managed.sh --generate)
+mark "$MANIFEST_REL"

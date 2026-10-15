@@ -1,0 +1,71 @@
+# Robot de synchro : propage gdm-dev-rules dans toutes les apps GDM.
+#
+# À chaque push sur main (et chaque nuit, pour rattraper les nouvelles apps et
+# réparer les copies modifiées), ouvre ou met à jour une PR dans chaque app qui
+# porte le topic `gdm-managed`. Détail et mise en place : docs/SYNCHRO_AUTOMATIQUE.md
+#
+# Sécurité :
+#   - le jeton vient d'une GitHub App dédiée, valable 1 h, limité aux repos
+#     où l'App est installée ;
+#   - ses identifiants sont dans l'environnement `sync-apps`, réservé à main :
+#     une autre branche ne peut pas les lire, même en modifiant ce fichier.
+
+name: Synchro des apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "templates/**"
+      - ".github/workflows/security-oss.yml"
+      - "sync/**"
+  schedule:
+    # Tous les jours à 05:00 UTC
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Ne synchroniser qu'une app (nom du repo, vide = toutes)"
+        required: false
+        type: string
+      dry_run:
+        description: "Simulation : tout calculer sans rien pousser"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-apps
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Synchroniser les apps
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: sync-apps
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Jeton de la GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ vars.GDM_SYNC_APP_ID }}
+          private-key: ${{ secrets.GDM_SYNC_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Synchroniser
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ONLY_REPO: ${{ inputs.repo }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          gh auth setup-git
+          bash sync/sync-all.sh

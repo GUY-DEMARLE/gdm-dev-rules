@@ -129,6 +129,7 @@ Production   -> Sentry surveille erreurs, latence, routes critiques et couts IA.
 - CI securite verte :
   - `PR Security - Secrets + SAST` : Gitleaks + Semgrep.
   - `PR Security - OSV Scanner` : dependances vulnerables.
+  - `GDM Rules Guard` : aucun fichier gere par `gdm-dev-rules` modifie localement.
 - Si Security OSS envoie un Slack d'echec : corriger les fichiers/packages cites avant merge.
 
 ### 2.5 Avant chaque deploiement prod
@@ -192,9 +193,11 @@ Quand tu proposes ou modifies du code :
 8. Si la demande viole une regle, expliquer le risque et proposer l'alternative sure.
 9. Pour une demande d'audit securite app exposee, inclure un plan `supabomb` + controles auth/RLS.
 10. Le workflow Security OSS est **obligatoire** sur toute app GDM (cf. 2.6) : il est pose a la racine par les scripts `gdm-dev-rules`. S'il manque dans `.github/workflows/`, le signaler et le remettre avant tout merge. Proposer en plus des monitors Sentry si absents.
-11. Le workflow Security OSS est distribue **en copie complete** dans `.github/workflows/security-oss.yml` de chaque app, et c'est **voulu**. Une app n'appelle jamais un workflow heberge dans un autre depot : un `workflow_call` vers `gdm-dev-rules` ferait tourner du code central dans la CI de l'app avec les secrets de l'app, a chaque modification du depot central. **Ne pas remplacer cette copie par un caller**, ne pas la modifier localement, ne pas en ecrire un second. Toute evolution se fait dans `gdm-dev-rules` et se recupere avec `update`.
+11. Le workflow Security OSS est distribue **en copie complete** dans `.github/workflows/security-oss.yml` de chaque app, et c'est **voulu**. Une app n'appelle jamais un workflow heberge dans un autre depot : un `workflow_call` vers `gdm-dev-rules` ferait tourner du code central dans la CI de l'app avec les secrets de l'app, a chaque modification du depot central. **Ne pas remplacer cette copie par un caller**, ne pas la modifier localement, ne pas en ecrire un second. Toute evolution se fait dans `gdm-dev-rules` et arrive automatiquement dans chaque app par le robot de synchro (PR « chore(gdm-rules) »).
 12. Au démarrage d'un projet, proposer le bon couple stack/hébergement : API Supabase PostgREST/Edge par défaut (Render seulement si logique lourde), front statique → Gandi FTP, front avec rendu serveur → Vercel. Rappeler que sur Gandi + Supabase en accès direct, les RLS sont l'unique barrière (cf. `HEBERGEMENT_GANDI.md`).
 13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder, consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit.
+14. Au debut de chaque session : `git fetch` puis `git status -sb`. Si la branche est en retard sur son origine ou sur `origin/dev`, rappeler a l'utilisateur de faire `git pull` (ou de rebaser sur `dev`) avant de coder. Ne pas le faire a sa place sans accord.
+15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`, bloc `gdm-dev-rules` de `CODEOWNERS`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
 
 ## 6) Stack et conventions (rappel)
 
@@ -206,7 +209,7 @@ Quand tu proposes ou modifies du code :
   - **Gandi FTP** : front statique (SPA) quand l'API est Supabase-only — le moins cher/simple. Transport **SFTP/FTPS, jamais FTP en clair** ; `.env` hors webroot via `.htaccess`, jamais commité ; identifiants en GitHub Secrets ; RLS strictes obligatoires (seule barrière).
   - **Render** : back lourd (Node/Python).
   - **Supabase Edge** : proxy léger / logique liée à la BDD.
-- **Branches** : `dev-prenom`, `feature/xxx`, `fix/xxx`.
+- **Branches** : `feature/xxx`, `fix/xxx`, courtes (1 a 3 jours), creees depuis `dev` et mergees par PR. Pas de branche personnelle longue : avec plusieurs devs et leurs agents IA, elles divergent et creent des conflits.
 - **Commits** : Conventional commits (`feat`, `fix`, `chore`, etc.).
 - **Repo** : `gdm-<type>-<nom>` sous `GUY-DEMARLE`.
 - **Interface** : design system GDM obligatoire (`system-design/` a la racine, pose par `gdm-dev-rules`). Jetons `var(--gd-*)` et composants du kit, aucune valeur en dur, aucune librairie de composants empilee par-dessus.

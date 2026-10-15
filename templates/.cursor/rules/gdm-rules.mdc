@@ -9,6 +9,10 @@ alwaysApply: true
 
 Ce projet suit les règles de développement et de sécurité de Guy Demarle.
 
+## Au début de chaque session
+
+Les règles GDM arrivent par des PR automatiques. Avant toute modification, lance `git fetch` puis `git status -sb`. Si la branche est en retard sur son origine ou sur `origin/dev`, **rappelle à l'utilisateur de faire `git pull`** (ou de rebaser sur `dev`) et attends sa réponse. Ne le fais pas toi-même sans son accord.
+
 **Lis le fichier `.ai-rules/RULES.md`** à la racine pour les règles complètes. Il contient :
 
 - L'architecture imposée (front Vercel → back Render/Vercel/Supabase Edge → services tiers)
@@ -38,3 +42,4 @@ Le dossier `system-design/` est à la racine du repo, posé et mis à jour par `
 7. **Security OSS obligatoire** : `.github/workflows/security-oss.yml` est posé par `gdm-dev-rules` dans chaque app, en copie complète et c'est voulu. Ne le remplace pas par un caller `workflow_call`, ne le modifie pas localement, n'en écris pas un second.
 8. **Sentry en prod** : pour les apps actives, prevoir erreurs, performance, routes lentes, tokens et couts IA si applicable.
 9. **Interface = design system GDM** : lis `system-design/AGENTS.md` avant de coder une UI, consomme les jetons `var(--gd-*)` et ne réécris pas un composant déjà fourni par le kit.
+10. **Fichiers gérés par gdm-dev-rules** (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`, bloc `gdm-dev-rules` de `CODEOWNERS`) : ne les modifie jamais ici, la CI « GDM Rules Guard » bloquerait la PR. Toute évolution passe par une PR sur `GUY-DEMARLE/gdm-dev-rules`.

@@ -73,32 +73,30 @@ Si tu as configuré le SSH avec un host alias (cf. doc référentiel GitHub GDM)
 
 ### Installation automatique
 
-Une seule commande à lancer depuis la racine du repo (juste après le clone). Le script télécharge les fichiers de règles depuis le repo central `gdm-dev-rules` et les place aux bons endroits.
+Rien à lancer : **ajoute le topic GitHub `gdm-managed` au repo** (page d'accueil du repo → roue dentée à côté de **About** → **Topics**). Le robot de synchro de `gdm-dev-rules` équipe le repo au plus tard la nuit suivante (ou tout de suite si le lead le lance), via une PR « chore(gdm-rules) » à merger.
 
-**Windows (PowerShell)** :
-
-```powershell
-irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.ps1 | iex
-```
-
-**Mac / Linux (bash)** :
-
-```bash
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.sh | bash
-```
-
-Le script crée 4 fichiers dans ton repo :
+Il pose et tient à jour :
 
 ```
 ton-repo/
 ├── .ai-rules/
-│   └── RULES.md              ← Règles condensées GDM (source unique)
-├── .cursor/
-│   └── rules/
-│       └── gdm-rules.mdc     ← Lu automatiquement par Cursor
+│   ├── RULES.md              ← Règles condensées GDM (source unique)
+│   ├── verify-managed.sh     ← Vérification des fichiers gérés
+│   └── MANAGED.sha256        ← Empreintes lues par la CI GDM Rules Guard
+├── .cursor/rules/gdm-rules.mdc ← Lu automatiquement par Cursor
+├── .github/workflows/
+│   ├── security-oss.yml      ← Pipeline sécurité (obligatoire)
+│   └── gdm-rules-guard.yml   ← Bloque toute modification locale des fichiers gérés
+├── docs-rules/               ← Doc GDM détaillée (dont ce fichier)
+├── system-design/            ← Design system GDM
+├── CODEOWNERS                ← Bloc gdm-dev-rules ajouté en fin de fichier
 ├── CLAUDE.md                 ← Lu automatiquement par Claude Code
 └── AGENTS.md                 ← Lu automatiquement par Codex
 ```
+
+Ces fichiers ne se modifient **jamais** dans l'app : ils évoluent dans `gdm-dev-rules` et arrivent par le robot. Seules les sections « Contexte du projet » et « Règles spécifiques » de `CLAUDE.md` / `AGENTS.md` t'appartiennent.
+
+Pense aussi à cocher **Settings → General → Allow auto-merge** : les mises à jour suivantes des règles se mergeront alors toutes seules.
 
 ### Personnaliser CLAUDE.md
 
@@ -133,19 +131,7 @@ L'IA doit te répondre en listant les 6 règles (gitleaks, RLS Supabase, branch 
 
 ### Mise à jour des règles plus tard
 
-Quand les règles GDM évoluent (nouvelle règle de sécu, changement de stack, etc.), tu mets à jour les règles dans ton repo en une commande :
-
-**Windows** :
-```powershell
-irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex
-```
-
-**Mac / Linux** :
-```bash
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
-```
-
-Le script préserve les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` que tu as personnalisées. Tu ne perds pas tes ajouts.
+Rien à faire : quand les règles GDM évoluent, le robot ouvre une PR dans le repo, qui se merge automatiquement si les checks sont verts. Fais simplement `git pull` en début de session (ton IA te le rappellera). Les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` sont toujours préservées.
 
 ---
 
@@ -277,7 +263,7 @@ Règles de branches recommandées :
 |---|---|---|---|
 | `main` | Production | PR uniquement depuis `staging` | PR obligatoire, checks Security OSS, linear history, conversation résolue, pas de bypass |
 | `staging` | Recette / préprod | PR depuis `dev` ou hotfix | PR obligatoire, checks Security OSS, linear history, conversation résolue |
-| `dev` | Intégration | PR depuis `feature/*` ou `fix/*` | PR obligatoire, checks Security OSS |
+| `dev` | Intégration | PR depuis `feature/*` ou `fix/*` | PR obligatoire, checks Security OSS + `GDM Rules Guard`, pas d'approbation obligatoire (pour que les PR du robot se mergent seules) |
 | `feature/*`, `fix/*` | Travail courant | Push libre du dev | Pas de protection stricte |
 
 Options GitHub à activer sur `main` et `staging` :
@@ -427,6 +413,7 @@ Coche les options suivantes :
   - Status checks Security OSS :
     - `PR Security - Secrets + SAST`
     - `PR Security - OSV Scanner`
+  - Status check gdm-dev-rules : `GDM Rules Guard`
 - ✅ **Require conversation resolution before merging**
 - ✅ **Require linear history**
 - ✅ **Do not allow bypassing the above settings**
