@@ -54,8 +54,8 @@ CREATE POLICY "policy_name" ON public.ma_table
 
 ### 1.3 Pas de push direct sur `main` / `staging`
 
-- Merge uniquement via PR.
-- Branch protection active (`Require PR`, checks obligatoires, pas de bypass).
+- Merge uniquement via PR, avec 1 approbation d'une autre personne que l'auteur de la derniere modification.
+- Protection posee par la regle commune `gdm-protection` (script `sync/proteger-repos.sh` de `gdm-dev-rules`, plan GitHub Team) : checks `PR Security - Secrets + SAST`, `PR Security - OSV Scanner` et `GDM Rules Guard` bloquants. Seules exceptions : le robot de synchro et, en urgence, le lead. Ne jamais proposer de contourner ou d'affaiblir cette regle.
 
 ### 1.4 Variables d'env dans la plateforme, jamais dans le repo
 

@@ -47,14 +47,12 @@ Les variables d'environnement de l'app elle-même (clés Gemini, Stripe, `SUPABA
 
 ## Réglages du repo (une fois par app)
 
-| Où | Quoi |
+| Qui | Quoi |
 |---|---|
-| Page d'accueil du repo → **About** → **Topics** | Ajouter `gdm-managed` : le robot de synchro de `gdm-dev-rules` équipe et tient l'app à jour. |
-| **Settings → General → Pull Requests** | Cocher **Allow auto-merge** ; garder **Allow rebase merging**. |
-| **Settings → Branches** → `dev` | PR obligatoire ; checks obligatoires : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard` ; pas d'approbation obligatoire (les PR du robot se mergent seules). |
-| **Settings → Branches** → `staging`, `main` | Voir `SETUP_PROJET.md` étape 7, avec en plus `GDM Rules Guard` dans les checks. |
+| Toi | Page d'accueil du repo → **About** → **Topics** : ajouter `gdm-managed`. Le robot de synchro de `gdm-dev-rules` équipe et tient l'app à jour. |
+| Le lead | Après le merge de la première PR du robot : `bash sync/proteger-repos.sh <app>` depuis `gdm-dev-rules`. Pose la règle `gdm-protection` : pas de push direct, PR avec 1 approbation, checks `PR Security - Secrets + SAST`, `PR Security - OSV Scanner` et `GDM Rules Guard` bloquants. |
 
-Les noms de checks n'apparaissent dans la liste qu'après leur premier passage : règle la protection des branches après la première PR.
+Ne règle pas la protection des branches à la main dans **Settings → Branches** : la règle `gdm-protection` est la référence commune à toutes les apps, et le script la remet à jour. Nécessite le plan GitHub Team de l'organisation.
 
 ## Vérifier que c'est bon
 

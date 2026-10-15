@@ -1,6 +1,8 @@
-# Synchro automatique des apps
+# Synchro automatique et protection des apps
 
-Ce document explique comment `gdm-dev-rules` se propage tout seul dans toutes les apps GDM, et comment le mettre en place (une seule fois, ~20 minutes).
+Ce document explique comment `gdm-dev-rules` se propage tout seul dans toutes les apps GDM, comment chaque app est protégée (relecture obligatoire, contrôles bloquants), et comment mettre tout ça en place (une seule fois, ~30 minutes).
+
+**Prérequis : l'organisation GitHub doit être en plan Team.** En plan Free, GitHub ne permet aucune protection de branche sur les repos privés : pas de relecture obligatoire, pas de contrôle bloquant, push direct possible sur `main`.
 
 ## En bref
 
@@ -14,8 +16,9 @@ Workflow « Synchro des apps » (.github/workflows/sync-apps.yml)
 PR « chore(gdm-rules): synchro des règles GDM » dans l'app
         │  vers dev (ou la branche par défaut si l'app n'a pas de dev)
         ▼
-Merge automatique si les checks sont verts
-        │  (sauf la toute première installation dans une app : validation du lead)
+Le robot attend que les checks soient verts, puis merge lui-même
+        │  (il est en exception de la règle d'approbation)
+        │  sauf la toute première installation dans une app : validation du lead
         ▼
 Les devs font git pull → Claude, Codex et Cursor lisent les nouvelles règles
 ```
@@ -23,10 +26,10 @@ Les devs font git pull → Claude, Codex et Cursor lisent les nouvelles règles
 Le robot tourne :
 
 - à chaque merge sur `main` qui touche `templates/`, `sync/` ou `security-oss.yml` ;
-- **chaque nuit** (05:00 UTC), pour équiper les apps nouvellement marquées et réparer une copie modifiée à la main ;
+- **chaque nuit** (05:00 UTC), pour équiper les apps nouvellement marquées, retenter les PR restées ouvertes et réparer une copie modifiée à la main ;
 - à la demande : onglet **Actions → Synchro des apps → Run workflow** (une seule app possible, ou simulation sans rien pousser).
 
-Il fonctionne sur **n'importe quelle app**, quelle que soit sa stack : il ne fait que poser des fichiers et ouvrir des PR.
+Il fonctionne sur **n'importe quelle app**, quelle que soit sa stack : il ne fait que poser des fichiers, ouvrir des PR et les merger.
 
 ## Ce que le robot pose dans chaque app
 
@@ -42,15 +45,25 @@ Il fonctionne sur **n'importe quelle app**, quelle que soit sa stack : il ne fai
 
 Si un `CLAUDE.md` ou `AGENTS.md` existant n'a pas de section `## Contexte du projet`, le robot le laisse intact et le signale dans la PR.
 
-## Les 3 verrous « seul le lead modifie les règles »
+## La protection de chaque app : la règle `gdm-protection`
+
+Posée par `sync/proteger-repos.sh` sur la branche par défaut, `main`, `staging` et `dev` :
+
+- **pas de push direct**, pas de force push, pas de suppression de la branche ;
+- **PR obligatoire avec 1 approbation**. La dernière modification doit être approuvée par quelqu'un d'autre que son auteur : le lead relit les PR de l'autre dev, l'autre dev relit celles du lead. Les conversations doivent être résolues ;
+- **checks bloquants** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
+
+Exceptions, via PR uniquement, et GitHub affiche sur la PR que la règle a été contournée :
+
+- **le robot de synchro** merge ses PR sans approbation, après avoir lui-même attendu que les checks soient verts. Un check en échec l'arrête ;
+- **le lead** (rôle admin du repo) peut merger sa propre PR sans approbation, en urgence ou en l'absence de l'autre dev. Désactivable avec `GDM_LEAD_BYPASS=0` dans `sync/config.env`.
+
+## Les verrous « seul le lead modifie les règles »
 
 1. **Dans `gdm-dev-rules`** : seul le lead a les droits d'écriture, les autres devs sont en lecture seule.
-2. **Dans chaque app, la CI « GDM Rules Guard »** compare les fichiers gérés à leurs empreintes. Une modification locale, par un dev ou par son IA, fait échouer la PR.
-3. **Le robot répare** : même si une modification passe (par exemple en recalculant aussi les empreintes), la synchro suivante, au plus tard la nuit d'après, ouvre une PR qui remet l'original.
-
-En complément, le bloc CODEOWNERS ajoute automatiquement le lead en relecteur de toute PR qui touche ces fichiers : tu es prévenu à chaque tentative.
-
-> Pourquoi ne pas rendre « Require review from Code Owners » obligatoire dans les apps : tu es le seul code owner de ces fichiers, et GitHub interdit d'approuver sa propre PR. Chaque PR de release que tu ouvrirais (dev → staging → main) contenant une synchro serait bloquée. La garde CI et la réparation automatique suffisent.
+2. **Dans chaque app, la CI « GDM Rules Guard »** compare les fichiers gérés à leurs empreintes. Une modification locale, par un dev ou par son IA, fait échouer la PR, et ce check est bloquant.
+3. **Le robot répare** : même si une modification passe, la synchro suivante, au plus tard la nuit d'après, remet l'original.
+4. **Le bloc CODEOWNERS** ajoute automatiquement le lead en relecteur de toute PR qui touche ces fichiers.
 
 ---
 
@@ -65,9 +78,11 @@ Une GitHub App plutôt qu'un token personnel : jetons valables 1 heure, droits l
 3. **Homepage URL** : `https://github.com/GUY-DEMARLE/gdm-dev-rules`.
 4. **Webhook** : décoche **Active** (le robot n'en a pas besoin).
 5. **Repository permissions**, uniquement :
-   - **Contents** : Read and write (pousser la branche du robot)
+   - **Contents** : Read and write (pousser la branche du robot, merger)
    - **Pull requests** : Read and write (ouvrir, mettre à jour, merger les PR)
    - **Workflows** : Read and write (indispensable pour mettre à jour `security-oss.yml` et `gdm-rules-guard.yml`)
+   - **Checks** : Read-only et **Commit statuses** : Read-only (attendre le résultat des checks)
+   - **Administration** : Read-only (signaler les apps où la protection manque ; le robot ne peut rien y modifier)
    - **Metadata** : Read-only (ajouté automatiquement)
 6. **Where can this GitHub App be installed?** : **Only on this account**.
 7. **Create GitHub App**, puis note l'**App ID** affiché en haut de la page.
@@ -90,49 +105,46 @@ On utilise un **environnement** GitHub réservé à `main` : un workflow lancé 
 4. **Environment secrets** → **Add secret** : `GDM_SYNC_APP_PRIVATE_KEY` = **tout** le contenu du fichier `.pem` (y compris les lignes `-----BEGIN…` et `-----END…`).
 5. Supprime le fichier `.pem` de ton poste. Si tu veux une sauvegarde, range-la dans le gestionnaire de mots de passe d'équipe, jamais dans un dossier partagé ni dans Slack. En cas de perte, il suffit d'en générer une nouvelle.
 
-### 4. Renseigner le lead dans la config
-
-Dans `sync/config.env`, remplis :
+### 4. Compléter `sync/config.env`
 
 ```bash
-GDM_LEAD="@ton-pseudo-github"
+GDM_LEAD="@naboucaya-guydemarle"   # déjà rempli
+GDM_SYNC_APP_ID="123456"           # l'App ID de l'étape 1 (pas un secret)
+GDM_LEAD_BYPASS=1                  # 1 = le lead peut merger sa PR seul en urgence
 ```
-
-C'est lui qui est propriétaire des fichiers gérés (CODEOWNERS) et à qui le robot demande la relecture des PR sensibles. Une équipe GitHub fonctionne aussi (`@GUY-DEMARLE/lead`).
 
 ### 5. Protéger gdm-dev-rules
 
-Le plus simple et le plus solide : **les autres devs ont l'accès `Read` sur `gdm-dev-rules`**. Ils lisent tout, mais ne peuvent ni pousser ni merger. Une idée de règle passe par une issue ou une discussion avec toi, et c'est toi qui modifies.
+**Les autres devs ont l'accès `Read` sur `gdm-dev-rules`** : ils lisent tout, mais ne peuvent ni pousser ni merger. Une idée de règle passe par une issue ou une discussion avec toi, et c'est toi qui modifies.
 
 1. `gdm-dev-rules` → **Settings** → **Collaborators and teams** : toi en **Admin**, les autres en **Read**.
-2. **Settings** → **Branches** → règle sur `main` : **Require a pull request before merging** (sans approbation obligatoire : tu es seul à valider, et GitHub interdit d'approuver sa propre PR) + checks obligatoires `PR Security - Secrets + SAST` et `PR Security - OSV Scanner`. Tu gardes ainsi un historique propre et les contrôles de sécurité, même seul.
+2. **Settings** → **Rules** → **Rulesets** → **New branch ruleset** sur `main` : **Require a pull request before merging**, sans approbation obligatoire (tu es seul à valider ce dépôt) + **Require status checks** `PR Security - Secrets + SAST` et `PR Security - OSV Scanner`.
 
 ### 6. Marquer les apps à synchroniser
 
 Sur chaque repo d'app : page d'accueil du repo → roue dentée à côté de **About** → **Topics** → ajoute `gdm-managed`.
 
-### 7. Régler chaque app (une fois par app)
-
-**Settings → General → Pull Requests** :
-
-- coche **Allow auto-merge** (sans ça, les PR du robot restent ouvertes et il faut les merger à la main) ;
-- garde **Allow rebase merging** (le robot l'utilise s'il est autorisé, sinon squash, sinon merge).
-
-**Settings → Branches** :
-
-| Branche | Règles |
-|---|---|
-| `dev` | PR obligatoire ; checks obligatoires : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`. **Pas d'approbation obligatoire**, sinon le merge automatique attend une validation humaine. |
-| `staging`, `main` | Comme dans `SETUP_PROJET.md`, plus `GDM Rules Guard` dans les checks. |
-| App sans `dev` | Mêmes checks sur la branche par défaut. Si elle exige une approbation, chaque PR du robot attendra ta validation : c'est voulu sur une branche de prod. |
-
-Les noms de checks n'apparaissent dans la liste de GitHub qu'après leur premier passage : règle la protection **après** le merge de la première PR du robot.
-
-### 8. Premier lancement
+### 7. Premier lancement du robot
 
 1. `gdm-dev-rules` → **Actions** → **Synchro des apps** → **Run workflow**, coche **Simulation**. Le résumé liste, pour chaque app, ce qui changerait.
 2. Si c'est bon, relance sans la simulation.
-3. La première PR de chaque app (installation) attend ta validation : vérifie qu'elle n'entre pas en conflit avec les workflows ou le CODEOWNERS existants, puis merge-la. Toutes les suivantes, workflows compris, passeront toutes seules.
+3. La première PR de chaque app (installation) attend ta validation : vérifie qu'elle n'entre pas en conflit avec les workflows ou le CODEOWNERS existants, approuve-la et merge-la.
+
+### 8. Poser la protection dans toutes les apps
+
+Une fois les PR d'installation mergées, depuis ton poste, avec ton compte `gh` (admin de l'organisation) :
+
+```bash
+DRY_RUN=1 bash sync/proteger-repos.sh
+```
+
+pour voir la règle, puis :
+
+```bash
+bash sync/proteger-repos.sh
+```
+
+Le script pose (ou met à jour) la règle `gdm-protection` dans toutes les apps `gdm-managed`. Il ignore une app où les règles GDM ne sont pas encore installées : les checks exigés n'y existeraient pas et plus aucune PR ne pourrait être mergée. Relance-le à chaque nouvelle app, ou après une modification de la règle.
 
 Une fois le robot en place, tu peux passer `gdm-dev-rules` en **privé** : le robot s'authentifie avec son App. Seuls les anciens scripts `install` / `update` (téléchargement sans authentification) cesseront de fonctionner, et ils ne sont plus nécessaires.
 
@@ -143,14 +155,15 @@ Une fois le robot en place, tu peux passer `gdm-dev-rules` en **privé** : le ro
 **Pour le lead :**
 
 1. Modifie `gdm-dev-rules` sur une branche, ouvre une PR, merge sur `main`.
-2. Quelques minutes plus tard : **Actions → Synchro des apps** affiche un tableau par app (à jour / PR en merge automatique / PR à valider / échec).
-3. Les PR « à valider » sont des premières installations (app nouvellement marquée) : relis-les et merge-les.
+2. Quelques minutes plus tard, **Actions → Synchro des apps** affiche un tableau par app : à jour, ✓ mergée, ❌ checks en échec, à valider, protection absente.
+3. Les PR « à valider » sont des premières installations : relis-les, merge-les, puis lance `sync/proteger-repos.sh <app>`.
+4. Une PR « checks en échec » veut dire que la nouvelle version des règles fait échouer un contrôle dans cette app. C'est souvent une alerte de sécurité réelle remontée par une version plus récente du pipeline : regarde le run.
 
 **Pour les devs : rien à faire.** Les règles arrivent dans `dev` comme n'importe quel commit. Il suffit de faire `git pull` en début de session, et les fichiers `CLAUDE.md` / `AGENTS.md` demandent à l'IA de le rappeler.
 
-**Ajouter une app :** topic `gdm-managed` + réglages de l'étape 7. Le robot l'équipe au plus tard la nuit suivante, ou tout de suite via **Run workflow** avec le nom du repo.
+**Ajouter une app :** topic `gdm-managed`. Le robot l'équipe au plus tard la nuit suivante, ou tout de suite via **Run workflow** avec le nom du repo. Après le merge de sa première PR : `bash sync/proteger-repos.sh <app>`.
 
-**Retirer une app :** enlève le topic. Le robot ne la touche plus ; les fichiers déjà posés restent en place.
+**Retirer une app :** enlève le topic. Le robot ne la touche plus ; les fichiers déjà posés et la protection restent en place.
 
 ## Si quelque chose ne marche pas
 
@@ -159,10 +172,11 @@ Une fois le robot en place, tu peux passer `gdm-dev-rules` en **privé** : le ro
 | Le job échoue à l'étape « Jeton de la GitHub App » | `GDM_SYNC_APP_ID` ou `GDM_SYNC_APP_PRIVATE_KEY` absent de l'environnement `sync-apps`, ou clé tronquée. |
 | `refusing to allow a GitHub App to create or update workflow` | Permission **Workflows : Read and write** manquante sur l'App (étape 1.5). Après l'avoir ajoutée, accepte la nouvelle permission dans **Settings → GitHub Apps → Configure** de l'organisation. |
 | « Aucune app avec le topic gdm-managed » | Topic absent, ou App non installée sur ces repos (étape 2). |
-| « merge auto indisponible » dans le résumé | **Allow auto-merge** non coché dans l'app (étape 7). La PR reste ouverte, merge-la à la main. |
-| La PR du robot reste ouverte alors que les checks sont verts | `dev` exige une approbation : retire « Require approvals » sur `dev` (étape 7). |
+| « checks verts mais merge refusé » | Le robot n'est pas en exception de la règle : `GDM_SYNC_APP_ID` était vide au lancement de `proteger-repos.sh`. Remplis-le et relance le script. |
+| « checks toujours en cours, nouvel essai la nuit prochaine » | Les checks ont dépassé `GDM_CHECKS_TIMEOUT` (30 min par défaut). La PR reste ouverte, le robot la merge au passage suivant si elle est verte. |
+| « protection des branches absente » | `sync/proteger-repos.sh` pas encore lancé sur cette app. |
+| `proteger-repos.sh` : « lecture impossible » | Organisation pas encore en plan Team, ou tu n'es pas admin du repo. |
 | La PR mentionne « CLAUDE.md n'a pas de section Contexte du projet » | Ajoute `## Contexte du projet` dans le fichier de l'app, en dessous de ce qui doit être remplacé par la version GDM. |
-| « GDM_LEAD non configuré » | Étape 4. |
 
 ## Tester les scripts en local
 

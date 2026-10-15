@@ -14,9 +14,10 @@
 #   - première installation dans une app (pas encore de .ai-rules/MANAGED.sha256)
 #     → PR qui attend la validation de GDM_LEAD : elle ajoute des workflows et un
 #     bloc CODEOWNERS qui peuvent entrer en conflit avec l'existant ;
-#   - toutes les synchros suivantes, workflows compris → merge automatique dès
-#     que les checks sont verts (le lead a déjà relu le changement dans
-#     gdm-dev-rules).
+#   - toutes les synchros suivantes, workflows compris → le robot attend que les
+#     checks soient verts puis merge lui-même (le lead a déjà relu le changement
+#     dans gdm-dev-rules). Il est en exception de la règle d'approbation
+#     gdm-protection posée par proteger-repos.sh ; un check en échec bloque.
 
 set -euo pipefail
 
@@ -118,9 +119,19 @@ sync_repo() {
         return 0
     fi
 
-    git -C "$dir" -c user.name="$GDM_BOT_NAME" -c user.email="$GDM_BOT_EMAIL" \
-        commit --quiet -m "chore(gdm-rules): synchro des règles GDM ($SRC_SHA)"
-    git -C "$dir" push --quiet --force origin "$GDM_SYNC_BRANCH"
+    # Si la PR ouverte contient déjà exactement ce contenu, on ne repousse pas :
+    # un nouveau commit relancerait tous les checks pour rien.
+    local same_content=0
+    if [ -n "$open_pr" ] && git -C "$dir" fetch --quiet origin "$GDM_SYNC_BRANCH" 2>/dev/null; then
+        if [ "$(git -C "$dir" write-tree)" = "$(git -C "$dir" rev-parse "FETCH_HEAD^{tree}")" ]; then
+            same_content=1
+        fi
+    fi
+    if [ "$same_content" = 0 ]; then
+        git -C "$dir" -c user.name="$GDM_BOT_NAME" -c user.email="$GDM_BOT_EMAIL" \
+            commit --quiet -m "chore(gdm-rules): synchro des règles GDM ($SRC_SHA)"
+        git -C "$dir" push --quiet --force origin "$GDM_SYNC_BRANCH"
+    fi
 
     {
         echo "Mise à jour automatique des fichiers gérés par [gdm-dev-rules](https://github.com/$SRC_REPO/commit/$SRC_SHA)."
@@ -130,7 +141,7 @@ sync_repo() {
         if [ "$first_install" = 1 ]; then
             echo "**⚠ Première installation des règles GDM dans cette app : elle attend une validation humaine.** Vérifie qu'elle n'entre pas en conflit avec les workflows ou le CODEOWNERS existants. Les synchros suivantes se mergeront automatiquement."
         else
-            echo "Merge automatique dès que les checks sont verts."
+            echo "Le robot la merge lui-même dès que les checks sont verts (il est en exception de la règle d'approbation)."
         fi
         echo ""
         echo "### Fichiers modifiés"
@@ -162,17 +173,69 @@ sync_repo() {
         if [ -n "$GDM_LEAD" ]; then
             gh pr edit "$pr" -R "$full" --add-reviewer "${GDM_LEAD#@}" >/dev/null 2>&1 || true
         fi
-        report "$repo" "$target" "[PR #$pr]($url) à valider (première installation)"
+        report "$repo" "$target" "[PR #$pr]($url) à valider (première installation)$(protection_note "$full")"
         return 0
     fi
 
-    local method
+    # Merge différé : on ouvre d'abord les PR de toutes les apps, puis on attend
+    # leurs checks (phase 2), au lieu d'attendre app par app.
+    echo "$repo $target $pr" >> "$WORK/to-merge"
+}
+
+# Signale une app où la règle de protection gdm-protection n'est pas posée
+# (voir sync/proteger-repos.sh). Silencieux si l'App n'a pas le droit de lire.
+protection_note() {
+    local n
+    n=$(gh api "repos/$1/rulesets" --jq '[.[] | select(.name == "gdm-protection")] | length' 2>/dev/null) || return 0
+    if [ "$n" = 0 ]; then
+        echo " — ⚠ protection des branches absente (lancer sync/proteger-repos.sh)"
+    fi
+    return 0
+}
+
+# Attend la fin des checks d'une PR.
+# Retour : 0 tout est vert, 1 au moins un check en échec, 2 délai dépassé.
+wait_checks() {
+    local full=$1 pr=$2 start=$SECONDS states
+    local timeout="${GDM_CHECKS_TIMEOUT:-1800}" poll="${GDM_POLL:-30}" grace="${GDM_CHECKS_GRACE:-180}"
+    while :; do
+        states=$(gh pr view "$pr" -R "$full" --json statusCheckRollup --jq '
+            [.statusCheckRollup[] |
+              if .state != null then
+                (if .state == "SUCCESS" then "ok"
+                 elif (.state == "PENDING" or .state == "EXPECTED") then "pending"
+                 else "fail" end)
+              elif .status != "COMPLETED" then "pending"
+              elif (.conclusion == "SUCCESS" or .conclusion == "NEUTRAL" or .conclusion == "SKIPPED") then "ok"
+              else "fail" end] | join(" ")')
+        case " $states " in
+            *" fail "*) return 1 ;;
+            *" pending "*) ;;
+            "  ")
+                # Aucun check encore enregistré : GitHub met quelques secondes à
+                # les créer. Passé le délai de grâce, il n'y en a simplement pas.
+                if [ $((SECONDS - start)) -ge "$grace" ]; then return 0; fi ;;
+            *) return 0 ;;
+        esac
+        if [ $((SECONDS - start)) -ge "$timeout" ]; then return 2; fi
+        sleep "$poll"
+    done
+}
+
+merge_pr() {
+    local repo=$1 target=$2 pr=$3
+    local full="$GDM_ORG/$repo" url="https://github.com/$GDM_ORG/$repo/pull/$3" rc=0 method
+    wait_checks "$full" "$pr" || rc=$?
+    case "$rc" in
+        1) report "$repo" "$target" "[PR #$pr]($url) ❌ checks en échec : à regarder$(protection_note "$full")"; return 0 ;;
+        2) report "$repo" "$target" "[PR #$pr]($url) checks toujours en cours, nouvel essai la nuit prochaine"; return 0 ;;
+    esac
     method=$(gh repo view "$full" --json rebaseMergeAllowed,squashMergeAllowed \
         --jq 'if .rebaseMergeAllowed then "rebase" elif .squashMergeAllowed then "squash" else "merge" end')
-    if gh pr merge "$pr" -R "$full" --auto "--$method" >/dev/null 2>&1; then
-        report "$repo" "$target" "[PR #$pr]($url) en merge automatique"
+    if gh pr merge "$pr" -R "$full" "--$method" --delete-branch >/dev/null 2>&1; then
+        report "$repo" "$target" "[PR #$pr]($url) ✓ mergée$(protection_note "$full")"
     else
-        report "$repo" "$target" "[PR #$pr]($url) ouverte, merge auto indisponible (activer « Allow auto-merge » dans le repo)"
+        report "$repo" "$target" "[PR #$pr]($url) checks verts mais merge refusé : le robot est-il en exception de la règle gdm-protection ?"
     fi
 }
 
@@ -192,6 +255,22 @@ for repo in $repos; do
         report "$repo" "-" "❌ échec (voir les logs)"
     fi
 done
+
+# Phase 2 : attendre les checks et merger.
+if [ -s "$WORK/to-merge" ]; then
+    echo ""
+    echo "=== Attente des checks et merge ==="
+    while read -r repo target pr; do
+        set +e
+        (merge_pr "$repo" "$target" "$pr") < /dev/null
+        rc=$?
+        set -e
+        if [ "$rc" -ne 0 ]; then
+            failures=$((failures + 1))
+            report "$repo" "$target" "❌ échec du merge (voir les logs)"
+        fi
+    done < "$WORK/to-merge"
+fi
 
 if [ "$failures" -gt 0 ]; then
     echo ""

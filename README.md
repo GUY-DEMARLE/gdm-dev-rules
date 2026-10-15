@@ -21,7 +21,7 @@ Sans ces fichiers, l'IA répond "selon les habitudes générales du web" — qui
 ```
 Le lead modifie gdm-dev-rules → merge sur main
   → PR automatique « chore(gdm-rules) » dans chaque app qui porte le topic gdm-managed
-  → merge automatique si les checks sont verts
+  → le robot attend que les checks soient verts, puis merge
      (seule la toute première installation dans une app attend la validation du lead)
   → les devs font git pull, et leur IA lit les nouvelles règles
 ```
@@ -268,6 +268,7 @@ gdm-dev-rules/
 │       ├── security-oss.yml     ← Le pipeline, distribué tel quel dans les apps
 │       └── sync-apps.yml        ← Le robot de synchro (ne part pas dans les apps)
 ├── sync/                        ← Scripts du robot (apply.sh, sync-all.sh, config.env)
+│                                  + proteger-repos.sh (règle de protection des apps)
 ├── docs/                        ← Doc propre à ce dépôt (non distribuée)
 │   └── SYNCHRO_AUTOMATIQUE.md
 └── templates/
