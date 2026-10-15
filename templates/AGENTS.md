@@ -2,6 +2,14 @@
 
 Ce projet suit les règles de développement et de sécurité de Guy Demarle.
 
+## Au début de chaque session
+
+Les règles GDM arrivent dans ce repo par des PR automatiques : une copie locale en retard, ce sont des règles périmées et des conflits à venir. Avant toute modification :
+
+1. Lance `git fetch` puis `git status -sb`.
+2. Si la branche locale est en retard sur son origine (`behind`), ou si la branche de travail est en retard sur `origin/dev` (`git rev-list --count HEAD..origin/dev`, quand `dev` existe), **rappelle à l'utilisateur de faire `git pull`** (ou de rebaser sa branche sur `dev`) avant de commencer, et attends sa réponse.
+3. Ne lance pas le `pull` ou le rebase toi-même sans son accord : il peut avoir du travail en cours.
+
 **Avant de générer du code ou de modifier ce projet, lis impérativement le fichier `.ai-rules/RULES.md`** à la racine. Il contient :
 
 - L'architecture imposée (front Vercel → back Render/Vercel/Supabase Edge → services tiers)
@@ -14,7 +22,18 @@ Ce projet suit les règles de développement et de sécurité de Guy Demarle.
 
 Tu dois respecter ces règles dans tout ce que tu génères. Si une demande te paraît contraire à une règle, explique pourquoi c'est risqué et propose l'alternative correcte.
 
-Le pipeline de sécurité `.github/workflows/security-oss.yml` est **obligatoire** (`RULES.md` § 2.6) et posé automatiquement par `gdm-dev-rules`. Il est distribué en **copie complète, délibérément** : une app n'appelle jamais un workflow hébergé dans un autre dépôt. **Ne remplace pas cette copie par un caller `workflow_call`**, ne la modifie pas localement, n'en écris pas un second — toute évolution se fait dans la source et arrive par `update`.
+Le pipeline de sécurité `.github/workflows/security-oss.yml` est **obligatoire** (`RULES.md` § 2.6) et posé automatiquement par `gdm-dev-rules`. Il est distribué en **copie complète, délibérément** : une app n'appelle jamais un workflow hébergé dans un autre dépôt. **Ne remplace pas cette copie par un caller `workflow_call`**, ne la modifie pas localement, n'en écris pas un second — toute évolution se fait dans la source et arrive automatiquement par le robot de synchro.
+
+## Fichiers gérés par gdm-dev-rules
+
+Ces fichiers sont posés et mis à jour automatiquement par le robot de synchro (PR « chore(gdm-rules) ») : **ne les modifie jamais dans ce repo**, la CI « GDM Rules Guard » bloquerait la PR.
+
+- `.ai-rules/` (règles, script de vérification, empreintes `MANAGED.sha256`)
+- `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`
+- `.github/workflows/security-oss.yml` et `.github/workflows/gdm-rules-guard.yml`
+- la partie de ce fichier qui précède « ## Contexte du projet », et le bloc `gdm-dev-rules` de `CODEOWNERS`
+
+Si l'utilisateur demande de changer l'un d'eux, explique que l'évolution se fait par une PR sur `GUY-DEMARLE/gdm-dev-rules`. Les sections « Contexte du projet » et « Règles spécifiques » ci-dessous appartiennent au projet : tu peux les compléter.
 
 ## Design system Guy Demarle
 

@@ -14,7 +14,29 @@ Quand tu codes avec Claude Code, Cursor ou Codex, l'IA suit naturellement nos r�
 
 Sans ces fichiers, l'IA répond "selon les habitudes générales du web" — qui ne sont pas toujours alignées avec nos contraintes (incidents Safercy de mai 2026, ban GCP, etc.).
 
-## Installation dans un nouveau repo
+## Comment les règles arrivent dans les apps : automatiquement
+
+**Plus besoin de lancer `install` ou `update` dans chaque repo.** Un robot (workflow `.github/workflows/sync-apps.yml`) propage ce dépôt dans toutes les apps GDM :
+
+```
+Le lead modifie gdm-dev-rules → merge sur main
+  → PR automatique « chore(gdm-rules) » dans chaque app qui porte le topic gdm-managed
+  → merge automatique si les checks sont verts
+     (validation du lead si la PR touche aux workflows ou à CODEOWNERS)
+  → les devs font git pull, et leur IA lit les nouvelles règles
+```
+
+- **Ajouter une app** : lui mettre le topic GitHub `gdm-managed`. Le robot l'équipe au plus tard la nuit suivante, quelle que soit sa stack.
+- **Seul le lead modifie les règles** : les autres devs sont en lecture seule sur ce dépôt. Dans les apps, la CI « GDM Rules Guard » bloque toute modification locale des fichiers gérés, et le robot remet l'original à la synchro suivante.
+- **Début de session** : `CLAUDE.md`, `AGENTS.md` et les règles Cursor demandent à l'IA de vérifier que la branche est à jour et de rappeler le `git pull`.
+
+Fonctionnement détaillé, mise en place (GitHub App, environnement, réglages des apps) et dépannage : **[`docs/SYNCHRO_AUTOMATIQUE.md`](docs/SYNCHRO_AUTOMATIQUE.md)**.
+
+---
+
+## Installation manuelle (secours)
+
+> Les scripts ci-dessous restent utiles pour une app hors de l'organisation ou pour un dépannage. Ils téléchargent les fichiers sans authentification : ils ne fonctionnent que tant que ce dépôt est **public**. Ils ne posent ni la garde CI ni les empreintes : une app équipée ainsi sera complétée par le robot dès qu'elle aura le topic `gdm-managed`.
 
 Une seule commande à lancer depuis la racine du repo, après le `git init` :
 
@@ -83,9 +105,9 @@ git commit -m "chore: add GDM AI rules"
 
 ---
 
-## Mise à jour des règles dans un repo existant
+## Mise à jour manuelle dans un repo existant (secours)
 
-Quand les règles centrales évoluent (nouvelle règle de sécu, mise à jour d'un pattern, etc.), tu peux les mettre à jour dans n'importe quel repo en une commande.
+Normalement inutile : le robot de synchro s'en charge. À garder pour un dépannage, tant que le dépôt est public.
 
 ### Windows
 
@@ -99,45 +121,7 @@ irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 
 curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
 ```
 
-**Bon à savoir** : `update` préserve les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` que tu as personnalisées. Tu ne perds pas tes ajouts.
-
-### Mise à jour de tous tes repos en batch
-
-```powershell
-# Windows
-$repos = @(
-    "C:\Users\$env:USERNAME\Travail\gestionnaire-kit",
-    "C:\Users\$env:USERNAME\Travail\simu-recrutement",
-    "C:\Users\$env:USERNAME\Travail\kpi"
-)
-
-foreach ($repo in $repos) {
-    Write-Host "`n=== $repo ===" -ForegroundColor Cyan
-    cd $repo
-    irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex
-    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/
-    git commit -m "chore: update GDM AI rules"
-    git push
-}
-```
-
-```bash
-# Mac/Linux
-repos=(
-    "$HOME/Travail/gestionnaire-kit"
-    "$HOME/Travail/simu-recrutement"
-    "$HOME/Travail/kpi"
-)
-
-for repo in "${repos[@]}"; do
-    echo -e "\n=== $repo ==="
-    cd "$repo"
-    curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
-    git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/
-    git commit -m "chore: update GDM AI rules"
-    git push
-done
-```
+**Bon à savoir** : `update` préserve les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` que tu as personnalisées. Tu ne perds pas tes ajouts. Le robot de synchro applique la même règle.
 
 ---
 
@@ -243,7 +227,7 @@ Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/ma
 
 > **Pourquoi une copie complète et pas un caller.** Chaque app reçoit les ~900 lignes du workflow, et c'est un choix assumé. Un caller `workflow_call` vers ce dépôt ferait tourner du code central dans la CI de chaque app, **avec les secrets de l'app**, et toute modification poussée ici s'exécuterait immédiatement partout. On préfère la copie : chaque app est autonome, et une évolution du pipeline se relit app par app.
 >
-> La contrepartie est qu'il faut **relancer `update` sur toutes les apps** à chaque évolution du pipeline, sans quoi les copies dérivent.
+> La contrepartie, garder toutes les copies à jour, est assurée par le robot de synchro : chaque évolution du pipeline arrive dans chaque app sous forme de PR, que le lead relit avant merge.
 >
 > ⚠️ `security-oss.yml` n'a d'ailleurs **pas** de déclencheur `workflow_call` : un caller vers lui échouerait avec « invalid workflow file ». Si une IA propose de remplacer la copie par un caller, c'est une régression de sécurité — le pipeline cesserait de bloquer les PR.
 
@@ -256,9 +240,9 @@ Explications détaillées + guide pas à pas (ajout au repo, variable GitHub, la
 
 Le contenu source unique est dans `templates/.ai-rules/RULES.md`. Quand tu modifies ce fichier :
 
-1. Crée une PR sur ce repo
-2. Une fois mergée, les règles sont disponibles via les scripts d'install/update
-3. Les autres devs peuvent lancer `update.ps1` ou `update.sh` sur leurs projets pour récupérer la mise à jour
+1. Crée une PR sur ce repo (seul le lead a les droits d'écriture)
+2. Une fois mergée sur `main`, le robot de synchro ouvre une PR dans chaque app `gdm-managed`
+3. Les autres devs récupèrent la mise à jour avec un simple `git pull`
 
 Les fichiers `templates/CLAUDE.md`, `templates/AGENTS.md` et `templates/.cursor/rules/gdm-rules.mdc` sont des fichiers d'amorçage minimalistes qui pointent vers `.ai-rules/RULES.md`. Tu n'as normalement pas besoin de les modifier sauf changement de structure.
 
@@ -266,7 +250,7 @@ Les fichiers `templates/CLAUDE.md`, `templates/AGENTS.md` et `templates/.cursor/
 
 La source est `templates/system-design/`. Même circuit : PR sur ce repo, puis `update` dans les apps.
 
-⚠️ **Si tu ajoutes ou supprimes un fichier du design system, mets `templates/system-design/MANIFEST.txt` à jour.** C'est cette liste que lisent `install` et `update` pour savoir quoi télécharger — un fichier absent du manifeste ne partira jamais dans les applications. (Le manifeste sert aussi à éviter l'API GitHub, limitée à 60 requêtes/heure sans token, et permet des sous-dossiers, ce que la liste dynamique de `docs-rules/` ne sait pas faire.)
+⚠️ **Si tu ajoutes ou supprimes un fichier du design system, mets `templates/system-design/MANIFEST.txt` à jour.** C'est cette liste que lisent le robot de synchro, `install` et `update` pour savoir quoi distribuer — un fichier absent du manifeste ne partira jamais dans les applications. (Le manifeste sert aussi à éviter l'API GitHub, limitée à 60 requêtes/heure sans token, et permet des sous-dossiers, ce que la liste dynamique de `docs-rules/` ne sait pas faire.)
 
 ---
 
@@ -281,10 +265,18 @@ gdm-dev-rules/
 ├── update.sh                    ← Script Mac/Linux update
 ├── .github/
 │   └── workflows/
-│       └── security-oss.yml     ← Le pipeline, distribué tel quel dans les apps
+│       ├── security-oss.yml     ← Le pipeline, distribué tel quel dans les apps
+│       └── sync-apps.yml        ← Le robot de synchro (ne part pas dans les apps)
+├── sync/                        ← Scripts du robot (apply.sh, sync-all.sh, config.env)
+├── docs/                        ← Doc propre à ce dépôt (non distribuée)
+│   └── SYNCHRO_AUTOMATIQUE.md
 └── templates/
     ├── .ai-rules/
-    │   └── RULES.md             ← LA source de vérité (dev + sécu)
+    │   ├── RULES.md             ← LA source de vérité (dev + sécu)
+    │   └── verify-managed.sh    ← Vérifie les fichiers gérés (CI GDM Rules Guard)
+    ├── .github/
+    │   └── workflows/
+    │       └── gdm-rules-guard.yml ← Garde posée dans chaque app
     ├── .cursor/
     │   └── rules/
     │       └── gdm-rules.mdc
@@ -321,4 +313,4 @@ Oui, dès qu'ils clonent le repo. C'est une bonne chose : ça leur communique au
 
 **Comment je sais si un projet existant utilise une vieille version des règles ?**
 
-Tu peux comparer le contenu de `.ai-rules/RULES.md` du repo avec celui du repo central. Plus simple : lance `update.ps1` ou `update.sh`, qui te montre le diff Git après mise à jour.
+Si l'app porte le topic `gdm-managed`, elle ne peut pas rester en retard : le robot passe chaque nuit. Le résumé du workflow **Synchro des apps** (onglet Actions de ce dépôt) indique, app par app, si elle est à jour ou si une PR attend.

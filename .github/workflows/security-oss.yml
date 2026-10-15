@@ -1,8 +1,9 @@
 name: Security OSS
 
 on:
+  # Toutes les PR, quelle que soit la branche cible : le workflow doit protéger
+  # n'importe quelle app, y compris celles sans dev/staging ou avec master.
   pull_request:
-    branches: [main, staging, dev]
   workflow_dispatch:
     inputs:
       target_url:

@@ -1,0 +1,31 @@
+# Fichier géré par gdm-dev-rules : ne pas le modifier ici.
+#
+# Bloque toute PR qui modifie localement un fichier géré par gdm-dev-rules
+# (règles IA, docs-rules, design system, workflow sécurité, partie GDM de
+# CLAUDE.md / AGENTS.md, bloc CODEOWNERS). Ces fichiers évoluent uniquement
+# dans GUY-DEMARLE/gdm-dev-rules et arrivent ici par le robot de synchro.
+#
+# Indépendant de la stack : fonctionne sur n'importe quelle app.
+# À rendre obligatoire dans la protection des branches : « GDM Rules Guard ».
+
+name: GDM Rules Guard
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: GDM Rules Guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Vérifier les fichiers gérés par gdm-dev-rules
+        run: bash .ai-rules/verify-managed.sh
