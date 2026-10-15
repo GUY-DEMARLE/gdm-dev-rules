@@ -316,6 +316,8 @@ Contrepartie assumée : quand le workflow central évolue, il faut relancer `upd
 
 Dans GitHub, va dans **Settings → Secrets and variables → Actions**.
 
+> La liste complète, avec l'onglet exact (**Variables** ou **Secrets**) de chaque valeur, est dans **`CONFIG_GITHUB.md`**. Attention à l'onglet : une valeur rangée dans le mauvais est invisible pour le workflow. Exemple vécu : `SECURITY_TARGET_URL` créée dans Secrets, ZAP et Supabomb sautés sans explication.
+
 Secrets recommandés :
 
 ```text
@@ -782,7 +784,7 @@ Si tous les tests passent, ton projet est aux standards GDM. Tu peux commencer �
 
 **Je ne reçois pas le message Slack Security OSS** : vérifie que le secret GitHub `SLACK_WEBHOOK_URL` est configuré dans le repo ou au niveau de l'organisation, et que le workflow a le droit d'accéder aux secrets.
 
-**L'audit web ZAP/Supabomb est ignoré** : vérifie que la variable GitHub `SECURITY_TARGET_URL` est configurée. Sans cette variable, le workflow saute volontairement les scans web.
+**L'audit web ZAP/Supabomb est ignoré** : vérifie que `SECURITY_TARGET_URL` est bien dans l'onglet **Variables** (pas Secrets, pas dans un environnement). Le log du run l'indique en avertissement. Détail : `CONFIG_GITHUB.md`.
 
 **Supabase refuse mes requêtes après avoir activé RLS** : c'est normal, le DENY ALL par défaut bloque tout. Crée des policies explicites pour chaque opération autorisée (cf. exemples étape 9).
 
