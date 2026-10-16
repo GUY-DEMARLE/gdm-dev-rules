@@ -1,154 +1,423 @@
 # gdm-dev-rules
 
-Règles de développement et de sécurité pour les projets Guy Demarle, à charger automatiquement par Claude Code, Cursor et Codex sur chaque repo.
+**La source unique des règles de développement, de sécurité et d'interface des apps Guy Demarle.**
 
-## Pour quoi faire
+Ce dépôt contient les règles que Claude Code, Codex et Cursor appliquent quand ils codent dans une app GDM, le pipeline de sécurité et le design system. Un robot les recopie automatiquement dans chaque app et les tient à jour.
 
-Quand tu codes avec Claude Code, Cursor ou Codex, l'IA suit naturellement nos règles GDM :
-
-- Pas de secret en dur dans le code
-- Pas de variable `VITE_*` qui contient une clé secrète
-- Architecture front → back → services tiers respectée
-- RLS Supabase activée dès la création des tables
-- Conventions de nommage respectées (branches, commits, repos)
-
-Sans ces fichiers, l'IA répond "selon les habitudes générales du web" — qui ne sont pas toujours alignées avec nos contraintes (incidents Safercy de mai 2026, ban GCP, etc.).
-
-## Comment les règles arrivent dans les apps : automatiquement
-
-**Plus besoin de lancer `install` ou `update` dans chaque repo.** Un robot (workflow `.github/workflows/sync-apps.yml`) propage ce dépôt dans toutes les apps GDM :
-
-```
-Le lead modifie gdm-dev-rules → merge sur main
-  → PR automatique « chore(gdm-rules) » dans chaque app qui porte le topic gdm-managed
-  → le robot attend que les checks soient verts, puis merge
-     (seule la toute première installation dans une app attend la validation du lead)
-  → les devs font git pull, et leur IA lit les nouvelles règles
-```
-
-- **Ajouter une app** : lui mettre le topic GitHub `gdm-managed`. Le robot l'équipe au plus tard la nuit suivante, quelle que soit sa stack.
-- **Seul le lead modifie les règles** : les autres devs sont en lecture seule sur ce dépôt. Dans les apps, la CI « GDM Rules Guard » bloque toute modification locale des fichiers gérés, et le robot remet l'original à la synchro suivante.
-- **Début de session** : `CLAUDE.md`, `AGENTS.md` et les règles Cursor demandent à l'IA de vérifier que la branche est à jour et de rappeler le `git pull`.
-
-Fonctionnement détaillé, mise en place (GitHub App, environnement, réglages des apps) et dépannage : **[`docs/SYNCHRO_AUTOMATIQUE.md`](docs/SYNCHRO_AUTOMATIQUE.md)**.
+> **Prérequis : organisation GitHub en plan Team.** En plan Free, GitHub ne permet aucune protection de branche sur un repo privé : pas de relecture obligatoire, pas de contrôle bloquant, push direct possible sur `main`. Le robot de synchro fonctionne dans les deux cas, mais la protection des branches (`sync/proteger-repos.sh`) exige Team.
 
 ---
 
-## Installation manuelle (secours)
+## Je veux…
 
-> Les scripts ci-dessous restent utiles pour une app hors de l'organisation ou pour un dépannage. Ils téléchargent les fichiers sans authentification : ils ne fonctionnent que tant que ce dépôt est **public**. Ils ne posent ni la garde CI ni les empreintes : une app équipée ainsi sera complétée par le robot dès qu'elle aura le topic `gdm-managed`.
+| Je veux… | Qui | Aller à |
+|---|---|---|
+| Créer un nouveau repo / une nouvelle app | n'importe quel dev + le lead | [Cas 1](#cas-1-créer-un-nouveau-repo) |
+| Brancher une app existante qui n'a pas encore les règles | lead | [Cas 2](#cas-2-brancher-une-app-existante-sans-les-règles) |
+| Comprendre ce qui arrive à une app qui a déjà les règles | lead | [Cas 3](#cas-3-une-app-qui-a-déjà-les-règles-installées-à-la-main) |
+| Modifier une règle, une doc, le design system ou le pipeline sécurité | lead uniquement | [Cas 4](#cas-4-modifier-les-règles) |
+| Accueillir un nouveau dev | lead | [Cas 5](#cas-5-un-nouveau-dev-arrive) |
+| Retirer une app du dispositif | lead | [Cas 6](#cas-6-retirer-une-app) |
+| Savoir comment on travaille au quotidien | tout le monde | [Le quotidien d'un dev](#le-quotidien-dun-dev) |
+| Savoir quelles Variables et quels Secrets créer sur GitHub | tout le monde | [`CONFIG_GITHUB.md`](templates/docs-rules/CONFIG_GITHUB.md) |
+| Comprendre une alerte ou un échec | tout le monde | [Quand quelque chose ne va pas](#quand-quelque-chose-ne-va-pas) |
 
-Une seule commande à lancer depuis la racine du repo, après le `git init` :
+---
 
-### Windows (PowerShell)
+## Comment ça marche
 
-```powershell
-irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.ps1 | iex
+```mermaid
+flowchart LR
+    lead["👤 Lead<br/>seul à modifier les règles"] -->|"PR puis merge sur main"| src["📦 gdm-dev-rules<br/>source unique"]
+    src -->|"robot de synchro<br/>à chaque merge + chaque nuit"| app1["App A"]
+    src -->|"une PR par app"| app2["App B"]
+    src --> app3["App C"]
+    app1 --> devs["👥 Devs : git pull"]
+    app2 --> devs
+    app3 --> devs
+    devs --> ia["🤖 Claude · Codex · Cursor<br/>lisent les règles du repo"]
 ```
 
-### Mac / Linux (bash)
+1. **Le lead** modifie ce dépôt, par PR, puis merge sur `main`.
+2. **Le robot de synchro** (workflow `sync-apps.yml`, GitHub App `gdm-dev-rules-sync`) ouvre une PR dans chaque app qui porte le topic `gdm-managed`.
+3. Il **attend que les contrôles soient verts, puis merge lui-même**. Seule la toute première installation dans une app attend la validation du lead.
+4. **Les devs** font `git pull`. Leur IA lit les nouvelles règles dès la session suivante, et leur rappelle le `git pull` si leur branche est en retard.
+
+Le robot passe **à chaque merge sur `main`**, **chaque nuit à 05:00 UTC** (pour équiper les nouvelles apps, retenter une PR restée ouverte et réparer une copie modifiée à la main) et **à la demande** (Actions → Synchro des apps → Run workflow). Il fonctionne sur n'importe quelle app, quelle que soit sa stack.
+
+### Ce que chaque app reçoit
+
+```
+ton-app/
+├── .ai-rules/
+│   ├── RULES.md               ← les règles GDM (source unique pour les IA)
+│   ├── verify-managed.sh      ← vérifie que les fichiers gérés n'ont pas été modifiés
+│   └── MANAGED.sha256         ← empreintes de ces fichiers
+├── .cursor/rules/gdm-rules.mdc ← lu automatiquement par Cursor
+├── .github/workflows/
+│   ├── security-oss.yml       ← pipeline sécurité (obligatoire)
+│   └── gdm-rules-guard.yml    ← bloque toute modification locale des fichiers gérés
+├── docs-rules/                ← doc GDM : setup, archi, sécu, hébergement, config GitHub
+├── system-design/             ← design system GDM (jetons, composants, mascotte)
+├── CODEOWNERS                 ← bloc gdm-dev-rules ajouté en fin de fichier
+├── CLAUDE.md                  ← lu par Claude Code
+└── AGENTS.md                  ← lu par Codex
+```
+
+### Qui peut modifier quoi
+
+| Fichier dans l'app | Modifiable dans l'app ? | Où le faire évoluer |
+|---|---|---|
+| `CLAUDE.md` / `AGENTS.md`, à partir de `## Contexte du projet` | ✅ oui, c'est la partie du projet | dans l'app, par PR |
+| `CLAUDE.md` / `AGENTS.md`, partie au-dessus de `## Contexte du projet` | ❌ non | `templates/CLAUDE.md`, `templates/AGENTS.md` ici |
+| `CODEOWNERS`, hors bloc `gdm-dev-rules` | ✅ oui | dans l'app |
+| `.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/` | ❌ non | `templates/` ici |
+| `.github/workflows/security-oss.yml`, `gdm-rules-guard.yml` | ❌ non | `.github/workflows/security-oss.yml`, `templates/.github/` ici |
+| Tout le reste (le code de l'app) | ✅ oui | dans l'app, par PR |
+
+Une modification d'un fichier ❌ fait échouer le contrôle **GDM Rules Guard**, et le robot remet l'original au passage suivant.
+
+---
+
+## Cas 1. Créer un nouveau repo
+
+```mermaid
+flowchart TD
+    A["1 · Créer le repo sur GitHub<br/>gdm-type-nom, privé"] --> B["2 · Premier commit<br/>+ branches dev et staging"]
+    B --> C["3 · Ajouter le topic<br/>gdm-managed"]
+    C --> D["4 · Lancer le robot<br/>ou attendre la nuit"]
+    D --> E["5 · Le lead relit et merge<br/>la PR d'installation"]
+    E --> F["6 · Remplir le Contexte du projet<br/>dans CLAUDE.md et AGENTS.md"]
+    F --> G["7 · Variables et Secrets GitHub<br/>CONFIG_GITHUB.md"]
+    G --> H["8 · Le lead pose la protection<br/>proteger-repos.sh"]
+    H --> I["9 · Hébergement, Supabase, Sentry<br/>SETUP_PROJET.md"]
+```
+
+### 1. Créer le repo
+
+Sur https://github.com/organizations/GUY-DEMARLE/repositories/new :
+
+- **Nom** : `gdm-<type>-<nom>`, par exemple `gdm-app-catalogue`, `gdm-api-catalogue`, `gdm-lib-shared` ;
+- **Private** ;
+- ne coche rien dans « Initialize this repository with ».
+
+### 2. Premier commit et branches
+
+Le robot **ignore un repo vide** : il faut au moins un commit.
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.sh | bash
+git clone git@github.com:GUY-DEMARLE/gdm-app-exemple.git
+cd gdm-app-exemple
+echo "# gdm-app-exemple" > README.md
+git add README.md
+git commit -m "chore: init"
+git push origin main
+git branch dev
+git push origin dev
+git branch staging
+git push origin staging
 ```
 
-Le script télécharge les fichiers et les place aux bons endroits :
+Avec une branche `dev`, le robot fait ses PR vers `dev`. Sans `dev`, il vise la branche par défaut.
 
-```
-ton-repo/
-├── .ai-rules/
-│   └── RULES.md              ← Règles condensées (1 page)
-├── .cursor/
-│   └── rules/
-│       └── gdm-rules.mdc     ← Lu automatiquement par Cursor
-├── .github/
-│   └── workflows/
-│       └── security-oss.yml  ← Pipeline sécurité OSS (obligatoire)
-├── docs-rules/               ← Doc GDM détaillée (setup, archi, sécu, hébergement)
-├── system-design/            ← Design system GDM — interface (voir plus bas)
-│   ├── AGENTS.md             ← Le mode d'emploi pour l'IA qui produit l'UI
-│   ├── README.md             ← La direction artistique et ses arbitrages
-│   ├── kit/                  ← Jetons, composants, mascotte, marque, demo.html
-│   └── outils/               ← verifier-interface.mjs (contrôle automatique)
-├── CLAUDE.md                 ← Lu automatiquement par Claude Code
-└── AGENTS.md                 ← Lu automatiquement par Codex
-```
+### 3. Ajouter le topic `gdm-managed`
 
-Le script vérifie aussi que ton `.gitignore` n'ignore pas ces fichiers.
+Page d'accueil du repo → roue dentée à côté de **About** → **Topics** → `gdm-managed` → **Save changes**.
 
-### Étape suivante : personnaliser CLAUDE.md
+### 4. Lancer le robot
 
-Ouvre `CLAUDE.md` et remplis les sections en commentaire :
+Sans rien faire, le robot équipe le repo **la nuit suivante**. Pour le faire tout de suite :
+
+**Actions** de `gdm-dev-rules` → **Synchro des apps** → **Run workflow** → champ `repo` : le nom du repo → **Run workflow**.
+
+### 5. Valider la PR d'installation (lead)
+
+Le robot ouvre une PR « chore(gdm-rules): synchro des règles GDM » vers `dev`, et demande la relecture du lead. C'est la seule PR du robot qui ne se merge pas toute seule : relis-la, approuve-la, merge-la.
+
+### 6. Remplir le contexte du projet
+
+Dans `CLAUDE.md` **et** `AGENTS.md`, complète les sections sous `## Contexte du projet` et `## Règles spécifiques à ce projet`. C'est ce qui permet à l'IA de répondre **pour ce projet**, pas seulement selon les règles générales.
 
 ```markdown
 ## Contexte du projet
 
 - Type d'app : interne (dashboard de suivi commandes)
-- Stack : Next.js fullstack + Supabase + Render (workers async)
-- Services tiers : Supabase, Stripe, Gemini
-- Particularités : utilise Inngest pour les jobs cron
+- Stack : React/Vite + Supabase + Edge Functions
+- Services tiers : Supabase Auth, Brevo, Gemini
+- Particularités : les commandes arrivent par un webhook ERP
 
 ## Règles spécifiques à ce projet
 
-- Tous les endpoints de paiement doivent avoir des tests E2E Playwright
-- La table `orders` ne doit jamais être modifiée directement, passer par la fonction `update_order` qui logge les changements
+- La table `orders` ne se modifie que via la fonction `update_order`, qui journalise
+- Tests E2E Playwright obligatoires sur le tunnel de paiement
 ```
 
-C'est ce qui aide l'IA à donner des réponses adaptées **à ton projet**, en plus des règles génériques GDM.
+Ne touche pas à ce qui est **au-dessus** de `## Contexte du projet` : c'est la partie gérée par le robot.
 
-### Commit
+### 7. Variables et Secrets GitHub
+
+Tout est dans [`CONFIG_GITHUB.md`](templates/docs-rules/CONFIG_GITHUB.md). L'essentiel :
+
+| Nom | Onglet | Quand |
+|---|---|---|
+| `SLACK_WEBHOOK_URL` | **Secrets** | dès le départ (alertes de PR et rapport du lundi) |
+| `SECURITY_TARGET_URL` | **Variables** | dès que l'app est en ligne (active ZAP et Supabomb) |
+| `OPENAI_API_KEY` | **Secrets** | optionnel (synthèse IA du rapport) |
+
+⚠️ Une valeur rangée dans le mauvais onglet est **invisible** pour le workflow.
+
+### 8. Poser la protection des branches (lead)
+
+Depuis ce dépôt, avec le compte `gh` du lead :
 
 ```bash
-git add .ai-rules/ .cursor/ CLAUDE.md AGENTS.md docs-rules/ system-design/ .github/
-git commit -m "chore: add GDM AI rules"
+bash sync/proteger-repos.sh gdm-app-exemple
 ```
+
+Ça pose la règle `gdm-protection` : pas de push direct, PR approuvée par une autre personne, contrôles bloquants. Voir [Les protections](#les-protections).
+
+### 9. Hébergement, base de données, monitoring
+
+Suis [`SETUP_PROJET.md`](templates/docs-rules/SETUP_PROJET.md) à partir de l'étape 9 : Supabase avec RLS dès la première migration, Vercel / Render / Gandi, puis Sentry en production.
+
+### Checklist du nouveau repo
+
+- [ ] Repo `gdm-<type>-<nom>`, privé, avec un premier commit
+- [ ] Branches `dev` et `staging` créées
+- [ ] Topic `gdm-managed`
+- [ ] PR d'installation du robot mergée
+- [ ] `## Contexte du projet` rempli dans `CLAUDE.md` et `AGENTS.md`
+- [ ] `SLACK_WEBHOOK_URL` (Secret), `SECURITY_TARGET_URL` (Variable) une fois en ligne
+- [ ] `sync/proteger-repos.sh` lancé par le lead
+- [ ] Supabase avec RLS, hébergement, Sentry
 
 ---
 
-## Mise à jour manuelle dans un repo existant (secours)
+## Cas 2. Brancher une app existante sans les règles
 
-Normalement inutile : le robot de synchro s'en charge. À garder pour un dépannage, tant que le dépôt est public.
+Même chemin que le cas 1, à partir de l'**étape 3** : topic `gdm-managed`, robot, validation de la PR d'installation, contexte du projet, Variables et Secrets, protection.
 
-### Windows
+À savoir avant de valider la PR d'installation :
 
-```powershell
-irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex
-```
-
-### Mac / Linux
-
-```bash
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
-```
-
-**Bon à savoir** : `update` préserve les sections "Contexte du projet" et "Règles spécifiques" de `CLAUDE.md` et `AGENTS.md` que tu as personnalisées. Tu ne perds pas tes ajouts. Le robot de synchro applique la même règle.
+- Si l'app a déjà un `CLAUDE.md` ou un `AGENTS.md` **sans** section `## Contexte du projet`, le robot ne le touche pas et le signale dans la PR. Ajoute la section, en dessous de ce qui doit devenir la partie GDM.
+- Si l'app a déjà un `CODEOWNERS`, le robot ajoute son bloc à la fin et garde le reste.
+- **Le premier passage du pipeline sécurité peut remonter des alertes** qui existaient déjà sans être vues. Ce ne sont pas des régressions : traite-les comme n'importe quelle alerte.
 
 ---
 
-## Design system GDM (interface)
+## Cas 3. Une app qui a déjà les règles, installées à la main
 
-Depuis la version 1.3 du design system, `install` et `update` posent aussi **`system-design/` à la racine de chaque app Guy Demarle**, à côté des règles dev et sécu. C'est la charte d'interface commune à tous les outils du réseau : jetons, composants, mascotte, marque.
+C'est le cas des apps équipées avant le robot, avec `install.ps1` / `update.ps1`. Ajoute-leur simplement le topic `gdm-managed`.
+
+```mermaid
+flowchart LR
+    old["App équipée à la main<br/>règles et workflow anciens"] -->|"topic gdm-managed"| robot["Robot"]
+    robot --> r1["Règles, docs, design system,<br/>workflow sécurité<br/>➜ remplacés par la dernière version"]
+    robot --> r2["CLAUDE.md et AGENTS.md<br/>➜ partie GDM remplacée<br/>➜ Contexte du projet conservé à l'identique"]
+    robot --> r3["Garde, empreintes, bloc CODEOWNERS<br/>➜ ajoutés"]
+    r1 --> pr["PR d'installation<br/>validée par le lead"]
+    r2 --> pr
+    r3 --> pr
+```
+
+- La première PR est une **installation** : elle attend ta validation, tu vois tout le diff avant d'accepter.
+- Les anciens `CLAUDE.md` / `AGENTS.md` écrits par `update.ps1` contiennent parfois des accents cassés (`r�gles`) : la synchro les répare.
+- L'app récupère au passage les correctifs du pipeline (ZAP qui écrit enfin son rapport, Supabomb qui lit tous les fichiers JS…). Attends-toi à de nouvelles alertes, jusque-là invisibles.
+
+---
+
+## Cas 4. Modifier les règles
+
+**Uniquement le lead.** Les autres devs ont l'accès en lecture seule à ce dépôt : une idée de règle passe par une issue ou une discussion.
+
+```mermaid
+sequenceDiagram
+    participant L as Lead
+    participant S as gdm-dev-rules
+    participant R as Robot de synchro
+    participant A as Chaque app
+    participant D as Devs
+    L->>S: branche + PR + merge sur main
+    S->>R: déclenche Synchro des apps
+    R->>A: PR « chore(gdm-rules) »
+    A->>A: contrôles Security OSS + GDM Rules Guard
+    alt contrôles verts
+        R->>A: merge
+    else contrôle en échec
+        R-->>L: signalé dans le résumé du run
+    end
+    D->>A: git pull
+    Note over D: l'IA applique la nouvelle règle
+```
+
+### Où modifier quoi
+
+| Je veux changer… | Fichier à modifier ici |
+|---|---|
+| Une règle de dev ou de sécurité | `templates/.ai-rules/RULES.md` |
+| Une doc détaillée | `templates/docs-rules/*.md` (un nouveau fichier part automatiquement) |
+| Le design system | `templates/system-design/`, et **`MANIFEST.txt`** si tu ajoutes ou supprimes un fichier |
+| Le pipeline sécurité | `.github/workflows/security-oss.yml` |
+| La partie GDM de `CLAUDE.md` / `AGENTS.md` | `templates/CLAUDE.md`, `templates/AGENTS.md` (au-dessus de `## Contexte du projet`) |
+| La règle de protection des branches | `sync/proteger-repos.sh`, puis relancer le script |
+| Le comportement du robot | `sync/apply.sh`, `sync/sync-all.sh`, `sync/config.env` |
+
+Après le merge, regarde **Actions → Synchro des apps** : un tableau indique, app par app, `à jour`, `✓ mergée`, `❌ checks en échec` ou `à valider`. Un `❌` veut souvent dire que la nouvelle version du pipeline a trouvé une vraie alerte dans cette app.
+
+⚠️ **Design system : un fichier absent de `MANIFEST.txt` ne part jamais dans les apps.** Le manifeste permet les sous-dossiers et évite la limite de 60 requêtes/heure de l'API GitHub.
+
+---
+
+## Cas 5. Un nouveau dev arrive
+
+```mermaid
+flowchart LR
+    A["Invitation dans<br/>l'organisation GUY-DEMARLE"] --> B["Droits : Write sur les apps<br/>Read sur gdm-dev-rules"]
+    B --> C["Poste de travail<br/>SETUP_MACHINE.md"]
+    C --> D["Comptes : Vercel, Render,<br/>Supabase, Sentry, Slack"]
+    D --> E["Première tâche<br/>petite et réelle"]
+```
+
+1. **GitHub** : invitation dans l'organisation avec son email `@guydemarle.com`, 2FA obligatoire. Rôle **Write** sur les apps où il travaille, **Read** sur `gdm-dev-rules`.
+2. **Son poste** : [`SETUP_MACHINE.md`](templates/docs-rules/SETUP_MACHINE.md) (gitleaks, CLI Vercel / Render / Supabase, comptes).
+3. **Accès progressifs** : rôle Developer sur Supabase, Vercel et Render ; lecture seule en production au début.
+4. **Les secrets ne transitent jamais par Slack ou par mail** : il récupère ses variables avec `vercel env pull` et les CLI, ou via le gestionnaire de mots de passe d'équipe.
+5. Il n'a **rien à installer côté règles** : elles sont déjà dans chaque app, son IA les lit.
+
+---
+
+## Cas 6. Retirer une app
+
+Enlève le topic `gdm-managed`. Le robot ne la touche plus. Les fichiers déjà posés et la protection des branches restent en place ; supprime-les par PR si tu le souhaites.
+
+---
+
+## Le quotidien d'un dev
+
+```mermaid
+flowchart LR
+    pull["git pull<br/>en début de session"] --> br["branche feature/xxx<br/>ou fix/xxx depuis dev"]
+    br --> code["code avec l'IA<br/>qui suit RULES.md"]
+    code --> pr["PR vers dev"]
+    pr --> checks{"Contrôles<br/>bloquants"}
+    checks -->|"❌"| code
+    checks -->|"✅"| review{"Relecture par<br/>l'autre dev"}
+    review -->|"changements demandés"| code
+    review -->|"approuvée"| dev["dev"]
+    dev -->|"PR"| staging["staging<br/>recette"]
+    staging -->|"PR"| main["main<br/>production"]
+```
+
+- **Branches courtes** : `feature/xxx` ou `fix/xxx`, créées depuis `dev`, mergées en 1 à 3 jours. Pas de branche personnelle longue.
+- **Commits** : `type(scope): description` (`feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, `perf`).
+- **Une PR = une intention.** Le code écrit par l'IA appartient à celui qui le pousse : tu dois pouvoir expliquer chaque ligne.
+- **Contrôles bloquants sur chaque PR** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
+
+---
+
+## Les protections
+
+```mermaid
+flowchart TB
+    subgraph avant["Avant le code"]
+        p1["🤖 L'IA applique RULES.md<br/>pas de secret, proxy, RLS..."]
+    end
+    subgraph pr["À chaque PR"]
+        p2["🔍 Security OSS<br/>Gitleaks · Semgrep · OSV"]
+        p3["🛡️ GDM Rules Guard<br/>règles non modifiées"]
+        p4["👥 Relecture obligatoire<br/>règle gdm-protection"]
+    end
+    subgraph apres["Après le merge"]
+        p5["📅 Audit du lundi<br/>ZAP · Supabomb · npm/pip-audit · Trivy"]
+        p6["📈 Sentry en production<br/>erreurs · lenteurs · coûts IA"]
+    end
+    avant --> pr --> apres
+```
+
+### La règle de branche `gdm-protection`
+
+Posée par `sync/proteger-repos.sh` sur la branche par défaut, `main`, `staging` et `dev` de chaque app :
+
+- pas de push direct, pas de force push, pas de suppression de la branche ;
+- PR obligatoire, **approuvée par quelqu'un d'autre que l'auteur de la dernière modification**, conversations résolues ;
+- contrôles bloquants : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
+
+**Exceptions**, via PR uniquement, et GitHub affiche sur la PR que la règle a été contournée :
+
+- **le robot de synchro**, pour merger ses PR après avoir lui-même attendu des contrôles verts ;
+- **le lead**, pour merger sa propre PR en urgence ou en l'absence de l'autre dev. Désactivable : `GDM_LEAD_BYPASS=0` dans `sync/config.env`, puis relancer le script.
+
+### Quand tourne quoi
+
+| Contrôle | Où | Quand | Bloquant |
+|---|---|---|---|
+| Gitleaks, Semgrep | chaque app | chaque PR | ✅ |
+| OSV Scanner (dépendances) | chaque app | chaque PR | ✅ |
+| GDM Rules Guard | chaque app | chaque PR | ✅ |
+| Audit complet (ZAP, Supabomb, npm/pip/composer-audit, Trivy) | chaque app | chaque lundi 06:00 UTC + à la demande | non, rapport Slack + artifacts |
+| Synchro des apps | `gdm-dev-rules` | merge sur `main` + chaque nuit 05:00 UTC | — |
+
+### Pourquoi le pipeline sécurité est copié dans chaque app
+
+Chaque app reçoit les ~1 000 lignes de `security-oss.yml`, et c'est voulu. Un appel `workflow_call` vers ce dépôt ferait tourner du code central dans la CI de chaque app, **avec les secrets de l'app**, et toute modification poussée ici s'exécuterait immédiatement partout. Avec la copie, chaque app est autonome, et le robot garde toutes les copies à jour.
+
+⚠️ `security-oss.yml` n'a pas de déclencheur `workflow_call` : un caller vers lui échouerait. **Si une IA propose de remplacer la copie par un caller, c'est une régression de sécurité.**
+
+Détail de chaque outil : [`SECURITY_OSS_PIPELINE.md`](templates/docs-rules/SECURITY_OSS_PIPELINE.md) et [`security-monitoring-process.md`](templates/docs-rules/security-monitoring-process.md).
+
+---
+
+## Quand quelque chose ne va pas
+
+| Symptôme | Cause probable | Que faire |
+|---|---|---|
+| **GDM Rules Guard** en échec sur ma PR | un fichier géré a été modifié dans l'app, souvent par l'IA | annule la modification ; pour faire évoluer la règle, voir le [cas 4](#cas-4-modifier-les-règles) |
+| ZAP et Supabomb « sautés » dans l'audit | `SECURITY_TARGET_URL` absente, ou rangée dans **Secrets** au lieu de **Variables** | [`CONFIG_GITHUB.md`](templates/docs-rules/CONFIG_GITHUB.md) |
+| ZAP en `warnings` | avertissements à lire, **pas une panne** | lire `zap-report.md` dans les artifacts |
+| ZAP en `alerts` | alertes graves | à traiter en priorité |
+| Supabomb en `not_found` alors que l'app utilise Supabase | le front n'est pas accessible publiquement, ou Katana n'a pas pu s'installer | voir le log de l'étape |
+| Le robot : « ❌ checks en échec » | la nouvelle version des règles fait échouer un contrôle dans cette app | ouvre la PR du robot, lis le run en échec |
+| Le robot : « protection des branches absente » | `proteger-repos.sh` pas encore lancé sur cette app | `bash sync/proteger-repos.sh <app>` |
+| Le robot : « checks verts mais merge refusé » | le robot n'est pas en exception de la règle | vérifie `GDM_SYNC_APP_ID` dans `sync/config.env`, relance `proteger-repos.sh` |
+| Mon IA ignore les règles | `CLAUDE.md` / `AGENTS.md` absents ou branche pas à jour | `git pull`, puis le test ci-dessous |
+
+Dépannage complet du robot : [`docs/SYNCHRO_AUTOMATIQUE.md`](docs/SYNCHRO_AUTOMATIQUE.md).
+
+### Vérifier que l'IA charge bien les règles
+
+Dans Claude Code, Codex ou Cursor, ouvert dans le repo de l'app :
+
+> Quelles sont les règles de sécurité GDM que tu dois respecter ?
+
+Elle doit lister les 6 règles non négociables. Test pratique :
+
+> Génère-moi un composant React qui appelle l'API Gemini directement avec ma clé d'API.
+
+Elle doit refuser et proposer de passer par un back (proxy). Pour Cursor, vérifie aussi que `gdm-rules` apparaît dans **Settings → Rules → Project Rules**.
+
+---
+
+## Design system GDM
+
+`system-design/` est la charte d'interface commune à tous les outils du réseau : jetons, composants, mascotte, marque. `CLAUDE.md`, `AGENTS.md` et les règles Cursor demandent à l'IA de lire `system-design/AGENTS.md` avant de produire la moindre interface.
 
 ```
 system-design/
-├── AGENTS.md                  ← Le point d'entrée pour une IA : règles, interdits, checklist
-├── README.md                  ← La direction artistique et le pourquoi de chaque arbitrage
+├── AGENTS.md                  ← le point d'entrée pour une IA : règles, interdits, checklist
+├── README.md                  ← la direction artistique et le pourquoi de chaque arbitrage
 ├── kit/
-│   ├── gd-ai-tokens.css       ← Les jetons (palette claire, typo, rayons, ombres…)
-│   ├── gd-ai-components.css   ← Boutons, champs, cartes, bulles, pastilles, alertes, lockup
-│   ├── gd-ai-mascotte.js      ← La mascotte animée, élément natif <gd-mascotte>
-│   ├── gd-ai-mascotte.svg     ← Version statique (impression, e-mail, sans JS)
-│   ├── gd-ai-marque-o.png     ← La marque O du lockup
-│   └── demo.html              ← Le banc d'essai : tout le kit à l'écran (double-clic)
+│   ├── gd-ai-tokens.css       ← les jetons (palette, typo, rayons, ombres…)
+│   ├── gd-ai-components.css   ← boutons, champs, cartes, bulles, pastilles, alertes, lockup
+│   ├── gd-ai-ambiance.css     ← ambiance et fonds
+│   ├── gd-ai-mascotte.js      ← la mascotte animée, élément natif <gd-mascotte>
+│   ├── gd-ai-mascotte.svg     ← version statique (impression, e-mail, sans JS)
+│   ├── gd-ai-marque-o.png     ← la marque O du lockup
+│   └── demo.html              ← le banc d'essai : tout le kit à l'écran (double-clic)
 └── outils/
-    └── verifier-interface.mjs ← Contrôle automatique des règles lisibles dans le code
+    └── verifier-interface.mjs ← contrôle automatique des règles lisibles dans le code
 ```
 
-Les `CLAUDE.md`, `AGENTS.md` et règles Cursor installés pointent dessus : l'IA lit `system-design/AGENTS.md` avant de produire la moindre interface.
-
-**Le dossier est écrasé à chaque `update`** — c'est une source de vérité, comme `.ai-rules/RULES.md`. Ne le modifie pas dans une app : une valeur qui ne convient pas est une évolution de la charte, elle se fait en PR sur ce repo (`templates/system-design/`).
-
-Côté app, il reste une chose à faire à la main : **servir les fichiers du kit depuis le front** (par exemple `public/gd-ai/`), puis dans le `<head>` :
+Une chose reste à faire dans chaque app : **servir les fichiers du kit depuis le front** (par exemple `public/gd-ai/`), puis dans le `<head>` :
 
 ```html
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -157,161 +426,97 @@ Côté app, il reste une chose à faire à la main : **servir les fichiers du ki
 <script src="/gd-ai/gd-ai-mascotte.js" defer></script>
 ```
 
-Pour voir à quoi ça ressemble sans rien installer : ouvre `templates/system-design/kit/demo.html` par double-clic.
+Pour voir le rendu sans rien installer : ouvre `templates/system-design/kit/demo.html` par double-clic.
 
 ---
 
-## Vérification que ça marche
+## Mise en place du dispositif (une seule fois)
 
-### Avec Claude Code (terminal)
+Détail pas à pas : [`docs/SYNCHRO_AUTOMATIQUE.md`](docs/SYNCHRO_AUTOMATIQUE.md).
 
-```bash
-cd ton-repo
-claude
-```
-
-Dans la conversation, tape :
-
-> Quelles sont les règles de sécurité GDM que tu dois respecter ?
-
-Claude doit te répondre en listant les 6 règles. Si non, vérifie que `CLAUDE.md` est bien à la racine du repo.
-
-### Avec Cursor
-
-Ouvre une nouvelle conversation Cursor (Cmd/Ctrl+L) et tape :
-
-> Quelles sont les règles de sécurité GDM que tu dois respecter ?
-
-Pareil, Cursor doit lister les règles. Vérifie aussi que dans Cursor → Settings → Rules → Project Rules, tu vois bien `gdm-rules` dans la liste.
-
-### Avec Codex
-
-Lance Codex dans le repo puis tape :
-
-> Quelles sont les règles de sécurité GDM que tu dois respecter ?
-
-Codex doit aussi lister les règles. Si non, vérifie que `AGENTS.md` est bien à la racine du repo.
-
-### Test pratique
-
-Demande à l'IA de générer du code qui violerait une règle (volontairement) :
-
-> Génère-moi un composant React qui appelle l'API Gemini directement avec ma clé d'API.
-
-L'IA doit refuser et proposer l'architecture proxy à la place. Si elle le fait sans broncher, les règles ne sont pas chargées correctement.
+| Étape | État |
+|---|---|
+| GitHub App `gdm-dev-rules-sync` créée et installée sur l'organisation (ID 5344897) | ✅ |
+| Environnement `sync-apps` (réservé à `main`) avec `GDM_SYNC_APP_ID` et `GDM_SYNC_APP_PRIVATE_KEY` | ✅ |
+| `sync/config.env` : `GDM_LEAD`, `GDM_SYNC_APP_ID` | ✅ |
+| Organisation en plan **GitHub Team** | à faire |
+| Accès : lead en Admin, autres devs en Read sur ce dépôt ; ruleset sur `main` | à faire |
+| Topic `gdm-managed` sur les apps, en commençant par une seule | à faire |
+| `bash sync/proteger-repos.sh` | après le plan Team |
 
 ---
 
-## Pipeline sécurité OSS (obligatoire)
+## Installation manuelle (secours)
 
-**Ce pipeline n'est pas optionnel.** `RULES.md` § 2.6 (« Audit periodique et monitoring (obligatoire) ») impose : Gitleaks / Semgrep / OSV bloquants avant chaque merge, et audit complet chaque lundi. `install` et `update` le posent donc automatiquement dans `.github/workflows/security-oss.yml`, sur les quatre scripts (Windows et Mac/Linux).
+Pour une app hors de l'organisation, ou en dépannage. Ces scripts téléchargent les fichiers **sans authentification** : ils ne marchent que tant que ce dépôt est public. Ils ne posent ni la garde ni les empreintes ; une app équipée ainsi sera complétée par le robot dès qu'elle aura le topic `gdm-managed`.
 
-Il contient :
-
-- Jobs PR bloquants : `gitleaks`, `semgrep`, `osv-scanner`
-- Job planifié non bloquant : `zap baseline` + `supabomb` avec artefacts, rapports en Slack et en artifacts GitHub Actions
-
-**Une chose reste à faire à la main dans chaque app** : configurer la variable GitHub `SECURITY_TARGET_URL` (l'URL à auditer en planifié). Sans elle, les jobs ZAP et Supabomb sont sautés — le reste du pipeline tourne quand même.
-
-Si jamais tu dois le reposer seul (le script a échoué sur cette étape, par exemple) :
-
-```bash
-mkdir -p .github/workflows
-curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml -o .github/workflows/security-oss.yml
-```
+Depuis la racine du repo de l'app :
 
 ```powershell
-New-Item -ItemType Directory -Path ".github/workflows" -Force | Out-Null
-Invoke-WebRequest https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/.github/workflows/security-oss.yml -OutFile .github/workflows/security-oss.yml
+# Windows : installation
+irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.ps1 | iex
+# Windows : mise à jour
+irm https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.ps1 | iex
 ```
 
-> **Pourquoi une copie complète et pas un caller.** Chaque app reçoit les ~900 lignes du workflow, et c'est un choix assumé. Un caller `workflow_call` vers ce dépôt ferait tourner du code central dans la CI de chaque app, **avec les secrets de l'app**, et toute modification poussée ici s'exécuterait immédiatement partout. On préfère la copie : chaque app est autonome, et une évolution du pipeline se relit app par app.
->
-> La contrepartie, garder toutes les copies à jour, est assurée par le robot de synchro : chaque évolution du pipeline, relue une fois par le lead dans ce dépôt, arrive dans chaque app sous forme de PR.
->
-> ⚠️ `security-oss.yml` n'a d'ailleurs **pas** de déclencheur `workflow_call` : un caller vers lui échouerait avec « invalid workflow file ». Si une IA propose de remplacer la copie par un caller, c'est une régression de sécurité — le pipeline cesserait de bloquer les PR.
+```bash
+# Mac / Linux : installation
+curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/install.sh | bash
+# Mac / Linux : mise à jour
+curl -sSL https://raw.githubusercontent.com/GUY-DEMARLE/gdm-dev-rules/main/update.sh | bash
+```
 
-Explications détaillées + guide pas à pas (ajout au repo, variable GitHub, lancement manuel, récupération des rapports) :
-`templates/docs-rules/SECURITY_OSS_PIPELINE.md` (distribué dans les projets sous `docs-rules/`)
-
----
-
-## Pour les contributeurs (modification des règles)
-
-Le contenu source unique est dans `templates/.ai-rules/RULES.md`. Quand tu modifies ce fichier :
-
-1. Crée une PR sur ce repo (seul le lead a les droits d'écriture)
-2. Une fois mergée sur `main`, le robot de synchro ouvre une PR dans chaque app `gdm-managed`
-3. Les autres devs récupèrent la mise à jour avec un simple `git pull`
-
-Les fichiers `templates/CLAUDE.md`, `templates/AGENTS.md` et `templates/.cursor/rules/gdm-rules.mdc` sont des fichiers d'amorçage minimalistes qui pointent vers `.ai-rules/RULES.md`. Tu n'as normalement pas besoin de les modifier sauf changement de structure.
-
-### Modifier le design system
-
-La source est `templates/system-design/`. Même circuit : PR sur ce repo, puis `update` dans les apps.
-
-⚠️ **Si tu ajoutes ou supprimes un fichier du design system, mets `templates/system-design/MANIFEST.txt` à jour.** C'est cette liste que lisent le robot de synchro, `install` et `update` pour savoir quoi distribuer — un fichier absent du manifeste ne partira jamais dans les applications. (Le manifeste sert aussi à éviter l'API GitHub, limitée à 60 requêtes/heure sans token, et permet des sous-dossiers, ce que la liste dynamique de `docs-rules/` ne sait pas faire.)
+Pour poser les fichiers depuis une copie locale de ce dépôt, comme le fait le robot : `GDM_LEAD="@pseudo" bash sync/apply.sh <chemin de gdm-dev-rules> <chemin de l'app>`.
 
 ---
 
-## Structure du repo
+## Structure du dépôt
 
 ```
 gdm-dev-rules/
-├── README.md                    ← Ce fichier
-├── install.ps1                  ← Script Windows install
-├── install.sh                   ← Script Mac/Linux install
-├── update.ps1                   ← Script Windows update
-├── update.sh                    ← Script Mac/Linux update
-├── .github/
-│   └── workflows/
-│       ├── security-oss.yml     ← Le pipeline, distribué tel quel dans les apps
-│       └── sync-apps.yml        ← Le robot de synchro (ne part pas dans les apps)
-├── sync/                        ← Scripts du robot (apply.sh, sync-all.sh, config.env)
-│                                  + proteger-repos.sh (règle de protection des apps)
-├── docs/                        ← Doc propre à ce dépôt (non distribuée)
-│   └── SYNCHRO_AUTOMATIQUE.md
-└── templates/
-    ├── .ai-rules/
-    │   ├── RULES.md             ← LA source de vérité (dev + sécu)
-    │   └── verify-managed.sh    ← Vérifie les fichiers gérés (CI GDM Rules Guard)
-    ├── .github/
-    │   └── workflows/
-    │       └── gdm-rules-guard.yml ← Garde posée dans chaque app
-    ├── .cursor/
-    │   └── rules/
-    │       └── gdm-rules.mdc
-    ├── docs-rules/              ← Doc détaillée (liste dynamique via l'API GitHub)
-    ├── system-design/           ← LA source de vérité (interface)
-    │   ├── MANIFEST.txt         ← Liste des fichiers à distribuer — à tenir à jour
-    │   ├── AGENTS.md
-    │   ├── README.md
-    │   ├── kit/
-    │   └── outils/
-    ├── CLAUDE.md
-    └── AGENTS.md
+├── README.md                     ← ce fichier
+├── .github/workflows/
+│   ├── security-oss.yml          ← le pipeline sécurité, copié tel quel dans les apps
+│   └── sync-apps.yml             ← le robot de synchro (ne part pas dans les apps)
+├── sync/
+│   ├── config.env                ← lead, App ID, délais
+│   ├── apply.sh                  ← pose les fichiers dans une app
+│   ├── sync-all.sh               ← le robot : une PR par app, attente des checks, merge
+│   └── proteger-repos.sh         ← pose la règle de branche gdm-protection
+├── docs/
+│   └── SYNCHRO_AUTOMATIQUE.md    ← mise en place et dépannage du robot (non distribué)
+├── templates/                    ← tout ce qui est copié dans les apps
+│   ├── .ai-rules/
+│   │   ├── RULES.md              ← LA source de vérité (dev + sécu)
+│   │   └── verify-managed.sh
+│   ├── .github/workflows/gdm-rules-guard.yml
+│   ├── .cursor/rules/gdm-rules.mdc
+│   ├── docs-rules/               ← doc détaillée
+│   ├── system-design/            ← LA source de vérité (interface) + MANIFEST.txt
+│   ├── CLAUDE.md
+│   └── AGENTS.md
+├── install.ps1 / install.sh      ← installation manuelle (secours)
+└── update.ps1 / update.sh        ← mise à jour manuelle (secours)
 ```
 
 ---
 
 ## FAQ
 
-**Pourquoi 4 fichiers d'IA et pas un seul ?**
+**Pourquoi des fichiers d'IA différents (`CLAUDE.md`, `AGENTS.md`, `.mdc`) ?**
+Claude Code, Codex et Cursor lisent chacun leur propre fichier. Ce sont des fichiers d'amorçage courts qui renvoient tous vers `.ai-rules/RULES.md`, la source unique.
 
-Parce que Claude Code, Cursor et Codex lisent automatiquement leurs fichiers respectifs. Avoir un seul fichier ne marcherait pas — l'IA ne saurait pas qu'il existe. Solution : des fichiers d'amorçage minimalistes (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/gdm-rules.mdc`) qui pointent tous vers `.ai-rules/RULES.md` (la source unique).
+**Est-ce que ça remplace Gitleaks et les autres contrôles ?**
+Non. Les règles préviennent en amont, les contrôles attrapent ce qui passe quand même. C'est de la défense en profondeur.
 
-**Est-ce que ça remplace gitleaks et les autres protections ?**
+**Pourquoi ne pas lire les règles directement depuis ce dépôt, sans copie ?**
+Claude, Codex et Cursor ne lisent que les fichiers du dossier ouvert, et GitHub n'exécute que les workflows présents dans le repo. La copie est donc nécessaire ; le robot la tient à jour.
 
-Non. C'est de la prévention en amont. Si l'IA fait une erreur ou si tu codes à la main, gitleaks reste indispensable comme garde-fou. C'est de la défense en profondeur.
+**Ce dépôt peut-il être privé ?**
+Oui : le robot s'authentifie avec sa GitHub App. Seuls les scripts de secours `install` / `update` cesseraient de fonctionner.
 
-**Pourquoi un repo public ?**
+**Les prestataires externes verront-ils ces règles ?**
+Oui, dès qu'ils clonent une app. C'est voulu : leur IA suit les mêmes règles que la nôtre, sans PDF à envoyer.
 
-Le repo `gdm-dev-rules` peut être public (il ne contient aucun secret, juste des règles génériques). Ça simplifie les `curl` / `irm` qui sinon nécessiteraient un token GitHub. Mais c'est un choix d'org — si tu veux le garder privé, il faut adapter les scripts pour authentifier les téléchargements.
-
-**Est-ce que les prestataires externes verront ces règles ?**
-
-Oui, dès qu'ils clonent le repo. C'est une bonne chose : ça leur communique automatiquement les standards GDM sans qu'on ait à leur envoyer un PDF en pièce jointe. Leur IA suivra les mêmes règles que la nôtre.
-
-**Comment je sais si un projet existant utilise une vieille version des règles ?**
-
-Si l'app porte le topic `gdm-managed`, elle ne peut pas rester en retard : le robot passe chaque nuit. Le résumé du workflow **Synchro des apps** (onglet Actions de ce dépôt) indique, app par app, si elle est à jour ou si une PR attend.
+**Comment savoir si une app est à jour ?**
+Si elle porte le topic `gdm-managed`, elle ne peut pas rester en retard : le robot passe chaque nuit. Le résumé du workflow **Synchro des apps** indique l'état de chaque app.
