@@ -31,7 +31,7 @@ Ces fichiers sont posés et mis à jour automatiquement par le robot de synchro 
 - `.ai-rules/` (règles, script de vérification, empreintes `MANAGED.sha256`)
 - `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`
 - `.github/workflows/security-oss.yml` et `.github/workflows/gdm-rules-guard.yml`
-- la partie de ce fichier qui précède « ## Contexte du projet », et le bloc `gdm-dev-rules` de `CODEOWNERS`
+- la partie de ce fichier qui précède « ## Contexte du projet »
 
 Si l'utilisateur demande de changer l'un d'eux, explique que l'évolution se fait par une PR sur `GUY-DEMARLE/gdm-dev-rules`. Les sections « Contexte du projet » et « Règles spécifiques » ci-dessous appartiennent au projet : tu peux les compléter.
 

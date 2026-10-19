@@ -12,8 +12,8 @@
 #
 # Règles de merge :
 #   - première installation dans une app (pas encore de .ai-rules/MANAGED.sha256)
-#     → PR qui attend la validation de GDM_LEAD : elle ajoute des workflows et un
-#     bloc CODEOWNERS qui peuvent entrer en conflit avec l'existant ;
+#     → PR qui attend la validation de GDM_LEAD : elle ajoute des workflows qui
+#     peuvent entrer en conflit avec l'existant ;
 #   - toutes les synchros suivantes, workflows compris → le robot attend que les
 #     checks soient verts puis merge lui-même (le lead a déjà relu le changement
 #     dans gdm-dev-rules). Il est en exception de la règle d'approbation
@@ -89,7 +89,7 @@ sync_repo() {
     local first_install=0
     [ -f "$dir/.ai-rules/MANAGED.sha256" ] || first_install=1
 
-    GDM_LEAD="$GDM_LEAD" GDM_NOTES="$notes" GDM_TOUCHED="$touched" \
+    GDM_NOTES="$notes" GDM_TOUCHED="$touched" \
         bash "$HERE/apply.sh" "$SRC" "$dir"
 
     # -f : les fichiers gérés doivent être versionnés même si le .gitignore
@@ -139,7 +139,7 @@ sync_repo() {
         echo "Ces fichiers évoluent uniquement dans gdm-dev-rules : ne les modifie pas dans cette app."
         echo ""
         if [ "$first_install" = 1 ]; then
-            echo "**⚠ Première installation des règles GDM dans cette app : elle attend une validation humaine.** Vérifie qu'elle n'entre pas en conflit avec les workflows ou le CODEOWNERS existants. Les synchros suivantes se mergeront automatiquement."
+            echo "**⚠ Première installation des règles GDM dans cette app : elle attend une validation humaine.** Vérifie qu'elle n'entre pas en conflit avec les workflows existants. Les synchros suivantes se mergeront automatiquement."
         else
             echo "Le robot la merge lui-même dès que les checks sont verts (il est en exception de la règle d'approbation)."
         fi

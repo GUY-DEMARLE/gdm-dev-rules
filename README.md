@@ -59,7 +59,6 @@ ton-app/
 │   └── gdm-rules-guard.yml    ← bloque toute modification locale des fichiers gérés
 ├── docs-rules/                ← doc GDM : setup, archi, sécu, hébergement, config GitHub
 ├── system-design/             ← design system GDM (jetons, composants, mascotte)
-├── CODEOWNERS                 ← bloc gdm-dev-rules ajouté en fin de fichier
 ├── CLAUDE.md                  ← lu par Claude Code
 └── AGENTS.md                  ← lu par Codex
 ```
@@ -70,7 +69,6 @@ ton-app/
 |---|---|---|
 | `CLAUDE.md` / `AGENTS.md`, à partir de `## Contexte du projet` | ✅ oui, c'est la partie du projet | dans l'app, par PR |
 | `CLAUDE.md` / `AGENTS.md`, partie au-dessus de `## Contexte du projet` | ❌ non | `templates/CLAUDE.md`, `templates/AGENTS.md` ici |
-| `CODEOWNERS`, hors bloc `gdm-dev-rules` | ✅ oui | dans l'app |
 | `.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/` | ❌ non | `templates/` ici |
 | `.github/workflows/security-oss.yml`, `gdm-rules-guard.yml` | ❌ non | `.github/workflows/security-oss.yml`, `templates/.github/` ici |
 | Tout le reste (le code de l'app) | ✅ oui | dans l'app, par PR |
@@ -200,7 +198,6 @@ Même chemin que le cas 1, à partir de l'**étape 3** : topic `gdm-managed`, ro
 À savoir avant de valider la PR d'installation :
 
 - Si l'app a déjà un `CLAUDE.md` ou un `AGENTS.md` **sans** section `## Contexte du projet`, le robot ne le touche pas et le signale dans la PR. Ajoute la section, en dessous de ce qui doit devenir la partie GDM.
-- Si l'app a déjà un `CODEOWNERS`, le robot ajoute son bloc à la fin et garde le reste.
 - **Le premier passage du pipeline sécurité peut remonter des alertes** qui existaient déjà sans être vues. Ce ne sont pas des régressions : traite-les comme n'importe quelle alerte.
 
 ---
@@ -214,7 +211,7 @@ flowchart LR
     old["App équipée à la main<br/>règles et workflow anciens"] -->|"topic gdm-managed"| robot["Robot"]
     robot --> r1["Règles, docs, design system,<br/>workflow sécurité<br/>➜ remplacés par la dernière version"]
     robot --> r2["CLAUDE.md et AGENTS.md<br/>➜ partie GDM remplacée<br/>➜ Contexte du projet conservé à l'identique"]
-    robot --> r3["Garde, empreintes, bloc CODEOWNERS<br/>➜ ajoutés"]
+    robot --> r3["Garde GDM Rules Guard et empreintes<br/>➜ ajoutées"]
     r1 --> pr["PR d'installation<br/>validée par le lead"]
     r2 --> pr
     r3 --> pr
