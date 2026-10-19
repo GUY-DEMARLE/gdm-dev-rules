@@ -6,7 +6,6 @@
 #   bash sync/apply.sh <dossier gdm-dev-rules> <dossier de l'app>
 #
 # Variables optionnelles :
-#   GDM_LEAD     propriétaire des fichiers gérés dans CODEOWNERS (ex : @pseudo)
 #   GDM_NOTES    fichier où écrire les remarques (reprises dans la PR)
 #   GDM_TOUCHED  fichier où lister les chemins posés ou supprimés (pour git add)
 #
@@ -15,7 +14,8 @@
 #     workflows Security OSS et GDM Rules Guard, script de vérification) ;
 #   - met à jour la partie GDM de CLAUDE.md / AGENTS.md en préservant
 #     « ## Contexte du projet » et tout ce qui suit ;
-#   - pose le bloc gdm-dev-rules dans CODEOWNERS sans toucher au reste ;
+#   - retire le bloc gdm-dev-rules que les anciennes versions posaient dans
+#     CODEOWNERS (fichier supprimé s'il ne contenait que ce bloc) ;
 #   - supprime les fichiers qui ne sont plus gérés (retirés de la source) ;
 #   - régénère .ai-rules/MANAGED.sha256, lu par la CI GDM Rules Guard.
 
@@ -31,7 +31,6 @@ DST=$(cd "$2" && pwd)
 TPL="$SRC/templates"
 NOTES="${GDM_NOTES:-/dev/null}"
 TOUCHED="${GDM_TOUCHED:-/dev/null}"
-LEAD="${GDM_LEAD:-}"
 MANIFEST_REL=".ai-rules/MANAGED.sha256"
 
 entries=()
@@ -66,41 +65,26 @@ merge_header() { # merge_header <template> <chemin dans l'app>
     managed header "$rel"
 }
 
-codeowners_block() {
-    if [ -z "$LEAD" ]; then
-        note "GDM_LEAD non configuré dans sync/config.env : bloc CODEOWNERS non posé."
-        return 0
-    fi
-    # GitHub lit le premier CODEOWNERS trouvé dans cet ordre : on réutilise
-    # celui qui existe déjà pour ne pas le masquer.
-    local rel=.github/CODEOWNERS c
+# Les premières versions du robot posaient un bloc gdm-dev-rules dans
+# CODEOWNERS. Abandonné : la relecture obligatoire (règle gdm-protection) et la
+# garde GDM Rules Guard font déjà le travail. On retire le bloc et on supprime
+# le fichier s'il ne contenait que lui ; le reste d'un CODEOWNERS est conservé.
+remove_codeowners_block() {
+    local c dst kept
     for c in .github/CODEOWNERS CODEOWNERS docs/CODEOWNERS; do
-        if [ -f "$DST/$c" ]; then rel=$c; break; fi
-    done
-    local dst="$DST/$rel" kept=""
-    mkdir -p "$(dirname "$dst")"
-    if [ -f "$dst" ]; then
+        dst="$DST/$c"
+        [ -f "$dst" ] || continue
+        grep -q '^# >>> gdm-dev-rules' "$dst" || continue
         kept=$(awk '/^# >>> gdm-dev-rules/{f=1} !f{print} /^# <<< gdm-dev-rules/{f=0}' "$dst")
-    fi
-    # Le bloc est en fin de fichier : dans CODEOWNERS, la dernière règle qui
-    # correspond l'emporte.
-    {
-        if [ -n "$kept" ]; then printf '%s\n\n' "$kept"; fi
-        cat <<EOF
-# >>> gdm-dev-rules : bloc géré automatiquement, ne pas modifier ici >>>
-/.ai-rules/ $LEAD
-/.cursor/rules/gdm-rules.mdc $LEAD
-/docs-rules/ $LEAD
-/system-design/ $LEAD
-/.github/workflows/security-oss.yml $LEAD
-/.github/workflows/gdm-rules-guard.yml $LEAD
-/CLAUDE.md $LEAD
-/AGENTS.md $LEAD
-/$rel $LEAD
-# <<< gdm-dev-rules <<<
-EOF
-    } > "$dst"
-    managed block "$rel"
+        if [ -z "$(printf '%s' "$kept" | tr -d '[:space:]')" ]; then
+            rm -f "$dst"
+            note "\`$c\` supprimé : il ne contenait que le bloc gdm-dev-rules, qui n'est plus utilisé."
+        else
+            printf '%s\n' "$kept" > "$dst"
+            note "Bloc gdm-dev-rules retiré de \`$c\` ; le reste du fichier est conservé."
+        fi
+        mark "$c"
+    done
 }
 
 # Fichiers gérés lors de la synchro précédente (pour supprimer ceux retirés).
@@ -137,8 +121,8 @@ done < "$TPL/system-design/MANIFEST.txt"
 merge_header "$TPL/CLAUDE.md" "CLAUDE.md"
 merge_header "$TPL/AGENTS.md" "AGENTS.md"
 
-# 6. CODEOWNERS : le lead valide toute modification des fichiers gérés
-codeowners_block
+# 6. Ancien bloc CODEOWNERS : retiré
+remove_codeowners_block
 
 # 7. Fichiers qui ne sont plus gérés : on les retire
 for old in ${previous[@]+"${previous[@]}"}; do

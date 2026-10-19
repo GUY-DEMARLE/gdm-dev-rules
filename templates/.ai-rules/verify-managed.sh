@@ -14,7 +14,6 @@
 #   full    fichier entier
 #   header  partie GDM de CLAUDE.md / AGENTS.md (tout ce qui précède
 #           « ## Contexte du projet », la suite appartient au projet)
-#   block   bloc « # >>> gdm-dev-rules … # <<< gdm-dev-rules » de CODEOWNERS
 #
 # Les retours chariot (\r) sont ignorés : un poste Windows en CRLF ne déclenche
 # pas de faux positif.
@@ -35,7 +34,6 @@ gdm_hash() {
     case "$mode" in
         full)   cat -- "$path" ;;
         header) awk '/^## Contexte du projet/{exit} {print}' "$path" ;;
-        block)  awk '/^# >>> gdm-dev-rules/{f=1} f{print} /^# <<< gdm-dev-rules/{f=0}' "$path" ;;
         *)      echo "mode inconnu : $mode" >&2; return 2 ;;
     esac | tr -d '\r' | sha
 }
@@ -69,7 +67,6 @@ while read -r expected mode path; do
     if [ "$actual" != "$expected" ]; then
         case "$mode" in
             header) what="la partie GDM (avant « ## Contexte du projet »)" ;;
-            block)  what="le bloc gdm-dev-rules" ;;
             *)      what="le fichier" ;;
         esac
         echo "::error file=$path::$path : $what a été modifié localement. Ce contenu est géré par gdm-dev-rules : annule la modification. Pour faire évoluer la règle, ouvre une PR sur GUY-DEMARLE/gdm-dev-rules."

@@ -41,7 +41,6 @@ Il fonctionne sur **n'importe quelle app**, quelle que soit sa stack : il ne fai
 | `.github/workflows/gdm-rules-guard.yml` | écrasé : la CI qui bloque les modifications locales |
 | `.ai-rules/verify-managed.sh`, `.ai-rules/MANAGED.sha256` | script de vérification et empreintes des fichiers gérés |
 | `CLAUDE.md`, `AGENTS.md` | partie GDM mise à jour, **« ## Contexte du projet » et la suite préservés** |
-| `CODEOWNERS` | bloc `gdm-dev-rules` ajouté en fin de fichier, le reste du fichier n'est pas touché |
 
 Si un `CLAUDE.md` ou `AGENTS.md` existant n'a pas de section `## Contexte du projet`, le robot le laisse intact et le signale dans la PR.
 
@@ -63,7 +62,8 @@ Exceptions, via PR uniquement, et GitHub affiche sur la PR que la règle a été
 1. **Dans `gdm-dev-rules`** : seul le lead a les droits d'écriture, les autres devs sont en lecture seule.
 2. **Dans chaque app, la CI « GDM Rules Guard »** compare les fichiers gérés à leurs empreintes. Une modification locale, par un dev ou par son IA, fait échouer la PR, et ce check est bloquant.
 3. **Le robot répare** : même si une modification passe, la synchro suivante, au plus tard la nuit d'après, remet l'original.
-4. **Le bloc CODEOWNERS** ajoute automatiquement le lead en relecteur de toute PR qui touche ces fichiers.
+
+> Pas de `CODEOWNERS` : avec la relecture obligatoire par l'autre dev (règle `gdm-protection`) et la garde, il ne ferait que doubler les notifications. Les premières versions du robot en posaient un ; il le retire désormais. À réintroduire si l'équipe grandit et qu'une PR peut être approuvée sans le lead.
 
 ---
 
@@ -128,7 +128,7 @@ Sur chaque repo d'app : page d'accueil du repo → roue dentée à côté de **A
 
 1. `gdm-dev-rules` → **Actions** → **Synchro des apps** → **Run workflow**, coche **Simulation**. Le résumé liste, pour chaque app, ce qui changerait.
 2. Si c'est bon, relance sans la simulation.
-3. La première PR de chaque app (installation) attend ta validation : vérifie qu'elle n'entre pas en conflit avec les workflows ou le CODEOWNERS existants, approuve-la et merge-la.
+3. La première PR de chaque app (installation) attend ta validation : vérifie qu'elle n'entre pas en conflit avec les workflows existants, approuve-la et merge-la.
 
 ### 8. Poser la protection dans toutes les apps
 

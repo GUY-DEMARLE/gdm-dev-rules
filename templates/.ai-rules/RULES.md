@@ -197,7 +197,7 @@ Quand tu proposes ou modifies du code :
 12. Au démarrage d'un projet, proposer le bon couple stack/hébergement : API Supabase PostgREST/Edge par défaut (Render seulement si logique lourde), front statique → Gandi FTP, front avec rendu serveur → Vercel. Rappeler que sur Gandi + Supabase en accès direct, les RLS sont l'unique barrière (cf. `HEBERGEMENT_GANDI.md`).
 13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder, consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit.
 14. Au debut de chaque session : `git fetch` puis `git status -sb`. Si la branche est en retard sur son origine ou sur `origin/dev`, rappeler a l'utilisateur de faire `git pull` (ou de rebaser sur `dev`) avant de coder. Ne pas le faire a sa place sans accord.
-15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`, bloc `gdm-dev-rules` de `CODEOWNERS`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
+15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
 
 ## 6) Stack et conventions (rappel)
 

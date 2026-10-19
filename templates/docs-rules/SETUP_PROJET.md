@@ -89,7 +89,6 @@ ton-repo/
 │   └── gdm-rules-guard.yml   ← Bloque toute modification locale des fichiers gérés
 ├── docs-rules/               ← Doc GDM détaillée (dont ce fichier)
 ├── system-design/            ← Design system GDM
-├── CODEOWNERS                ← Bloc gdm-dev-rules ajouté en fin de fichier
 ├── CLAUDE.md                 ← Lu automatiquement par Claude Code
 └── AGENTS.md                 ← Lu automatiquement par Codex
 ```
