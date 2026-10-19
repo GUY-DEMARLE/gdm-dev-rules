@@ -198,6 +198,7 @@ Quand tu proposes ou modifies du code :
 13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder, consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit.
 14. Au debut de chaque session : `git fetch` puis `git status -sb`. Si la branche est en retard sur son origine ou sur `origin/dev`, rappeler a l'utilisateur de faire `git pull` (ou de rebaser sur `dev`) avant de coder. Ne pas le faire a sa place sans accord.
 15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
+16. Appliquer la section 7 (tests et CI) a chaque fonctionnalite et chaque correctif : ecrire les tests dans la meme PR, ne jamais affaiblir ni supprimer un test pour le faire passer, et creer ou adapter le `ci.yml` de l'app a partir de `docs-rules/TESTS_CI.md` s'il manque.
 
 ## 6) Stack et conventions (rappel)
 
@@ -214,13 +215,65 @@ Quand tu proposes ou modifies du code :
 - **Repo** : `gdm-<type>-<nom>` sous `GUY-DEMARLE`.
 - **Interface** : design system GDM obligatoire (`system-design/` a la racine, pose par `gdm-dev-rules`). Jetons `var(--gd-*)` et composants du kit, aucune valeur en dur, aucune librairie de composants empilee par-dessus.
 
-## 7) References
+## 7) Tests et CI
+
+Code ecrit avec l'IA = code que personne n'a tape : les tests sont le moyen de le verifier vite. Detail, outils et modeles de `ci.yml` : `TESTS_CI.md`.
+
+### 7.1 Quand ecrire des tests
+
+- Chaque nouvelle fonctionnalite arrive avec ses tests, **dans la meme PR**.
+- Chaque correction de bug commence par un test qui **reproduit le bug** (il echoue), puis le correctif le fait passer : le bug ne peut plus revenir.
+- Une PR n'est pas prete tant que les tests ne passent pas en local et en CI.
+
+### 7.2 Quoi tester en priorite (obligatoire)
+
+- Authentification et droits : qui peut lire, modifier, supprimer quoi (cas autorise ET cas refuse).
+- Policies RLS Supabase : un utilisateur ne voit pas les donnees d'un autre (cf. regle 1.2).
+- Proxys vers les services tiers : validation des entrees, limites, parametres couteux verrouilles (cf. regle 1.6).
+- Tout ce qui ecrit des donnees ou touche a l'argent.
+- Le parcours principal de l'app, de bout en bout (Playwright), sur le chemin critique uniquement.
+
+Pyramide des tests : beaucoup de tests unitaires (rapides), des tests d'integration sur les points ci-dessus, tres peu de tests de bout en bout (lents et fragiles).
+
+### 7.3 Interdits pour l'IA
+
+- Ne jamais affaiblir, supprimer, desactiver (`skip`, `xfail`, `.only` oublie) ou contourner un test pour le faire passer. Si un test casse : corriger le code, ou expliquer a l'utilisateur pourquoi le test est faux et attendre son accord.
+- Ne pas simuler (mock) ce qui est justement teste. On simule les frontieres : API externes, horloge, hasard.
+- Un test doit echouer sans le code qu'il verifie ; sinon il ne prouve rien.
+- Pas de vraies donnees, pas de vrais secrets, pas d'appel reseau reel dans les tests (tests hermetiques). Donnees de test fabriquees, cles factices.
+- Pas de test « snapshot » seul pour valider une logique metier.
+- Un test instable (flaky) se corrige ou se met en quarantaine tout de suite, avec une issue : on ne s'habitue jamais au rouge.
+
+### 7.4 CI rapide (objectif : moins de 10 minutes par PR)
+
+- `timeout-minutes` sur chaque job (15 par defaut) : rien ne tourne 45 minutes.
+- Jobs independants **en parallele** : lint, typage, tests front, tests back, build ; pas de `needs` entre eux.
+- Tests paralleles a l'interieur : Vitest (par defaut), `pytest -n auto` (pytest-xdist), workers Playwright ; `--shard` sur plusieurs machines si la suite E2E grossit.
+- Sur chaque PR : tests unitaires + integration + E2E du chemin critique. Suite E2E complete la nuit ou avant une release vers `main`.
+- Cache des dependances (`cache: npm`, `cache: pip`).
+- `concurrency` avec `cancel-in-progress` : un nouveau push annule le run precedent de la meme PR.
+- Un job final nomme **`Tests`** agrege tous les jobs de tests : c'est le controle a rendre obligatoire dans la protection des branches.
+
+### 7.5 Outils par defaut
+
+| Cible | Outil |
+|---|---|
+| Front React/Vite, Node | Vitest (+ Testing Library pour les composants) |
+| API Python | pytest (+ pytest-xdist) |
+| PHP | PHPUnit |
+| De bout en bout | Playwright |
+| RLS Supabase | tests SQL (pgTAP / `supabase test db`) |
+
+Couverture : mesurer la couverture **du code modifie** dans la PR, pas viser un pourcentage global.
+
+## 8) References
 
 - `SETUP_MACHINE.md` (setup poste dev)
 - `SETUP_PROJET.md` (setup projet)
 - `ARCHITECTURE_SECURITE_GDM.md` (reference complete)
 - `HEBERGEMENT_GANDI.md` (hebergement Gandi FTP : quand le choisir, deploiement, securite)
 - `SECURITY_OSS_PIPELINE.md` (workflow GitHub Actions Security OSS)
+- `TESTS_CI.md` (tests : quoi, comment, modeles de `ci.yml` rapides et paralleles)
 - `CONFIG_GITHUB.md` (liste des Variables et Secrets GitHub a creer, et dans quel onglet ; reglages du repo). Si un workflow saute une etape faute de configuration, commencer par ce doc.
 - `security-monitoring-process.md` (process Security OSS + Sentry)
 - `system-design/AGENTS.md` (design system GDM : jetons, composants, mascotte, checklist interface ; direction artistique complete dans `system-design/README.md`)

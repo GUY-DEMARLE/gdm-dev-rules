@@ -389,6 +389,12 @@ Si tu veux tester le blocage, pousse une branche test avec un faux secret dans u
 
 ---
 
+### CI de tests (à côté de Security OSS)
+
+Security OSS cherche les failles ; il ne lance pas les tests de l'app. Crée aussi `.github/workflows/ci.yml` à partir du modèle adapté de **`TESTS_CI.md`** (Vite/Node, Python, front + API, PHP) : jobs en parallèle, moins de 10 minutes, contrôle final `Tests`. Ce fichier appartient à l'app.
+
+---
+
 ## 7. Branch protection rules
 
 **Pourquoi** : empêcher tout push direct sur `main` et `staging`. Les modifications passent par PR, avec review et CI qui doivent valider avant merge.
