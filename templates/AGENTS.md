@@ -17,6 +17,7 @@ Les règles GDM arrivent dans ce repo par des PR automatiques : une copie locale
 - Les patterns de clés à reconnaître (Anthropic, Google, Stripe, AWS, JWT...)
 - Le comportement attendu de l'IA (jamais de clé en dur, proxy systématique, RLS dès la migration, etc.)
 - La stack technique recommandée et les conventions
+- Les règles de tests et de CI (§ 7) : tests dans chaque PR, jamais affaiblis pour passer, CI de moins de 10 minutes ; modèles dans `docs-rules/TESTS_CI.md`
 - Le process Security OSS : Gitleaks/Semgrep/OSV sur PR, audit hebdomadaire Slack, artifacts GitHub Actions
 - Le process Sentry : erreurs, performance, routes lentes, tokens et couts IA en production
 

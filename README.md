@@ -19,6 +19,7 @@ Ce dépôt contient les règles que Claude Code, Codex et Cursor appliquent quan
 | Accueillir un nouveau dev | lead | [Cas 5](#cas-5-un-nouveau-dev-arrive) |
 | Retirer une app du dispositif | lead | [Cas 6](#cas-6-retirer-une-app) |
 | Savoir comment on travaille au quotidien | tout le monde | [Le quotidien d'un dev](#le-quotidien-dun-dev) |
+| Savoir quels tests écrire et mettre en place la CI de tests d'une app | tout le monde | [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md) |
 | Savoir quelles Variables et quels Secrets créer sur GitHub | tout le monde | [`CONFIG_GITHUB.md`](templates/docs-rules/CONFIG_GITHUB.md) |
 | Comprendre une alerte ou un échec | tout le monde | [Quand quelque chose ne va pas](#quand-quelque-chose-ne-va-pas) |
 
@@ -88,7 +89,8 @@ flowchart TD
     E --> F["6 · Remplir le Contexte du projet<br/>dans CLAUDE.md et AGENTS.md"]
     F --> G["7 · Variables et Secrets GitHub<br/>CONFIG_GITHUB.md"]
     G --> H["8 · Le lead pose la protection<br/>proteger-repos.sh"]
-    H --> I["9 · Hébergement, Supabase, Sentry<br/>SETUP_PROJET.md"]
+    H --> T["9 · CI de tests<br/>TESTS_CI.md"]
+    T --> I["10 · Hébergement, Supabase, Sentry<br/>SETUP_PROJET.md"]
 ```
 
 ### 1. Créer le repo
@@ -174,7 +176,11 @@ bash sync/proteger-repos.sh gdm-app-exemple
 
 Ça pose la règle `gdm-protection` : pas de push direct, PR approuvée par une autre personne, contrôles bloquants. Voir [Les protections](#les-protections).
 
-### 9. Hébergement, base de données, monitoring
+### 9. CI de tests
+
+Copie le modèle qui correspond à l'app (Vite/Node, Python, front + API, PHP) depuis [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md) dans `.github/workflows/ci.yml`, puis adapte les commandes. Ce fichier appartient à l'app : le robot n'y touche pas. Tous les modèles finissent par un contrôle **`Tests`**, à rendre obligatoire dans la protection des branches une fois la CI stable.
+
+### 10. Hébergement, base de données, monitoring
 
 Suis [`SETUP_PROJET.md`](templates/docs-rules/SETUP_PROJET.md) à partir de l'étape 9 : Supabase avec RLS dès la première migration, Vercel / Render / Gandi, puis Sentry en production.
 
@@ -187,6 +193,7 @@ Suis [`SETUP_PROJET.md`](templates/docs-rules/SETUP_PROJET.md) à partir de l'é
 - [ ] `## Contexte du projet` rempli dans `CLAUDE.md` et `AGENTS.md`
 - [ ] `SLACK_WEBHOOK_URL` (Secret), `SECURITY_TARGET_URL` (Variable) une fois en ligne
 - [ ] `sync/proteger-repos.sh` lancé par le lead
+- [ ] CI de tests (`.github/workflows/ci.yml`) créée à partir d'un modèle de [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md), avec un contrôle final `Tests`
 - [ ] Supabase avec RLS, hébergement, Sentry
 
 ---
@@ -308,6 +315,7 @@ flowchart LR
 - **Branches courtes** : `feature/xxx` ou `fix/xxx`, créées depuis `dev`, mergées en 1 à 3 jours. Pas de branche personnelle longue.
 - **Commits** : `type(scope): description` (`feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, `perf`).
 - **Une PR = une intention.** Le code écrit par l'IA appartient à celui qui le pousse : tu dois pouvoir expliquer chaque ligne.
+- **Des tests dans chaque PR** : ceux de la fonctionnalité, ou un test qui reproduit le bug corrigé. Jamais un test supprimé ou assoupli pour passer. Détail : [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md).
 - **Contrôles bloquants sur chaque PR** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
 
 ---
