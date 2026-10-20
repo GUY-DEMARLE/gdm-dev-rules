@@ -13,9 +13,9 @@ Les règles GDM arrivent dans ce repo par des PR automatiques : une copie locale
 **Avant de générer du code ou de modifier ce projet, lis impérativement le fichier `.ai-rules/RULES.md`** à la racine. Il contient :
 
 - L'architecture imposée (front Vercel → back Render/Vercel/Supabase Edge → services tiers)
-- Les 6 règles non-négociables (gitleaks, RLS Supabase, branch protection, variables d'env, préfixes VITE_*, architecture front/back)
+- Les 6 règles non-négociables (gitleaks, GRANT + RLS Supabase, branch protection, variables d'env, préfixes VITE_*, architecture front/back)
 - Les patterns de clés à reconnaître (Anthropic, Google, Stripe, AWS, JWT...)
-- Le comportement attendu de l'IA (jamais de clé en dur, proxy systématique, RLS dès la migration, etc.)
+- Le comportement attendu de l'IA (jamais de clé en dur, proxy systématique, GRANT minimaux et RLS dès la migration, etc.)
 - La stack technique recommandée et les conventions
 - Les règles de tests et de CI (§ 7) : tests dans chaque PR, jamais affaiblis pour passer, CI de moins de 10 minutes ; modèles dans `docs-rules/TESTS_CI.md`
 - Le process Security OSS : Gitleaks/Semgrep/OSV sur PR, audit hebdomadaire Slack, artifacts GitHub Actions
@@ -52,7 +52,7 @@ Consignes pour les revues de code automatiques des pull requests (Codex, Claude 
 
 ### Accès et données
 
-- Toute nouvelle route, requête ou table : vérifier que l'utilisateur ne peut lire ou modifier que ce qui lui appartient. Le contrôle se fait côté serveur ; un identifiant d'utilisateur envoyé par le client ne prouve rien. Une table Supabase doit avoir RLS et ses policies dès la migration qui la crée.
+- Toute nouvelle route, requête ou table : vérifier que l'utilisateur ne peut lire ou modifier que ce qui lui appartient. Le contrôle se fait côté serveur ; un identifiant d'utilisateur envoyé par le client ne prouve rien. Une table Supabase doit avoir, dès la migration qui la crée, des GRANT minimaux et la RLS avec ses policies : signaler toute table créée sans GRANT, ou avec des GRANT plus larges que l'usage réel (surtout vers `anon`).
 
 ### Tests
 
