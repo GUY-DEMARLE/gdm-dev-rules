@@ -46,6 +46,22 @@ Le dossier `system-design/` est à la racine du repo. Il est posé et mis à jou
 - Direction artistique et justification des arbitrages : `system-design/README.md`.
 - Contrôle automatique avant de dire que c'est fini : `node system-design/outils/verifier-interface.mjs <dossier du front>`.
 
+## Code Review Rules
+
+Consignes pour les revues de code automatiques des pull requests (Codex, Claude `/code-review`). Ne signaler que des problèmes réels et concrets, avec le fichier et la ligne concernés.
+
+### Accès et données
+
+- Toute nouvelle route, requête ou table : vérifier que l'utilisateur ne peut lire ou modifier que ce qui lui appartient. Le contrôle se fait côté serveur ; un identifiant d'utilisateur envoyé par le client ne prouve rien. Une table Supabase doit avoir RLS et ses policies dès la migration qui la crée.
+
+### Tests
+
+- Signaler tout test supprimé, désactivé (`skip`, `xfail`, `.only`) ou assoupli, et toute fonctionnalité ou correction livrée sans test (`.ai-rules/RULES.md` section 7).
+
+### Secrets et architecture
+
+- Signaler tout secret écrit en dur (même en commentaire ou en exemple), toute valeur secrète dans `VITE_*`, `NEXT_PUBLIC_*` ou `REACT_APP_*`, et tout appel direct du front vers un service tiers sensible ou payant : il doit passer par le back.
+
 ## Contexte du projet
 
 <!-- À compléter par dev pour chaque projet : -->

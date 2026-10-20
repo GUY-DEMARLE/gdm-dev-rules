@@ -194,6 +194,7 @@ Suis [`SETUP_PROJET.md`](templates/docs-rules/SETUP_PROJET.md) à partir de l'é
 - [ ] `SLACK_WEBHOOK_URL` (Secret), `SECURITY_TARGET_URL` (Variable) une fois en ligne
 - [ ] `sync/proteger-repos.sh` lancé par le lead
 - [ ] CI de tests (`.github/workflows/ci.yml`) créée à partir d'un modèle de [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md), avec un contrôle final `Tests`
+- [ ] Revue IA Codex activée sur le dépôt (voir [La revue IA automatique](#la-revue-ia-automatique-codex))
 - [ ] Supabase avec RLS, hébergement, Sentry
 
 ---
@@ -330,6 +331,7 @@ flowchart TB
     subgraph pr["À chaque PR"]
         p2["🔍 Security OSS<br/>Gitleaks · Semgrep · OSV"]
         p3["🛡️ GDM Rules Guard<br/>règles non modifiées"]
+        p3b["🧠 Revue IA Codex<br/>commentaires sur la PR"]
         p4["👥 Relecture obligatoire<br/>règle gdm-protection"]
     end
     subgraph apres["Après le merge"]
@@ -338,6 +340,23 @@ flowchart TB
     end
     avant --> pr --> apres
 ```
+
+### La revue IA automatique (Codex)
+
+Sur chaque PR, Codex relit le code et commente directement les lignes concernées. Il ne bloque rien et n'approuve rien : c'est une première passe, avant ta relecture. Il applique la section **`## Code Review Rules`** de l'`AGENTS.md` de l'app (posée par le robot, identique partout) : droits d'accès et RLS, tests supprimés ou assouplis, secrets et appels directs du front vers un tiers.
+
+À activer **une fois par app**, sur https://chatgpt.com/settings/code-review → choisir le dépôt → **Paramètres partagés du dépôt** :
+
+| Réglage | Valeur |
+|---|---|
+| Revue de code → Revue automatique | activée |
+| Revue de code → **Examiner** | **toutes les PR** (sinon seules les PR des personnes qui l'ont activé dans leurs préférences sont relues) |
+| Revue de code → Déclencheur | **À l'ouverture d'une PR** |
+| Revue de code → Revue exhaustive | désactivée |
+| Sécurité → Revue de sécurité automatique | activée, **Examiner : toutes les PR**, déclencheur « À chaque exécution d'une revue de code » |
+| Sécurité → seuils | Élevé (automatique), Moyen (à la demande) |
+
+Le dépôt doit aussi être autorisé dans l'appli GitHub **ChatGPT Codex Connector** (organisation → Settings → GitHub Apps → Configure). Une revue à la demande : commenter `@codex review` sur la PR. N'active pas en plus une revue Claude automatique sur le même dépôt : deux robots qui commentent, c'est du bruit.
 
 ### La règle de branche `gdm-protection`
 
@@ -359,6 +378,7 @@ Posée par `sync/proteger-repos.sh` sur la branche par défaut, `main`, `staging
 | Gitleaks, Semgrep | chaque app | chaque PR | ✅ |
 | OSV Scanner (dépendances) | chaque app | chaque PR | ✅ |
 | GDM Rules Guard | chaque app | chaque PR | ✅ |
+| Revue IA Codex (code + sécurité) | chaque app où elle est activée | à l'ouverture de la PR, ou `@codex review` | non, commentaires seulement |
 | Audit complet (ZAP, Supabomb, npm/pip/composer-audit, Trivy) | chaque app | chaque lundi 06:00 UTC + à la demande | non, rapport Slack + artifacts |
 | Synchro des apps | `gdm-dev-rules` | merge sur `main` + chaque nuit 05:00 UTC | — |
 
