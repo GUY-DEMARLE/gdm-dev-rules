@@ -543,7 +543,7 @@ supabase link --project-ref <ref-du-projet>
 
 Va te demander le password DB que tu viens de noter.
 
-### Première migration avec RLS active
+### Première migration avec GRANT et RLS
 
 Crée une première migration :
 
@@ -564,6 +564,12 @@ CREATE TABLE public.profiles (
   created_at timestamptz DEFAULT now()
 );
 
+-- ✓ GRANT minimaux IMMÉDIATEMENT : depuis le 30/10/2026, sans GRANT,
+--   une nouvelle table n'est pas accessible par l'API Supabase.
+--   Ici le front lit et modifie le profil de l'utilisateur connecté :
+--   rien pour anon, pas d'INSERT ni de DELETE (le profil est créé côté serveur).
+GRANT SELECT, UPDATE ON public.profiles TO authenticated;
+
 -- ✓ RLS activée IMMÉDIATEMENT, pas en deuxième temps
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
@@ -577,10 +583,13 @@ CREATE POLICY "users_read_own_profile" ON public.profiles
 CREATE POLICY "users_update_own_profile" ON public.profiles
   FOR UPDATE
   TO authenticated
-  USING (auth.uid() = id);
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 ```
 
-**La règle absolue** : à chaque fois que tu créés une table dans une migration, ajoute immédiatement après `ALTER TABLE x ENABLE ROW LEVEL SECURITY` et au moins une policy. Ne reporte jamais à plus tard.
+**La règle absolue** : à chaque fois que tu crées une table dans une migration, ajoute dans la même migration les `GRANT` **minimaux** (seulement les rôles et opérations réellement utilisés), puis `ALTER TABLE x ENABLE ROW LEVEL SECURITY` et au moins une policy. Ne reporte jamais à plus tard. Ne recopie pas les trois `GRANT` de l'annonce Supabase (`anon` + `authenticated` + `service_role` sur tout) : détail et tableau des rôles dans `RULES.md` règle 1.2.
+
+Vérifie ensuite l'accès **depuis l'app** en local, après `supabase db reset` : une migration qui passe ne prouve pas que l'API peut lire la table (`permission denied` = un `GRANT` manque).
 
 ### Vérification que toutes les tables ont RLS
 

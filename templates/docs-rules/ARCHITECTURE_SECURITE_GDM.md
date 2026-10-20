@@ -241,9 +241,11 @@ Le détail technique du workflow est dans `SECURITY_OSS_PIPELINE.md`. La synthè
 
 **Checklist à chaque création de table Supabase** :
 
+- [ ] `GRANT` minimaux dans la même migration (depuis le 30/10/2026, sans `GRANT` la table n'est pas accessible par l'API) : seulement les rôles (`anon`, `authenticated`, `service_role`) et les opérations réellement utilisés ; jamais les trois `GRANT` de l'annonce Supabase par défaut (cf. `RULES.md` règle 1.2)
 - [ ] RLS activée dès la migration : `ALTER TABLE x ENABLE ROW LEVEL SECURITY`
 - [ ] Au moins une policy explicite (sinon DENY ALL par défaut)
 - [ ] La policy ne fait pas confiance au client (utiliser `auth.uid()`, pas un champ `user_id` du body)
+- [ ] Accès vérifié depuis l'app en local après `supabase db reset` (un `permission denied` signale un `GRANT` manquant : ajouter seulement celui-là)
 
 **Checklist à chaque création d'endpoint back qui appelle un service tiers** :
 

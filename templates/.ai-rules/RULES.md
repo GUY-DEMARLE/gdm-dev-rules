@@ -38,19 +38,52 @@ Détail complet : `HEBERGEMENT_GANDI.md`.
 - `gitleaks` doit bloquer localement + en CI.
 - **Jamais de clé en dur**, meme dans commentaires/exemples.
 
-### 1.2 Toute table Supabase a RLS active des la migration
+### 1.2 Toute table Supabase : GRANT explicites + RLS des la migration
 
-Chaque `CREATE TABLE` doit etre suivi de :
+Deux controles complementaires, a poser **dans la meme migration** que le `CREATE TABLE` :
+
+- **GRANT** : quel role peut faire quelle operation sur la table (lire, ajouter, modifier, supprimer).
+- **RLS** : sur quelles lignes ce role peut le faire.
+
+Depuis le 30/10/2026, Supabase n'accorde plus automatiquement l'acces Data API (supabase-js, PostgREST, GraphQL) aux nouvelles tables du schema `public` : sans GRANT, l'API repond `permission denied`. Cela vaut aussi quand une migration recree une table (nouveau projet, branche de preview, `supabase db reset`).
 
 ```sql
+CREATE TABLE public.ma_table (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+  contenu text
+);
+
+-- GRANT minimaux : uniquement les roles et operations reellement utilises
+GRANT SELECT, INSERT, UPDATE ON public.ma_table TO authenticated;
+
+-- RLS : chacun ne voit et ne modifie que ses lignes
 ALTER TABLE public.ma_table ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "policy_name" ON public.ma_table
+CREATE POLICY "lecture_ses_lignes" ON public.ma_table
   FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
+CREATE POLICY "ecriture_ses_lignes" ON public.ma_table
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "modification_ses_lignes" ON public.ma_table
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ```
 
-- Pas de "on ajoutera RLS plus tard".
+Choisir chaque role volontairement :
+
+| Role | Qui | GRANT seulement si… |
+|---|---|---|
+| `anon` | visiteur non connecte | un visiteur non connecte doit vraiment lire ou ecrire cette table (rare) |
+| `authenticated` | utilisateur connecte | le front accede a la table avec la session de l'utilisateur ; uniquement les operations faites |
+| `service_role` | back avec la cle serveur secrete | le back passe par l'API Supabase ; il contourne la RLS mais **pas** les GRANT |
+
+- Pas de "on ajoutera RLS / les droits plus tard".
 - Policy basee sur `auth.uid()`, jamais confiance a un `user_id` venant du client.
+- **Interdit** : recopier par defaut les trois GRANT de l'annonce Supabase (`anon` + `authenticated` + `service_role` sur toutes les operations), ou elargir un droit juste pour faire disparaitre un `permission denied`. On ajoute uniquement le droit qui manque, pour le role et l'operation concernes.
+- Une table reservee au back n'a aucun GRANT pour `anon` ni `authenticated`.
+- Non concernes : les acces directs a PostgreSQL (Prisma, connexion SQL), qui ne passent pas par la Data API.
+- Tables existantes : elles gardent leurs droits actuels. Retirer un droit inutile renforce la securite, mais seulement apres test en developpement (un droit retire peut casser une fonctionnalite) ; inscrire les droits conserves dans une nouvelle migration, sans modifier les migrations deja appliquees.
 
 ### 1.3 Pas de push direct sur `main` / `staging`
 
@@ -117,8 +150,10 @@ Production   -> Sentry surveille erreurs, latence, routes critiques et couts IA.
 
 ### 2.3 A chaque nouvelle table Supabase
 
+- GRANT minimaux dans la meme migration (regle 1.2) : quels roles, quelles operations.
 - RLS activee dans la meme migration.
 - Policies explicites ajoutees.
+- Verifier l'acces **via l'API** en developpement apres `supabase db reset` (lecture et ecriture depuis l'app) : une migration qui passe ne prouve pas que l'API peut atteindre la table.
 - Verification anti-regression des tables sans RLS (script SQL ou CI).
 
 ### 2.4 Avant chaque PR
@@ -186,7 +221,7 @@ Quand tu proposes ou modifies du code :
 1. Ne jamais ecrire de secret en dur.
 2. Refuser les secrets dans `VITE_*` / `NEXT_PUBLIC_*` / `REACT_APP_*`.
 3. Proposer un proxy back pour tout service tiers sensible.
-4. Activer RLS des la migration, avec policy.
+4. A chaque nouvelle table Supabase : GRANT minimaux et RLS avec policies, dans la meme migration (regle 1.2). Face a un `permission denied`, ajouter seulement le droit manquant, jamais les trois GRANT de l'annonce Supabase par defaut.
 5. Interdire les fallbacks client qui exposent la clé.
 6. Verifier les patterns de secret dans le code genere.
 7. Documenter les variables dans `.env.example` avec placeholders.
