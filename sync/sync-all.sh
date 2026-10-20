@@ -193,29 +193,51 @@ protection_note() {
     return 0
 }
 
+# Lit l'état des checks du dernier commit d'une PR, via l'API REST (droits
+# « Checks » et « Commit statuses » en lecture). Pas de `gh pr view --json
+# statusCheckRollup` : sa requête GraphQL demande aussi les workflows, ce que
+# l'App n'a pas le droit de lire (« Resource not accessible by integration »).
+# Affiche une liste de mots ok / pending / fail ; échoue si la lecture échoue.
+read_checks() {
+    local full=$1 sha=$2 runs statuses
+    runs=$(gh api "repos/$full/commits/$sha/check-runs?per_page=100&filter=latest" --jq '
+        [.check_runs[] |
+          if .status != "completed" then "pending"
+          elif (.conclusion == "success" or .conclusion == "neutral" or .conclusion == "skipped") then "ok"
+          else "fail" end] | join(" ")') || return 1
+    statuses=$(gh api "repos/$full/commits/$sha/status" --jq '
+        [.statuses[] |
+          if .state == "success" then "ok"
+          elif .state == "pending" then "pending"
+          else "fail" end] | join(" ")') || return 1
+    echo "$runs $statuses"
+}
+
 # Attend la fin des checks d'une PR.
-# Retour : 0 tout est vert, 1 au moins un check en échec, 2 délai dépassé.
+# Retour : 0 au moins un check et tous verts, 1 au moins un check en échec,
+# 2 délai dépassé (checks en cours, absents, ou illisibles).
+# Règle de sûreté : jamais de merge sur une erreur de lecture ni en l'absence
+# de check. Toute app gérée a au moins GDM Rules Guard : « aucun check » veut
+# dire « pas encore visible » ou « problème », jamais « rien à attendre ».
+# Le SHA vérifié est laissé dans CHECKED_SHA pour merger exactement ce commit.
 wait_checks() {
-    local full=$1 pr=$2 start=$SECONDS states
-    local timeout="${GDM_CHECKS_TIMEOUT:-1800}" poll="${GDM_POLL:-30}" grace="${GDM_CHECKS_GRACE:-180}"
+    local full=$1 pr=$2 start=$SECONDS states sha
+    local timeout="${GDM_CHECKS_TIMEOUT:-1800}" poll="${GDM_POLL:-30}"
+    CHECKED_SHA=""
     while :; do
-        states=$(gh pr view "$pr" -R "$full" --json statusCheckRollup --jq '
-            [.statusCheckRollup[] |
-              if .state != null then
-                (if .state == "SUCCESS" then "ok"
-                 elif (.state == "PENDING" or .state == "EXPECTED") then "pending"
-                 else "fail" end)
-              elif .status != "COMPLETED" then "pending"
-              elif (.conclusion == "SUCCESS" or .conclusion == "NEUTRAL" or .conclusion == "SKIPPED") then "ok"
-              else "fail" end] | join(" ")')
+        if sha=$(gh pr view "$pr" -R "$full" --json headRefOid --jq .headRefOid) \
+            && [ -n "$sha" ] && states=$(read_checks "$full" "$sha"); then
+            CHECKED_SHA=$sha
+        else
+            echo "  ⚠ $full#$pr : lecture des checks impossible, nouvel essai" >&2
+            states="pending"
+        fi
+        echo "  $full#$pr : checks = [$(echo $states)]" >&2
         case " $states " in
             *" fail "*) return 1 ;;
             *" pending "*) ;;
-            "  ")
-                # Aucun check encore enregistré : GitHub met quelques secondes à
-                # les créer. Passé le délai de grâce, il n'y en a simplement pas.
-                if [ $((SECONDS - start)) -ge "$grace" ]; then return 0; fi ;;
-            *) return 0 ;;
+            *ok*) return 0 ;;
+            *) ;; # aucun check visible : on attend, jamais de merge à l'aveugle
         esac
         if [ $((SECONDS - start)) -ge "$timeout" ]; then return 2; fi
         sleep "$poll"
@@ -228,11 +250,14 @@ merge_pr() {
     wait_checks "$full" "$pr" || rc=$?
     case "$rc" in
         1) report "$repo" "$target" "[PR #$pr]($url) ❌ checks en échec : à regarder$(protection_note "$full")"; return 0 ;;
-        2) report "$repo" "$target" "[PR #$pr]($url) checks toujours en cours, nouvel essai la nuit prochaine"; return 0 ;;
+        2) report "$repo" "$target" "[PR #$pr]($url) checks en cours, absents ou illisibles : pas de merge, nouvel essai la nuit prochaine"; return 0 ;;
     esac
     method=$(gh repo view "$full" --json rebaseMergeAllowed,squashMergeAllowed \
         --jq 'if .rebaseMergeAllowed then "rebase" elif .squashMergeAllowed then "squash" else "merge" end')
-    if gh pr merge "$pr" -R "$full" "--$method" --delete-branch >/dev/null 2>&1; then
+    # --match-head-commit : on ne merge que le commit dont on a vu les checks
+    # verts (refus si quelqu'un a poussé autre chose entre-temps).
+    if gh pr merge "$pr" -R "$full" "--$method" --delete-branch \
+        --match-head-commit "$CHECKED_SHA" >/dev/null 2>&1; then
         report "$repo" "$target" "[PR #$pr]($url) ✓ mergée$(protection_note "$full")"
     else
         report "$repo" "$target" "[PR #$pr]($url) checks verts mais merge refusé : le robot est-il en exception de la règle gdm-protection ?"
