@@ -234,6 +234,7 @@ Quand tu proposes ou modifies du code :
 14. Au debut de chaque session : `git fetch` puis `git status -sb`. Si la branche est en retard sur son origine ou sur `origin/dev`, rappeler a l'utilisateur de faire `git pull` (ou de rebaser sur `dev`) avant de coder. Ne pas le faire a sa place sans accord.
 15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
 16. Appliquer la section 7 (tests et CI) a chaque fonctionnalite et chaque correctif : ecrire les tests dans la meme PR, ne jamais affaiblir ni supprimer un test pour le faire passer, et creer ou adapter le `ci.yml` de l'app a partir de `docs-rules/TESTS_CI.md` s'il manque.
+17. Tenir le journal des decisions de l'app (section 8) : lire `docs/DECISIONS.md` en debut de session, y ajouter une entree dans la meme PR a chaque decision importante, ne jamais contredire une decision active sans le signaler a l'utilisateur.
 
 ## 6) Stack et conventions (rappel)
 
@@ -301,7 +302,18 @@ Pyramide des tests : beaucoup de tests unitaires (rapides), des tests d'integrat
 
 Couverture : mesurer la couverture **du code modifie** dans la PR, pas viser un pourcentage global.
 
-## 8) References
+## 8) Journal des decisions de l'app (`docs/DECISIONS.md`)
+
+Chaque app a une memoire : `docs/DECISIONS.md`. Il garde, pour chaque decision importante, ce qui a ete decide, pourquoi, et ce qui a ete ecarte. Modele et exemples : `DECISIONS_TEMPLATE.md`. Le fichier appartient a l'app (le robot ne le gere pas).
+
+- **Lire** `docs/DECISIONS.md` au debut de chaque session, avant de modifier l'architecture, le modele de donnees, les droits ou une integration.
+- **Ecrire** une entree, dans la meme PR, a chaque decision importante prise pendant la session : architecture, librairie ou service choisi ou rejete, modele de donnees, droits et securite (GRANT, RLS, roles), contournement d'une limite de plateforme, ecart volontaire a une regle GDM, approche abandonnee. Pas d'entree pour un correctif simple, un renommage ou une montee de version sans impact.
+- Si le fichier n'existe pas encore, le creer a partir du modele au moment de la premiere decision.
+- Entree courte (4 a 8 lignes) : date, statut, decision, pourquoi, ecarte, a revoir si, ou. La plus recente en haut.
+- **Ne jamais contredire une decision active en silence.** Si une demande va contre une decision ecrite, le dire a l'utilisateur et citer l'entree. Si l'utilisateur confirme le changement : nouvelle entree, et l'ancienne passe en « Remplacee par … ». On ne supprime jamais une entree.
+- Ne jamais y ecrire de secret, de donnee personnelle ni d'identifiant de production.
+
+## 9) References
 
 - `SETUP_MACHINE.md` (setup poste dev)
 - `SETUP_PROJET.md` (setup projet)
@@ -309,6 +321,7 @@ Couverture : mesurer la couverture **du code modifie** dans la PR, pas viser un 
 - `HEBERGEMENT_GANDI.md` (hebergement Gandi FTP : quand le choisir, deploiement, securite)
 - `SECURITY_OSS_PIPELINE.md` (workflow GitHub Actions Security OSS)
 - `TESTS_CI.md` (tests : quoi, comment, modeles de `ci.yml` rapides et paralleles)
+- `DECISIONS_TEMPLATE.md` (modele du journal des decisions `docs/DECISIONS.md` de l'app)
 - `CONFIG_GITHUB.md` (liste des Variables et Secrets GitHub a creer, et dans quel onglet ; reglages du repo). Si un workflow saute une etape faute de configuration, commencer par ce doc.
 - `security-monitoring-process.md` (process Security OSS + Sentry)
 - `system-design/AGENTS.md` (design system GDM : jetons, composants, mascotte, checklist interface ; direction artistique complete dans `system-design/README.md`)

@@ -9,6 +9,7 @@ Les règles GDM arrivent dans ce repo par des PR automatiques : une copie locale
 1. Lance `git fetch` puis `git status -sb`.
 2. Si la branche locale est en retard sur son origine (`behind`), ou si la branche de travail est en retard sur `origin/dev` (`git rev-list --count HEAD..origin/dev`, quand `dev` existe), **rappelle à l'utilisateur de faire `git pull`** (ou de rebaser sa branche sur `dev`) avant de commencer, et attends sa réponse.
 3. Ne lance pas le `pull` ou le rebase toi-même sans son accord : il peut avoir du travail en cours.
+4. Lis `docs/DECISIONS.md` s'il existe : c'est la mémoire de l'app (décisions importantes, leurs raisons, ce qui a été écarté). Ne contredis jamais une décision active sans le signaler à l'utilisateur.
 
 **Avant de générer du code ou de modifier ce projet, lis impérativement le fichier `.ai-rules/RULES.md`** à la racine. Il contient :
 
@@ -46,6 +47,10 @@ Le dossier `system-design/` est à la racine du repo. Il est posé et mis à jou
 - Direction artistique et justification des arbitrages : `system-design/README.md`.
 - Contrôle automatique avant de dire que c'est fini : `node system-design/outils/verifier-interface.mjs <dossier du front>`.
 
+## Journal des décisions de l'app
+
+`docs/DECISIONS.md` est la mémoire de l'app (`.ai-rules/RULES.md` section 8, modèle dans `docs-rules/DECISIONS_TEMPLATE.md`). À chaque décision importante prise pendant la session (architecture, librairie ou service choisi ou rejeté, modèle de données, droits, contournement d'une limite, écart à une règle GDM, approche abandonnée), ajoute une entrée courte en haut du fichier, dans la même PR : date, statut, décision, pourquoi, écarté, à revoir si, où. Crée le fichier à partir du modèle s'il n'existe pas. Une décision qui change : nouvelle entrée, et l'ancienne passe en « Remplacée par … » ; on ne supprime jamais une entrée.
+
 ## Code Review Rules
 
 Consignes pour les revues de code automatiques des pull requests (Codex, Claude `/code-review`). Ne signaler que des problèmes réels et concrets, avec le fichier et la ligne concernés.
@@ -57,6 +62,10 @@ Consignes pour les revues de code automatiques des pull requests (Codex, Claude 
 ### Tests
 
 - Signaler tout test supprimé, désactivé (`skip`, `xfail`, `.only`) ou assoupli, et toute fonctionnalité ou correction livrée sans test (`.ai-rules/RULES.md` section 7).
+
+### Décisions
+
+- Signaler une PR qui va contre une décision active de `docs/DECISIONS.md` sans ajouter d'entrée qui la remplace, ou qui prend une décision importante (architecture, librairie, modèle de données, droits) sans l'y consigner.
 
 ### Secrets et architecture
 
