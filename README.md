@@ -64,6 +64,8 @@ ton-app/
 └── AGENTS.md                  ← lu par Codex
 ```
 
+L'app a aussi son propre `docs/DECISIONS.md` : le journal des décisions importantes (quoi, pourquoi, ce qui a été écarté), créé et tenu à jour par l'IA au fil des PR. Il appartient à l'app, le robot n'y touche pas. Règle : `RULES.md` section 8, modèle : [`DECISIONS_TEMPLATE.md`](templates/docs-rules/DECISIONS_TEMPLATE.md).
+
 ### Qui peut modifier quoi
 
 | Fichier dans l'app | Modifiable dans l'app ? | Où le faire évoluer |
@@ -317,6 +319,7 @@ flowchart LR
 - **Commits** : `type(scope): description` (`feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, `perf`).
 - **Une PR = une intention.** Le code écrit par l'IA appartient à celui qui le pousse : tu dois pouvoir expliquer chaque ligne.
 - **Des tests dans chaque PR** : ceux de la fonctionnalité, ou un test qui reproduit le bug corrigé. Jamais un test supprimé ou assoupli pour passer. Détail : [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md).
+- **Les décisions importantes vont dans `docs/DECISIONS.md`**, dans la même PR : l'IA lit ce journal en début de session et y ajoute une entrée courte quand un choix structurant est fait (architecture, librairie, modèle de données, droits, approche abandonnée). C'est la mémoire de l'app pour le prochain dev et sa prochaine IA.
 - **Contrôles bloquants sur chaque PR** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
 
 ---
