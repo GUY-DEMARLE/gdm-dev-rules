@@ -1,8 +1,17 @@
-# Design system — Environnement IA Guy Demarle
+# Design system Guy Demarle — profil Conseillers
 
-Version 1.5 · 17 septembre 2026 · dérivé d'Ohracle
+Version 1.6 · 21 octobre 2026 · dérivé d'Ohracle
 
-Ce document définit la direction artistique commune à **tous les outils d'intelligence artificielle mis à disposition des Conseillers Culinaires Guy Demarle**. Il est né d'Ohracle, le premier de ces outils, dont il extrait ce qui doit devenir transverse.
+> ### Deux profils, un seul dossier
+>
+> | Profil | Pour qui | Où |
+> |---|---|---|
+> | **Conseillers** | Les outils destinés aux Conseillers Culinaires, à commencer par l'environnement IA : mascotte, fond vivant, échelle confort | **ce document**, `kit/` |
+> | **Interne** | Les outils des équipes Guy Demarle : back-offices, référentiels, pilotage — plus denses, plus sobres | [`interne/README.md`](interne/README.md), `interne/kit/` |
+>
+> Chaque app déclare son profil par la ligne `Profil d'interface : interne` ou `conseillers` dans la section « Contexte du projet » de son `CLAUDE.md`. **Sans cette ligne, c'est le profil Conseillers.** Les deux kits partagent la marque — rouge, marque O, Poppins — et ne se chargent jamais ensemble dans une même app.
+
+Ce document définit la direction artistique commune à **tous les outils mis à disposition des Conseillers Culinaires Guy Demarle**, et d'abord à leurs outils d'intelligence artificielle. Il est né d'Ohracle, le premier de ces outils, dont il extrait ce qui doit devenir transverse.
 
 Il vit dans le dossier **`system-design/`**, qui se pose **à la racine du dépôt** de chaque application Guy Demarle — déposé et remis à jour automatiquement par les scripts de [`gdm-dev-rules`](https://github.com/GUY-DEMARLE/gdm-dev-rules). Il ne traite que de l'interface : les règles de développement et de sécurité Guy Demarle vivent ailleurs, dans `.ai-rules/RULES.md`.
 
@@ -23,7 +32,8 @@ Il vit dans le dossier **`system-design/`**, qui se pose **à la racine du dép�
 > | [`AGENTS.md`](AGENTS.md) | Le point d'entrée pour une IA : installation, règles vérifiables, interdits, checklist de fin. |
 > | `README.md` | Ce document : la direction artistique, et le pourquoi de chaque arbitrage. |
 > | [`kit/`](kit/) | Les fichiers à servir : jetons, composants, ambiance, mascotte, marque, banc d'essai. |
-> | [`outils/`](outils/) | Le contrôle automatique des règles qui se lisent dans le code. |
+> | [`outils/`](outils/) | Le contrôle automatique des règles qui se lisent dans le code, pour les deux profils. |
+> | [`interne/`](interne/) | Le profil des outils internes : son `AGENTS.md`, son `README.md`, son kit. |
 
 Ce document pose l'esprit, la palette, la typographie et les règles d'usage de la mascotte. Le **rendu des briques communes** (bouton, champ, carte, bulle, pastille, alerte, lockup) et le **personnage** sont fournis prêts à l'emploi : ce sont eux qui font la reconnaissance d'un outil à l'autre. Tout le reste — mise en page, navigation, architecture des écrans, pile technique — reste libre, du moment que le résultat passe le test ci-dessous.
 
@@ -509,6 +519,7 @@ Il ne remplace pas le regard sur l'écran — un seul bouton rouge par zone, loc
 
 | Version | Date | Ce qui change |
 |---|---|---|
+| 1.6 | 21 octobre 2026 | **Deux profils.** Ce document devient le profil **Conseillers** et un profil **interne** arrive dans [`interne/`](interne/README.md), pour les outils des équipes Guy Demarle. Chaque app déclare son profil dans son `CLAUDE.md` ; sans déclaration, rien ne change. Les chemins du kit Conseillers (`kit/`) restent identiques : des apps les chargent en production. Le contrôle automatique prend `--profil`. |
 | 1.5 | 17 septembre 2026 | **Apparence claire uniquement** : suppression des jetons sombres, de la détection automatique et du sélecteur de thème de la démo. Les contrôles natifs restent clairs via `color-scheme: only light`. La documentation et la checklist suivent cette décision. |
 | 1.4 | 3 septembre 2026 | **L'ambiance de page entre dans le kit** ([`kit/gd-ai-ambiance.css`](kit/gd-ai-ambiance.css), § 8) : les quatre halos gourmands qui dérivent, les sept objets flottants, les deux entrées `.gd-enter` / `.gd-settle`. Motif : un outil pouvait respecter tous les jetons et rendre une page beige anonyme — le fond était décrit comme une couleur alors que c'est un état. Les signes de reconnaissance passent de cinq à six (§ 2), deux règles vérifiables sont ajoutées (AGENTS § 2, règles 14 et 15) et le contrôle automatique refuse désormais un front sans ambiance. |
 | 1.3 | 2 septembre 2026 | Le design system devient **distribué** : il quitte le dépôt d'Ohracle pour `GUY-DEMARLE/gdm-dev-rules` (`templates/system-design/`), d'où `install`/`update` le posent à la racine de **chaque application Guy Demarle**, à côté des règles dev et sécu. Le rappel de lecture est ajouté aux `CLAUDE.md`, `AGENTS.md` et règles Cursor distribués. Contenu de la charte inchangé. |

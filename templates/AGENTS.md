@@ -40,11 +40,16 @@ Si l'utilisateur demande de changer l'un d'eux, explique que l'évolution se fai
 
 Le dossier `system-design/` est à la racine du repo. Il est posé et mis à jour automatiquement par `gdm-dev-rules` : ne le modifie pas ici, toute évolution se fait dans la source (`GUY-DEMARLE/gdm-dev-rules`, `templates/system-design/`).
 
-**Avant de créer ou de modifier la moindre interface, lis `system-design/AGENTS.md` et applique-le.** Jetons, composants et mascotte sont fournis dans `system-design/kit/`, il n'y a rien à redessiner. Aucune couleur, taille de texte, rayon ou durée n'est écrite en dur — uniquement des `var(--gd-*)`.
+Il a **deux profils**, et l'app en suit un seul, déclaré par la ligne « Profil d'interface » de la section « Contexte du projet » ci-dessous :
 
-- Rendu visuel de tout le kit : ouvre `system-design/kit/demo.html` dans un navigateur.
-- Direction artistique et justification des arbitrages : `system-design/README.md`.
-- Contrôle automatique avant de dire que c'est fini : `node system-design/outils/verifier-interface.mjs <dossier du front>`.
+- **Conseillers** (par défaut, quand la ligne manque) : les outils destinés aux Conseillers Culinaires. Consignes dans `system-design/AGENTS.md`, kit dans `system-design/kit/` (mascotte, ambiance, échelle confort).
+- **Interne** : les outils des équipes Guy Demarle (back-office, référentiel, pilotage). Consignes dans `system-design/interne/AGENTS.md`, kit dans `system-design/interne/kit/`.
+
+**Avant de créer ou de modifier la moindre interface, lis les consignes du profil de l'app et applique-les.** Jetons et composants sont fournis par le kit du profil, il n'y a rien à redessiner. Ne charge jamais les deux kits dans la même app. Aucune couleur, taille de texte, rayon ou durée n'est écrite en dur — uniquement des `var(--gd-*)`. Si la ligne de profil manque alors que l'app est manifestement un outil interne, signale-le et demande avant de produire une interface.
+
+- Rendu visuel du kit : `system-design/kit/demo.html` (Conseillers) ou `system-design/interne/kit/demo.html` (interne).
+- Direction artistique et justification des arbitrages : le `README.md` du profil.
+- Contrôle automatique avant de dire que c'est fini : `node system-design/outils/verifier-interface.mjs <dossier du front>` (le profil est lu dans ce fichier ; `--profil interne` le force).
 
 ## Code Review Rules
 
@@ -66,6 +71,7 @@ Consignes pour les revues de code automatiques des pull requests (Codex, Claude 
 
 <!-- À compléter par dev pour chaque projet : -->
 <!-- - Type d'app : (interne / client-facing) -->
+<!-- - Profil d'interface : (conseillers / interne) — voir « Design system Guy Demarle » ; sans cette ligne, conseillers -->
 <!-- - Stack utilisée : (Next.js + Render Node, ou React/Vite + Render Python, etc.) -->
 <!-- - Services tiers intégrés : (Supabase, Gemini, Stripe...) -->
 <!-- - Particularités : (chose à savoir avant de coder dans ce repo) -->

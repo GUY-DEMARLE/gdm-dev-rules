@@ -1,8 +1,21 @@
-# Design system IA Guy Demarle — mode d'emploi
+# Design system Guy Demarle — profil Conseillers — mode d'emploi
 
-> **Tu construis l'interface d'un outil d'intelligence artificielle destiné aux Conseillers
-> Culinaires Guy Demarle.** Ce fichier te dit quoi faire, dans l'ordre. Applique-le tel quel :
-> il n'y a rien à interpréter et rien à réinventer.
+> ### D'abord : quel profil ?
+>
+> Le design system a **deux profils**. Ouvre le `CLAUDE.md` du projet, section « Contexte du
+> projet », et cherche la ligne `Profil d'interface` :
+>
+> | Ligne | Profil | Lis |
+> |---|---|---|
+> | `Profil d'interface : interne` | Outil des équipes Guy Demarle : back-office, référentiel, pilotage | **[`interne/AGENTS.md`](interne/AGENTS.md)**, et pas ce fichier |
+> | `Profil d'interface : conseillers`, ou pas de ligne | Outil destiné aux Conseillers Culinaires | **ce fichier** |
+>
+> Les deux kits ne se mélangent jamais dans une même app. Dans le doute sur le profil d'une
+> nouvelle app, demande avant de produire une interface.
+
+> **Tu construis l'interface d'un outil destiné aux Conseillers Culinaires Guy Demarle**
+> — à commencer par leurs outils d'intelligence artificielle. Ce fichier te dit quoi faire,
+> dans l'ordre. Applique-le tel quel : il n'y a rien à interpréter et rien à réinventer.
 >
 > Ce dossier — `system-design/` — se pose **à la racine du dépôt** de chaque application
 > Guy Demarle. Il y est déposé et remis à jour automatiquement par `gdm-dev-rules`
@@ -334,6 +347,7 @@ statut, et nommer l'outil ou la mascotte.
 | Le rig de la mascotte, les timings, les pivots | [`kit/gd-ai-mascotte.js`](kit/gd-ai-mascotte.js) |
 | Pourquoi une ambiance et pas juste un fond | `README.md` § 8 |
 | Décisions encore ouvertes | `README.md` § 14 |
+| Le profil des outils internes | [`interne/AGENTS.md`](interne/AGENTS.md) |
 
 Règles de développement et de sécurité Guy Demarle (secrets, RLS, architecture front/back) :
 elles vivent ailleurs, dans `.ai-rules/RULES.md` du dépôt concerné. Ce fichier-ci ne traite
@@ -347,11 +361,12 @@ Sur un repo installé par `gdm-dev-rules`, ce bloc y est déjà — il est repro
 les dépôts qui n'utilisent pas les scripts et doivent l'ajouter à la main.
 
 ```markdown
-## Design system IA Guy Demarle
+## Design system Guy Demarle
 
-Cette application fait partie de l'environnement IA Guy Demarle. Avant de créer ou de
-modifier la moindre interface, lis `system-design/AGENTS.md` (à la racine) et applique-le :
-jetons, composants et mascotte sont fournis dans `system-design/kit/`, il n'y a rien à
-redessiner. Aucune couleur, taille, rayon ou durée n'est écrite en dur — uniquement des
-`var(--gd-*)`. Contrôle : `node system-design/outils/verifier-interface.mjs <dossier>`.
+Avant de créer ou de modifier la moindre interface, lis `system-design/AGENTS.md` (à la
+racine) : il t'envoie vers le bon profil — Conseillers ou interne — selon la ligne
+« Profil d'interface » du Contexte du projet. Jetons et composants sont fournis dans le kit
+du profil, il n'y a rien à redessiner. Aucune couleur, taille, rayon ou durée n'est écrite
+en dur — uniquement des `var(--gd-*)`. Contrôle :
+`node system-design/outils/verifier-interface.mjs <dossier>`.
 ```

@@ -424,13 +424,26 @@ Elle doit refuser et proposer de passer par un back (proxy). Pour Cursor, vérif
 
 ## Design system GDM
 
-`system-design/` est la charte d'interface commune à tous les outils du réseau : jetons, composants, mascotte, marque. `CLAUDE.md`, `AGENTS.md` et les règles Cursor demandent à l'IA de lire `system-design/AGENTS.md` avant de produire la moindre interface.
+`system-design/` est la charte d'interface des apps GDM, en **deux profils** qui partagent la marque (rouge, marque O, Poppins) :
+
+| Profil | Pour qui | Consignes | Kit |
+|---|---|---|---|
+| **Conseillers** (par défaut) | Les outils destinés aux Conseillers, à commencer par l'environnement IA : mascotte, fond vivant, échelle confort | `system-design/AGENTS.md` | `system-design/kit/` |
+| **Interne** | Les outils des équipes GDM : back-office, référentiel, pilotage. Plus dense et plus sobre, sans mascotte | `system-design/interne/AGENTS.md` | `system-design/interne/kit/` |
+
+Chaque app déclare son profil dans la section « Contexte du projet » de son `CLAUDE.md` (et de son `AGENTS.md`) :
+
+```markdown
+- Profil d'interface : interne
+```
+
+Sans cette ligne, l'app est en profil Conseillers. Le robot pose les deux profils dans toutes les apps ; `CLAUDE.md`, `AGENTS.md` et les règles Cursor demandent à l'IA de lire `system-design/AGENTS.md`, qui l'aiguille vers le bon profil.
 
 ```
 system-design/
-├── AGENTS.md                  ← le point d'entrée pour une IA : règles, interdits, checklist
-├── README.md                  ← la direction artistique et le pourquoi de chaque arbitrage
-├── kit/
+├── AGENTS.md                  ← aiguillage, puis consignes du profil Conseillers
+├── README.md                  ← direction artistique Conseillers et pourquoi de chaque arbitrage
+├── kit/                       ← kit Conseillers (chemins figés : des apps le chargent en prod)
 │   ├── gd-ai-tokens.css       ← les jetons (palette, typo, rayons, ombres…)
 │   ├── gd-ai-components.css   ← boutons, champs, cartes, bulles, pastilles, alertes, lockup
 │   ├── gd-ai-ambiance.css     ← ambiance et fonds
@@ -438,20 +451,21 @@ system-design/
 │   ├── gd-ai-mascotte.svg     ← version statique (impression, e-mail, sans JS)
 │   ├── gd-ai-marque-o.png     ← la marque O du lockup
 │   └── demo.html              ← le banc d'essai : tout le kit à l'écran (double-clic)
+├── interne/
+│   ├── AGENTS.md              ← consignes du profil interne pour une IA
+│   ├── README.md              ← direction artistique « Maison sobre »
+│   └── kit/
+│       ├── gd-interne-tokens.css      ← les jetons
+│       ├── gd-interne-components.css  ← coquille, navigation, tableaux, formulaires, modale…
+│       ├── gd-interne-marque-o.png    ← la marque O du lockup
+│       └── demo.html                  ← le banc d'essai (double-clic)
 └── outils/
-    └── verifier-interface.mjs ← contrôle automatique des règles lisibles dans le code
+    └── verifier-interface.mjs ← contrôle automatique, pour les deux profils (--profil)
 ```
 
-Une chose reste à faire dans chaque app : **servir les fichiers du kit depuis le front** (par exemple `public/gd-ai/`), puis dans le `<head>` :
+Une chose reste à faire dans chaque app : **servir les fichiers du kit de son profil depuis le front** (par exemple `public/gd-ai/` ou `public/gd-interne/`) et les charger dans le `<head>` : voir le § 0 de l'`AGENTS.md` du profil.
 
-```html
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/gd-ai/gd-ai-tokens.css">
-<link rel="stylesheet" href="/gd-ai/gd-ai-components.css">
-<script src="/gd-ai/gd-ai-mascotte.js" defer></script>
-```
-
-Pour voir le rendu sans rien installer : ouvre `templates/system-design/kit/demo.html` par double-clic.
+Pour voir le rendu sans rien installer : ouvre `templates/system-design/kit/demo.html` ou `templates/system-design/interne/kit/demo.html` par double-clic.
 
 ---
 
