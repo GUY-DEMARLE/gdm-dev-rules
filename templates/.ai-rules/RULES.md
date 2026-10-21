@@ -230,7 +230,7 @@ Quand tu proposes ou modifies du code :
 10. Le workflow Security OSS est **obligatoire** sur toute app GDM (cf. 2.6) : il est pose a la racine par les scripts `gdm-dev-rules`. S'il manque dans `.github/workflows/`, le signaler et le remettre avant tout merge. Proposer en plus des monitors Sentry si absents.
 11. Le workflow Security OSS est distribue **en copie complete** dans `.github/workflows/security-oss.yml` de chaque app, et c'est **voulu**. Une app n'appelle jamais un workflow heberge dans un autre depot : un `workflow_call` vers `gdm-dev-rules` ferait tourner du code central dans la CI de l'app avec les secrets de l'app, a chaque modification du depot central. **Ne pas remplacer cette copie par un caller**, ne pas la modifier localement, ne pas en ecrire un second. Toute evolution se fait dans `gdm-dev-rules` et arrive automatiquement dans chaque app par le robot de synchro (PR « chore(gdm-rules) »).
 12. Au démarrage d'un projet, proposer le bon couple stack/hébergement : API Supabase PostgREST/Edge par défaut (Render seulement si logique lourde), front statique → Gandi FTP, front avec rendu serveur → Vercel. Rappeler que sur Gandi + Supabase en accès direct, les RLS sont l'unique barrière (cf. `HEBERGEMENT_GANDI.md`).
-13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder, consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit.
+13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder et suivre le profil de l'app (Conseillers par defaut, interne si `CLAUDE.md` declare « Profil d'interface : interne »), consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit, ne jamais charger les deux kits dans la meme app.
 14. Au debut de chaque session : `git fetch` puis `git status -sb`. Si la branche est en retard sur son origine ou sur `origin/dev`, rappeler a l'utilisateur de faire `git pull` (ou de rebaser sur `dev`) avant de coder. Ne pas le faire a sa place sans accord.
 15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
 16. Appliquer la section 7 (tests et CI) a chaque fonctionnalite et chaque correctif : ecrire les tests dans la meme PR, ne jamais affaiblir ni supprimer un test pour le faire passer, et creer ou adapter le `ci.yml` de l'app a partir de `docs-rules/TESTS_CI.md` s'il manque.
@@ -249,7 +249,7 @@ Quand tu proposes ou modifies du code :
 - **Branches** : `feature/xxx`, `fix/xxx`, courtes (1 a 3 jours), creees depuis `dev` et mergees par PR. Pas de branche personnelle longue : avec plusieurs devs et leurs agents IA, elles divergent et creent des conflits.
 - **Commits** : Conventional commits (`feat`, `fix`, `chore`, etc.).
 - **Repo** : `gdm-<type>-<nom>` sous `GUY-DEMARLE`.
-- **Interface** : design system GDM obligatoire (`system-design/` a la racine, pose par `gdm-dev-rules`). Jetons `var(--gd-*)` et composants du kit, aucune valeur en dur, aucune librairie de composants empilee par-dessus.
+- **Interface** : design system GDM obligatoire (`system-design/` a la racine, pose par `gdm-dev-rules`), avec deux profils : **Conseillers** pour les outils destines aux Conseillers (par defaut), **interne** pour les outils des equipes GDM (back-office, referentiel, pilotage). Jetons `var(--gd-*)` et composants du kit du profil, aucune valeur en dur, aucune librairie de composants empilee par-dessus.
 
 ## 7) Tests et CI
 
@@ -324,4 +324,5 @@ Chaque app a une memoire : `docs/DECISIONS.md`. Il garde, pour chaque decision i
 - `DECISIONS_TEMPLATE.md` (modele du journal des decisions `docs/DECISIONS.md` de l'app)
 - `CONFIG_GITHUB.md` (liste des Variables et Secrets GitHub a creer, et dans quel onglet ; reglages du repo). Si un workflow saute une etape faute de configuration, commencer par ce doc.
 - `security-monitoring-process.md` (process Security OSS + Sentry)
-- `system-design/AGENTS.md` (design system GDM : jetons, composants, mascotte, checklist interface ; direction artistique complete dans `system-design/README.md`)
+- `system-design/AGENTS.md` (design system GDM, profil Conseillers : jetons, composants, mascotte, checklist interface ; direction artistique complete dans `system-design/README.md`)
+- `system-design/interne/AGENTS.md` (design system GDM, profil interne : coquille, navigation, tableaux, formulaires, checklist ; direction artistique dans `system-design/interne/README.md`)

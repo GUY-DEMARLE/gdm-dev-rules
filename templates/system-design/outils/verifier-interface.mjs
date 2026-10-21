@@ -7,10 +7,16 @@
        node system-design/outils/verifier-interface.mjs frontend/src
        node system-design/outils/verifier-interface.mjs . --strict
        node system-design/outils/verifier-interface.mjs frontend/src --tout
+       node system-design/outils/verifier-interface.mjs frontend/src --profil interne
 
    Ce que ça contrôle : les règles de `AGENTS.md` § 2 marquées 🤖 — celles qui se
    lisent dans le code. Le reste de la checklist (un seul bouton rouge par zone,
    lockup complet, test en une seconde) demande un œil sur l'écran réel.
+
+   Deux profils : « conseillers » (par défaut, `system-design/AGENTS.md`) et
+   « interne » (`system-design/interne/AGENTS.md`). Le profil vient de
+   `--profil`, sinon de la ligne « Profil d'interface : … » du CLAUDE.md ou de
+   l'AGENTS.md du dossier courant, sinon il vaut « conseillers ».
 
    Deux étages : les règles de LIGNE (une couleur en dur, un angle vif…) et les
    contrôles D'ENSEMBLE, qui portent sur le projet entier — aujourd'hui
@@ -21,6 +27,7 @@
    raison, en commentaire sur la même ligne.
 
    Options
+     --profil <conseillers|interne>   force le profil d'interface
      --strict   les avertissements font échouer aussi (code de sortie 1)
      --tout     affiche toutes les occurrences (par défaut : 12 par règle)
      --json     sortie machine, pour une CI
@@ -30,6 +37,39 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
+
+/* -------------------------------------------------------------------------- */
+/* Profil d'interface                                                          */
+/* -------------------------------------------------------------------------- */
+
+const PROFILS = {
+  conseillers: { doc: 'AGENTS.md', plancher: 14 },
+  interne: { doc: 'interne/AGENTS.md', plancher: 12 },
+}
+
+const args = process.argv.slice(2)
+
+function lireProfil() {
+  const i = args.findIndex((a) => a === '--profil' || a.startsWith('--profil='))
+  if (i >= 0) {
+    const valeur = args[i].includes('=') ? args[i].split('=')[1] : args[i + 1]
+    if (!PROFILS[valeur]) {
+      console.error(`Profil inconnu : « ${valeur ?? ''} ». Valeurs possibles : ${Object.keys(PROFILS).join(', ')}.`)
+      process.exit(2)
+    }
+    return { nom: valeur, source: '--profil' }
+  }
+  for (const fichier of ['CLAUDE.md', 'AGENTS.md']) {
+    let texte
+    try { texte = readFileSync(join(process.cwd(), fichier), 'utf8') } catch { continue }
+    const m = /Profil d'interface\s*:\s*\**\s*(conseillers|interne)\b/i.exec(texte)
+    if (m) return { nom: m[1].toLowerCase(), source: fichier }
+  }
+  return { nom: 'conseillers', source: 'par défaut' }
+}
+
+const PROFIL = lireProfil()
+const P = PROFILS[PROFIL.nom]
 
 /* -------------------------------------------------------------------------- */
 /* Périmètre                                                                   */
@@ -43,7 +83,10 @@ const DOSSIERS_IGNORES = new Set([
 ])
 
 /* Le kit porte les valeurs brutes : c'est sa raison d'être. */
-const CHEMINS_EXCLUS = ['system-design' + sep + 'kit', 'gd-ai-tokens', 'gd-ai-components', 'gd-ai-mascotte']
+const CHEMINS_EXCLUS = [
+  'system-design' + sep + 'kit', 'gd-ai-tokens', 'gd-ai-components', 'gd-ai-mascotte',
+  'system-design' + sep + 'interne' + sep + 'kit', 'gd-interne-tokens', 'gd-interne-components',
+]
 
 const EST_CODE_JS = (f) => /\.(jsx?|tsx?|vue|svelte)$/.test(f)
 
@@ -56,17 +99,23 @@ const MOTS_STYLE = /style|color|background|fill|stroke|shadow|border|radius|font
 
 const COULEUR_TOLEREE = /^(transparent|currentcolor|inherit|initial|unset|none)$/i
 
+/* Chaque règle cite la section de l'AGENTS.md du profil qui la porte : `ref`
+   donne le numéro par profil, une règle absente d'un profil n'y est pas
+   appliquée. `toujours` : la règle juge aussi les lignes JS qui ne parlent
+   pas de style (un import de feuille, une balise). */
 const REGLES = [
   {
     id: 'blanc-pur',
     gravite: 'erreur',
-    titre: 'Fond blanc pur — le fond de page est `--gd-cream` (AGENTS.md § 2.1)',
+    titre: 'Fond blanc pur — le fond de page est `--gd-cream`',
+    ref: { conseillers: '§ 2.1', interne: '§ 2.1' },
     test: (l) => /background(-color)?\s*:\s*(#fff(f{3})?\b|white\b|rgb\(\s*255\s*,\s*255\s*,\s*255)/i.test(l),
   },
   {
     id: 'couleur-en-dur',
     gravite: 'erreur',
-    titre: 'Couleur écrite en dur — uniquement `var(--gd-*)` (AGENTS.md § 0 et § 6)',
+    titre: 'Couleur écrite en dur — uniquement `var(--gd-*)`',
+    ref: { conseillers: '§ 0 et § 6', interne: '§ 2.8' },
     test: (l) => {
       if (/var\(--/.test(l) && !/#[0-9a-f]{3,8}\b/i.test(l)) return false
       const brut = /#[0-9a-f]{3,8}\b|rgba?\(\s*\d|hsla?\(\s*\d/i.exec(l)
@@ -78,24 +127,27 @@ const REGLES = [
   {
     id: 'ombre-noire',
     gravite: 'erreur',
-    titre: 'Ombre noire ou grise — les ombres ont une base brune, `var(--gd-shadow*)` (AGENTS.md § 2.7)',
+    titre: 'Ombre noire ou grise — les ombres ont une base brune, `var(--gd-shadow*)`',
+    ref: { conseillers: '§ 2.7', interne: '§ 2.7' },
     test: (l) => /(box-shadow|text-shadow|drop-shadow)[^;]*(rgba?\(\s*0\s*,\s*0\s*,\s*0|black|#000\b|#000000\b)/i.test(l),
   },
   {
     id: 'angle-vif',
     gravite: 'erreur',
-    titre: 'Angle vif — rien n\'a de rayon nul (AGENTS.md § 2.6)',
+    titre: 'Angle vif — rien n\'a de rayon nul',
+    ref: { conseillers: '§ 2.6', interne: '§ 2.6' },
     test: (l) => /border-radius\s*:\s*0(px|rem|em|%)?\s*(!important)?\s*[;}]/i.test(l),
   },
   {
     id: 'texte-trop-petit',
     gravite: 'erreur',
-    titre: 'Texte sous le plancher de 14 px (AGENTS.md § 2.4)',
+    titre: `Texte sous le plancher de ${P.plancher} px`,
+    ref: { conseillers: '§ 2.4', interne: '§ 2.4' },
     test: (l) => {
       const m = /font-size\s*:\s*([\d.]+)\s*(px|rem)/i.exec(l)
       if (!m) return false
       const val = parseFloat(m[1])
-      return m[2].toLowerCase() === 'px' ? val < 14 : val < 0.875
+      return m[2].toLowerCase() === 'px' ? val < P.plancher : val < P.plancher / 16
     },
   },
   {
@@ -107,29 +159,51 @@ const REGLES = [
   {
     id: 'police-hors-charte',
     gravite: 'erreur',
-    titre: 'Autre police que Poppins — une seule famille, `var(--font-sans)` (AGENTS.md § 2.8)',
+    titre: 'Autre police que Poppins — une seule famille, `var(--font-sans)`',
+    ref: { conseillers: '§ 2.8', interne: '§ 2.5' },
     test: (l) => /font-family\s*:/i.test(l) && !/var\(--font/i.test(l) && !/inherit|monospace|var\(--gd/i.test(l),
   },
   {
     id: 'focus-supprime',
     gravite: 'erreur',
-    titre: 'Focus supprimé — jamais sans remplacement visible (AGENTS.md § 2.10)',
+    titre: 'Focus supprimé — jamais sans remplacement visible',
+    ref: { conseillers: '§ 2.10', interne: '§ 2.13' },
     test: (l) => /outline\s*:\s*(none|0)\b/i.test(l),
     contexte: (src) => !/:focus-visible/.test(src), // toléré si le fichier redonne un focus visible
   },
   {
     id: 'duree-en-dur',
     gravite: 'avertissement',
-    titre: 'Durée d\'animation en dur — passer par `var(--dur-*)`',
+    titre: 'Durée d\'animation en dur — passer par `var(--duration-*)`',
     test: (l) => /(transition|animation)(-duration)?\s*:[^;]*\b[\d.]+m?s\b/i.test(l) && !/var\(--/.test(l),
   },
   {
     id: 'important-mouvement',
     gravite: 'avertissement',
-    titre: '`!important` sur du mouvement — ne pas contourner `prefers-reduced-motion` (AGENTS.md § 2.12)',
+    titre: '`!important` sur du mouvement — ne pas contourner `prefers-reduced-motion`',
+    ref: { conseillers: '§ 2.12', interne: '§ 2.16' },
     test: (l) => /(transition|animation)[^;]*!important/i.test(l),
   },
-]
+  {
+    /* Les deux kits définissent les mêmes jetons et les mêmes classes avec des
+       valeurs différentes : chargés ensemble, le dernier écrase l'autre. */
+    id: 'kit-interne-charge',
+    gravite: 'erreur',
+    titre: 'Fichier du profil interne dans une app Conseillers — un seul kit par app',
+    ref: { conseillers: '§ 0' },
+    toujours: true,
+    test: (l) => /gd-interne-(tokens|components)/i.test(l),
+  },
+  {
+    id: 'signes-conseillers',
+    gravite: 'erreur',
+    titre: 'Mascotte, ambiance ou kit Conseillers dans un outil interne',
+    ref: { interne: '§ 2.9' },
+    toujours: true,
+    test: (l) => /<gd-mascotte\b|\bgd-ambient\b|gd-ai-(tokens|components|ambiance|mascotte)/i.test(l),
+  },
+].filter((r) => !r.ref || r.ref[PROFIL.nom])
+ .map((r) => ({ ...r, titre: r.ref ? `${r.titre} (${P.doc} ${r.ref[PROFIL.nom]})` : r.titre }))
 
 /* -------------------------------------------------------------------------- */
 /* Contrôles d'ensemble                                                        */
@@ -142,10 +216,13 @@ const REGLES = [
    attrape, et c'est le plus fréquent quand une IA produit l'interface.
 
    Échappatoire, pour un outil qui a une vraie raison de s'en passer : écrire
-   `gd-ok: ambiance` suivi du motif, en commentaire, n'importe où dans le front. */
+   `gd-ok: ambiance` suivi du motif, en commentaire, n'importe où dans le front.
+
+   Profil Conseillers uniquement : un outil interne n'a pas d'ambiance. */
 const CONTROLES_ENSEMBLE = [
   {
     id: 'ambiance-absente',
+    profils: ['conseillers'],
     gravite: 'erreur',
     titre: 'Ambiance de page absente — la page principale porte `.gd-ambient` (AGENTS.md § 2.14)',
     message: 'Aucune trace de `gd-ambient` dans le front : le fond est un crème nu. '
@@ -159,6 +236,7 @@ const CONTROLES_ENSEMBLE = [
 function controlerEnsemble(sources, cible) {
   if (!sources.length) return []
   return CONTROLES_ENSEMBLE
+    .filter((c) => c.profils.includes(PROFIL.nom))
     .filter((c) => !c.neutralise(sources) && c.test(sources))
     .map((c) => ({
       regle: c.id,
@@ -206,9 +284,10 @@ function analyser(chemin) {
     if (!nue) return
     if (nue.startsWith('*') || nue.startsWith('//') || nue.startsWith('/*') || nue.startsWith('<!--')) return
     if (/gd-ok\s*:/i.test(ligne)) return                       // neutralisation explicite
-    if (js && !MOTS_STYLE.test(ligne)) return                  // en JS, on ne juge que le style
+    const style = !js || MOTS_STYLE.test(ligne)                // en JS, on ne juge que le style…
 
     for (const regle of REGLES) {
+      if (!style && !regle.toujours) continue                  // … sauf règle qui vise aussi les imports
       if (!regle.test(ligne)) continue
       if (regle.contexte && !regle.contexte(src)) continue
       trouvailles.push({
@@ -228,11 +307,10 @@ function analyser(chemin) {
 /* Sortie                                                                      */
 /* -------------------------------------------------------------------------- */
 
-const args = process.argv.slice(2)
 const strict = args.includes('--strict')
 const tout = args.includes('--tout')
 const json = args.includes('--json')
-const cibles = args.filter((a) => !a.startsWith('--'))
+const cibles = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--profil')
 if (!cibles.length) cibles.push(process.cwd())
 
 const trouvailles = cibles.flatMap((c) => {
@@ -244,7 +322,7 @@ const erreurs = trouvailles.filter((t) => t.gravite === 'erreur')
 const avertis = trouvailles.filter((t) => t.gravite === 'avertissement')
 
 if (json) {
-  console.log(JSON.stringify({ erreurs: erreurs.length, avertissements: avertis.length, trouvailles }, null, 2))
+  console.log(JSON.stringify({ profil: PROFIL.nom, erreurs: erreurs.length, avertissements: avertis.length, trouvailles }, null, 2))
   process.exit(erreurs.length || (strict && avertis.length) ? 1 : 0)
 }
 
@@ -257,6 +335,7 @@ const court = (f) => {
 
 console.log('\n  Design system Guy Demarle — contrôle de l\'interface')
 console.log('  ' + '─'.repeat(66))
+console.log(`  Profil    : ${PROFIL.nom} (${PROFIL.source}) — règles : system-design/${P.doc}`)
 console.log(`  Périmètre : ${cibles.join(', ')}`)
 
 for (const gravite of ['erreur', 'avertissement']) {
@@ -285,11 +364,11 @@ for (const gravite of ['erreur', 'avertissement']) {
 
 console.log('\n  ' + '─'.repeat(66))
 if (!trouvailles.length) {
-  console.log('  Rien à signaler. Reste la partie qui se voit à l\'écran : AGENTS.md § 7.\n')
+  console.log(`  Rien à signaler. Reste la partie qui se voit à l'écran : ${P.doc} § 7.\n`)
 } else {
   console.log(`  ${erreurs.length} erreur(s), ${avertis.length} avertissement(s).`)
   console.log('  Une ligne légitimement hors règle se neutralise avec un commentaire `gd-ok: raison`.')
-  console.log('  Le reste de la checklist se vérifie à l\'écran : AGENTS.md § 7.\n')
+  console.log(`  Le reste de la checklist se vérifie à l'écran : ${P.doc} § 7.\n`)
 }
 
 process.exit(erreurs.length || (strict && avertis.length) ? 1 : 0)

@@ -1,0 +1,201 @@
+/* ============================================================================
+   Guy Demarle — Applications internes
+   Jetons de design partagés entre tous les outils internes (gd-interne-tokens.css)
+   ----------------------------------------------------------------------------
+   Fichier autonome, sans build, sans dépendance. À copier tel quel dans
+   chaque application et à importer AVANT toute autre feuille de style.
+
+       <link rel="stylesheet" href="/gd-interne/gd-interne-tokens.css">
+       ... ou, depuis une feuille de style :
+       @import './gd-interne-tokens.css';
+
+   Profil « interne » du design system : back-offices, référentiels, outils de
+   pilotage, intégrations — tout ce qu'utilisent les équipes Guy Demarle et
+   pas les Conseillers. Direction retenue le 21 octobre 2026 : « Maison sobre ».
+   Même marque que le profil Conseillers (rouge, marque O, Poppins), sans
+   mascotte ni ambiance, et une densité de poste de travail.
+
+   Les jetons portent LES MÊMES NOMS que dans le profil Conseillers quand ils
+   jouent le même rôle (--gd-red, --gd-cream, --gd-ink, --text-base…) : un
+   composant métier écrit avec var(--gd-*) suit le profil chargé.
+
+   Règle unique : les composants n'écrivent jamais une couleur, une taille de
+   texte ou un rayon en dur — uniquement des var(--gd-*).
+
+   Apparence claire uniquement, quelle que soit la préférence de l'appareil.
+
+   Design system de référence : system-design/interne/README.md
+   ========================================================================== */
+
+:root {
+  color-scheme: only light;
+
+  /* ===== Couleurs de marque ===============================================
+     Le rouge marque l'action principale, l'élément actif de la navigation et
+     la première lettre du nom de l'outil. Rien d'autre : sur un écran dense,
+     un rouge de trop se lit comme une erreur. */
+  --gd-red: #C8373B;          /* action principale, onglet actif, 1re lettre du nom */
+  --gd-red-deep: #a42a2e;     /* survol / enfoncement du rouge, texte sur --gd-red-soft */
+  --gd-red-soft: #f2dadb;     /* fond de l'élément de navigation actif */
+  --gd-red-wash: #FDF4F4;     /* ligne de tableau sélectionnée */
+  --gd-focus: #C8373B;        /* anneau de focus, plein : il doit se voir sur un tableau */
+
+  /* ===== Fonds et surfaces ================================================
+     Même logique que le profil Conseillers, un ton plus clair : un blanc
+     cassé chaud en fond, du blanc pur pour ce qui est posé dessus. */
+  --gd-cream: #FAF8F5;        /* fond d'application — jamais de blanc pur en fond de page */
+  --gd-cream-deep: #F2EDE6;   /* zones enfoncées, badge neutre */
+  --gd-sidebar: #FCFAF6;      /* navigation latérale, en-têtes de tableau, pieds de carte */
+  --gd-paper: #ffffff;        /* surfaces posées : cartes, tableaux, champs, modales */
+  --gd-hover: #F6F1EA;        /* survol d'une ligne, d'un bouton secondaire, d'un lien de navigation */
+
+  /* ===== Texte et filets ================================================== */
+  --gd-ink: #383634;          /* texte courant — volontairement pas noir pur (11,3:1 sur crème) */
+  --gd-ink-soft: #6b6058;     /* texte secondaire — AA partout, sur crème comme sur blanc (5,8:1) */
+  --gd-ink-soft-aa: var(--gd-ink-soft); /* alias du profil Conseillers : ici les deux sont conformes */
+  --gd-border: #ECE5DA;       /* filets : cartes, lignes de tableau, séparateurs */
+  --gd-border-strong: #D9CFC1; /* contours de boutons secondaires, de pagination */
+  --gd-border-field: #9A8D7C; /* contour de champ — 3,2:1, le seuil des composants d'interface */
+
+  /* ===== Couleurs de statut ===============================================
+     Réservées au statut : publié, à valider, rupture, échec d'import. Jamais
+     de décoration. Chaque couple texte / fond est mesuré AA (README § 3.3). */
+  --color-success: #1F6B3A;
+  --color-success-bg: #E6F2EA;
+  --color-success-border: #B9D9C3;
+  --color-warning: #7A5208;
+  --color-warning-bg: #FBF0D9;
+  --color-warning-border: #EDD6A4;
+  --color-error: #A32D2D;
+  --color-error-bg: #FBE9E9;
+  --color-error-border: #EDBDBD;
+  --color-info: #2F5A85;
+  --color-info-bg: #E8EFF6;
+  --color-info-border: #BCD0E4;
+  --color-neutral: #5A5550;
+  --color-neutral-bg: #EEECE8;
+  --color-white: #ffffff;
+
+  /* Voile derrière une modale : l'encre du kit, diluée — pas un noir neutre. */
+  --gd-scrim: rgba(56, 54, 52, 0.36);
+
+  /* Alias génériques — pratiques pour un composant qui ne veut pas connaître
+     le vocabulaire GD. */
+  --accent: var(--gd-red);
+  --bg: var(--gd-cream);
+  --surface: var(--gd-paper);
+  --text: var(--gd-ink);
+  --text-soft: var(--gd-ink-soft);
+  --border: var(--gd-border);
+  --hover: var(--gd-hover);
+
+  /* ===== Typographie ======================================================
+     Une seule famille, la même que chez les Conseillers : Poppins. C'est elle
+     qui fait le lien de marque entre les deux profils.
+     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap'); */
+  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-sans);
+
+  --text-regular: 400;
+  --text-medium: 500;
+  --text-bold: 600;
+  --text-extra-bold: 700;
+
+  /* ===== Échelle typographique ============================================
+     Échelle de poste de travail : corps à 14 px, tableaux à 13 px. Deux
+     paliers sous le profil Conseillers, parce que l'écran sert à comparer et
+     à saisir, à la souris, sur un grand écran. Plancher pour toute
+     information : 12 px. */
+  --text-2xs: 11px;   /* compteur, méta décorative — jamais d'information seule */
+  --text-xs:  12px;   /* en-têtes de colonnes, aides de saisie, badges — plancher */
+  --text-sm:  13px;   /* cellules de tableau, contrôles, navigation */
+  --text-base: 14px;  /* corps de texte par défaut */
+  --text-md:  15px;
+  --text-lg:  16px;   /* titres de carte, de modale */
+  --text-xl:  18px;   /* titres de section */
+  --text-2xl: 20px;
+  --text-3xl: 22px;   /* titre de page, valeur d'indicateur */
+  --text-4xl: 26px;
+  --text-5xl: 32px;
+
+  /* ===== Espacement — base 4 px, identique au profil Conseillers ========== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ===== Hauteurs de contrôle =============================================
+     36 px au pointeur, 30 px dans une ligne de tableau, 44 px dès qu'un
+     écran sert aussi sur tablette (entrepôt, salon, atelier). */
+  --control-h: 36px;
+  --control-h-sm: 30px;
+  --control-h-lg: 44px;
+
+  /* ===== Mise en page ===================================================== */
+  --sidebar-w: 232px;
+  --content-max: 1440px;
+
+  /* ===== Rayons ===========================================================
+     Rien n'est à angle vif, comme chez les Conseillers, mais en plus serré :
+     6 px pour les contrôles et les cartes, 8 px pour ce qui flotte. Les
+     badges restent des pastilles rondes. */
+  --radius-sm:  4px;    /* case à cocher, petite étiquette */
+  --radius-md:  6px;    /* boutons, champs, cartes, tableaux */
+  --radius-lg:  8px;    /* panneaux, modales, menus */
+  --radius-full: 50%;
+  --radius-pill: 999px; /* badges, pastilles */
+
+  /* ===== Ombres ===========================================================
+     Base brune, jamais noire, et plus légères que chez les Conseillers : sur
+     un écran dense, la hiérarchie vient des filets avant de venir des ombres. */
+  --gd-shadow-soft: 0 1px 2px rgba(68, 42, 30, 0.06);
+  --gd-shadow: 0 4px 12px rgba(68, 42, 30, 0.08);
+  --gd-shadow-lift: 0 12px 32px rgba(68, 42, 30, 0.14);
+
+  /* ===== Mouvement ========================================================
+     Une seule courbe : il n'y a rien de vivant dans un outil interne, pas de
+     ressort. Des durées courtes : on y passe la journée. */
+  --ease-out-soft: cubic-bezier(0.22, 0.8, 0.32, 1);
+
+  --duration-press: 80ms;    /* enfoncement d'un bouton */
+  --duration-state: 120ms;   /* survol, changement de couleur */
+  --duration-enter: 160ms;   /* apparition d'un menu, d'une modale */
+  --duration-move: 240ms;    /* ouverture d'un panneau */
+}
+
+/* ============================================================================
+   Socle minimal — la base commune à tous les outils internes.
+   ========================================================================== */
+body {
+  background: var(--gd-cream);
+  color: var(--gd-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Anneau de focus plein et rouge : au clavier, sur un tableau de cinquante
+   lignes, un halo pâle ne se voit pas. */
+:focus-visible {
+  outline: 2px solid var(--gd-focus);
+  outline-offset: 2px;
+}
+
+/* Non négociable, comme chez les Conseillers. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

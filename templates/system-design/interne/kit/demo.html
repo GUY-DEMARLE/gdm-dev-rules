@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design system interne Guy Demarle — banc d'essai</title>
+
+<!--
+  BANC D'ESSAI DU DESIGN SYSTEM INTERNE GUY DEMARLE
+  ============================================================================
+  Ouvrir ce fichier par double-clic. Il charge les fichiers du kit tels qu'un
+  vrai outil les chargerait : aucune valeur n'est recopiée ici. Les couleurs
+  affichées dans la planche des jetons sont lues en direct dans le DOM.
+
+  À quoi ça sert :
+  1. voir à quoi ressemble un outil interne conforme, avant d'écrire une ligne ;
+  2. retrouver chaque brique du kit, avec son HTML ;
+  3. servir de référence de non-régression quand le kit évolue.
+
+  Le CSS de CETTE page ne concerne que sa mise en page de planche : il n'est
+  pas du design system et ne doit pas être recopié dans un outil.
+  ============================================================================
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="gd-interne-tokens.css">
+<link rel="stylesheet" href="gd-interne-components.css">
+
+<style>
+  /* ---- mise en page de la planche (hors design system) ------------------- */
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+
+  .planche { margin-top: var(--space-12); }
+  .planche > h2 { font-size: var(--text-2xl); font-weight: var(--text-bold); margin: 0 0 var(--space-1); }
+  .planche > p { margin: 0 0 var(--space-6); color: var(--gd-ink-soft); max-width: 72ch; }
+  .planche h3 { font-size: var(--text-sm); font-weight: var(--text-medium); color: var(--gd-ink-soft); margin: var(--space-6) 0 var(--space-3); }
+
+  .rang { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: var(--space-5); align-items: start; }
+  .pile { display: grid; gap: var(--space-3); }
+
+  .nuancier { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+  .nuance { border: 1px solid var(--gd-border); border-radius: var(--radius-md); overflow: hidden; background: var(--gd-paper); }
+  .nuance__swatch { height: 56px; border-bottom: 1px solid var(--gd-border); }
+  .nuance__nom { padding: var(--space-2) var(--space-3) 0; font-size: var(--text-xs); font-weight: var(--text-medium); }
+  .nuance__val { padding: 0 var(--space-3) var(--space-2); font-size: var(--text-xs); color: var(--gd-ink-soft); }
+
+  .echelle { display: grid; gap: var(--space-2); }
+  .echelle__ligne { display: flex; align-items: baseline; gap: var(--space-4); }
+  .echelle__jeton { width: 110px; flex-shrink: 0; font-size: var(--text-xs); color: var(--gd-ink-soft); }
+</style>
+</head>
+
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-produits" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></symbol>
+  <symbol id="i-catalogues" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></symbol>
+  <symbol id="i-imports" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/><path d="M7 9l5-5 5 5M12 4v12"/></symbol>
+  <symbol id="i-qualite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M7 16v-5M12 16V8M17 16v-8"/></symbol>
+  <symbol id="i-reglages" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19h16"/></symbol>
+  <symbol id="i-plus-details" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+</svg>
+
+<div class="gd-shell">
+
+  <aside class="gd-shell__sidebar">
+    <div class="gd-lockup">
+      <img class="gd-lockup__mark" src="gd-interne-marque-o.png" alt="">
+      <span class="gd-lockup__text">
+        <span class="gd-lockup__name">Prism</span>
+        <span class="gd-lockup__by">Guy Demarle</span>
+      </span>
+    </div>
+
+    <nav class="gd-nav" aria-label="Navigation principale">
+      <p class="gd-nav__section">Référentiel</p>
+      <a class="gd-nav__item" href="#produits" aria-current="page"><svg aria-hidden="true"><use href="#i-produits"/></svg>Produits<span class="gd-nav__count">1 284</span></a>
+      <a class="gd-nav__item" href="#planche"><svg aria-hidden="true"><use href="#i-catalogues"/></svg>Catalogues</a>
+      <a class="gd-nav__item" href="#planche"><svg aria-hidden="true"><use href="#i-imports"/></svg>Imports</a>
+      <p class="gd-nav__section">Pilotage</p>
+      <a class="gd-nav__item" href="#planche"><svg aria-hidden="true"><use href="#i-qualite"/></svg>Qualité des données</a>
+      <a class="gd-nav__item" href="#planche"><svg aria-hidden="true"><use href="#i-reglages"/></svg>Réglages</a>
+    </nav>
+  </aside>
+
+  <main class="gd-shell__main" id="produits">
+
+    <!-- ===== L'écran type : un référentiel ================================ -->
+
+    <div class="gd-page-header">
+      <div class="gd-page-header__text">
+        <ol class="gd-breadcrumb">
+          <li><a href="#produits">Référentiel</a></li>
+          <li aria-current="page">Produits</li>
+        </ol>
+        <h1 class="gd-page-title">Produits</h1>
+        <p class="gd-page-subtitle">Fiches produits du catalogue France, toutes gammes. Données fictives.</p>
+      </div>
+      <div class="gd-page-actions">
+        <button class="gd-btn gd-btn--secondary" type="button"><svg aria-hidden="true"><use href="#i-export"/></svg>Exporter</button>
+        <button class="gd-btn" type="button"><svg aria-hidden="true"><use href="#i-plus"/></svg>Nouveau produit</button>
+      </div>
+    </div>
+
+    <div class="gd-kpis">
+      <div class="gd-kpi"><div class="gd-kpi__label">Fiches actives</div><div class="gd-kpi__value">1 284</div><div class="gd-kpi__delta gd-kpi__delta--up">+18 cette semaine</div></div>
+      <div class="gd-kpi"><div class="gd-kpi__label">À valider</div><div class="gd-kpi__value">37</div><div class="gd-kpi__delta">dont 9 depuis plus de 7 jours</div></div>
+      <div class="gd-kpi"><div class="gd-kpi__label">Ruptures</div><div class="gd-kpi__value">12</div><div class="gd-kpi__delta gd-kpi__delta--down">+4 depuis lundi</div></div>
+      <div class="gd-kpi"><div class="gd-kpi__label">Fiches complètes</div><div class="gd-kpi__value">92,4 %</div><div class="gd-kpi__delta gd-kpi__delta--up">+1,2 point</div></div>
+    </div>
+
+    <div class="gd-toolbar">
+      <label class="gd-sr-only" for="recherche">Rechercher un produit</label>
+      <input class="gd-input gd-search" id="recherche" type="search" placeholder="Référence, nom, code EAN">
+      <label class="gd-sr-only" for="f-statut">Statut</label>
+      <select class="gd-select" id="f-statut"><option>Tous les statuts</option><option>Publié</option><option>À valider</option><option>Brouillon</option><option>Rupture</option></select>
+      <label class="gd-sr-only" for="f-gamme">Gamme</label>
+      <select class="gd-select" id="f-gamme"><option>Toutes les gammes</option><option>Flexipan</option><option>Tapis</option><option>Moules</option><option>Ustensiles</option></select>
+      <span class="gd-toolbar__spacer"></span>
+      <button class="gd-btn gd-btn--ghost" type="button">Colonnes</button>
+    </div>
+
+    <div class="gd-table-wrap">
+      <table class="gd-table" id="table-produits">
+        <thead>
+          <tr>
+            <th class="gd-col-check"><input class="gd-checkbox" type="checkbox" aria-label="Tout sélectionner"></th>
+            <th>Réf.</th>
+            <th><button class="gd-table__sort" type="button">Produit ↓</button></th>
+            <th>Gamme</th>
+            <th>Statut</th>
+            <th class="gd-num">Stock</th>
+            <th class="gd-num">Prix TTC</th>
+            <th>Modifié le</th>
+            <th><span class="gd-sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="gd-col-check"><input class="gd-checkbox" type="checkbox" aria-label="Sélectionner FL-2041"></td><td class="gd-ref">FL-2041</td><td>Flexipan Origin 24 mini-muffins</td><td>Flexipan</td><td><span class="gd-badge gd-badge--success">Publié</span></td><td class="gd-num">1 120</td><td class="gd-num">39,90 €</td><td>21/10/2026</td><td><button class="gd-btn gd-btn--ghost gd-btn--sm gd-btn--icon" type="button" aria-label="Actions sur FL-2041"><svg aria-hidden="true"><use href="#i-plus-details"/></svg></button></td></tr>
+          <tr aria-selected="true"><td class="gd-col-check"><input class="gd-checkbox" type="checkbox" checked aria-label="Sélectionner TM-0310"></td><td class="gd-ref">TM-0310</td><td>Tapis de cuisson 40 × 30</td><td>Tapis</td><td><span class="gd-badge gd-badge--warning">À valider</span></td><td class="gd-num">86</td><td class="gd-num">24,50 €</td><td>20/10/2026</td><td><button class="gd-btn gd-btn--ghost gd-btn--sm gd-btn--icon" type="button" aria-label="Actions sur TM-0310"><svg aria-hidden="true"><use href="#i-plus-details"/></svg></button></td></tr>
+          <tr><td class="gd-col-check"><input class="gd-checkbox" type="checkbox" aria-label="Sélectionner MO-7782"></td><td class="gd-ref">MO-7782</td><td>Moule à cake rectangulaire</td><td>Moules</td><td><span class="gd-badge">Brouillon</span></td><td class="gd-num">0</td><td class="gd-num">—</td><td>18/10/2026</td><td><button class="gd-btn gd-btn--ghost gd-btn--sm gd-btn--icon" type="button" aria-label="Actions sur MO-7782"><svg aria-hidden="true"><use href="#i-plus-details"/></svg></button></td></tr>
+          <tr><td class="gd-col-check"><input class="gd-checkbox" type="checkbox" aria-label="Sélectionner US-1125"></td><td class="gd-ref">US-1125</td><td>Spatule coudée inox</td><td>Ustensiles</td><td><span class="gd-badge gd-badge--error">Rupture</span></td><td class="gd-num">0</td><td class="gd-num">14,90 €</td><td>17/10/2026</td><td><button class="gd-btn gd-btn--ghost gd-btn--sm gd-btn--icon" type="button" aria-label="Actions sur US-1125"><svg aria-hidden="true"><use href="#i-plus-details"/></svg></button></td></tr>
+          <tr><td class="gd-col-check"><input class="gd-checkbox" type="checkbox" aria-label="Sélectionner FL-2188"></td><td class="gd-ref">FL-2188</td><td>Flexipan 8 tartelettes</td><td>Flexipan</td><td><span class="gd-badge gd-badge--success">Publié</span></td><td class="gd-num">412</td><td class="gd-num">32,00 €</td><td>15/10/2026</td><td><button class="gd-btn gd-btn--ghost gd-btn--sm gd-btn--icon" type="button" aria-label="Actions sur FL-2188"><svg aria-hidden="true"><use href="#i-plus-details"/></svg></button></td></tr>
+          <tr><td class="gd-col-check"><input class="gd-checkbox" type="checkbox" aria-label="Sélectionner CU-0457"></td><td class="gd-ref">CU-0457</td><td>Cul-de-poule inox 24 cm</td><td>Ustensiles</td><td><span class="gd-badge gd-badge--info">Import en cours</span></td><td class="gd-num">230</td><td class="gd-num">19,90 €</td><td>14/10/2026</td><td><button class="gd-btn gd-btn--ghost gd-btn--sm gd-btn--icon" type="button" aria-label="Actions sur CU-0457"><svg aria-hidden="true"><use href="#i-plus-details"/></svg></button></td></tr>
+        </tbody>
+      </table>
+      <div class="gd-table__foot">
+        <span id="compte-selection">1 sélectionné · 1 284 produits</span>
+        <nav class="gd-pagination" aria-label="Pagination">
+          <a class="gd-pagination__item" href="#produits" aria-label="Page précédente">‹</a>
+          <a class="gd-pagination__item" href="#produits" aria-current="page">1</a>
+          <a class="gd-pagination__item" href="#produits">2</a>
+          <a class="gd-pagination__item" href="#produits">3</a>
+          <a class="gd-pagination__item" href="#produits" aria-label="Page suivante">›</a>
+        </nav>
+      </div>
+    </div>
+
+    <!-- ===== La planche : chaque brique, isolée ============================ -->
+
+    <section class="planche" id="planche">
+      <h2>Le kit, brique par brique</h2>
+      <p>Tout ce qui suit vient de <code>gd-interne-components.css</code>. Les noms de classes sont ceux du profil Conseillers quand la brique existe des deux côtés.</p>
+
+      <h3>Boutons — un seul rouge par zone</h3>
+      <div class="rang">
+        <button class="gd-btn" type="button">Enregistrer</button>
+        <button class="gd-btn gd-btn--secondary" type="button">Annuler</button>
+        <button class="gd-btn gd-btn--ghost" type="button">Aperçu</button>
+        <button class="gd-btn gd-btn--danger" type="button" id="ouvrir-modale">Supprimer la fiche</button>
+        <button class="gd-btn gd-btn--secondary gd-btn--sm" type="button">Petit</button>
+        <button class="gd-btn gd-btn--secondary gd-btn--lg" type="button">Tablette (44 px)</button>
+        <button class="gd-btn gd-btn--secondary gd-btn--icon" type="button" aria-label="Plus d'actions"><svg aria-hidden="true"><use href="#i-plus-details"/></svg></button>
+        <button class="gd-btn" type="button" disabled>Désactivé</button>
+      </div>
+
+      <h3>Statuts — le texte dit le statut, la couleur le confirme</h3>
+      <div class="rang">
+        <span class="gd-badge">Brouillon</span>
+        <span class="gd-badge gd-badge--success">Publié</span>
+        <span class="gd-badge gd-badge--warning">À valider</span>
+        <span class="gd-badge gd-badge--error">Rupture</span>
+        <span class="gd-badge gd-badge--info">Import en cours</span>
+        <span class="gd-badge gd-badge--ia">IA</span>
+      </div>
+
+      <h3>Onglets</h3>
+      <div class="gd-tabs" role="tablist" aria-label="Sections de la fiche">
+        <button class="gd-tab" role="tab" type="button" aria-selected="true">Informations</button>
+        <button class="gd-tab" role="tab" type="button" aria-selected="false">Prix</button>
+        <button class="gd-tab" role="tab" type="button" aria-selected="false">Stocks</button>
+        <button class="gd-tab" role="tab" type="button" aria-selected="false">Historique</button>
+      </div>
+
+      <div class="duo">
+        <div class="gd-card">
+          <div class="gd-card__header">
+            <h4 class="gd-card__title">Tapis de cuisson 40 × 30</h4>
+            <span class="gd-badge gd-badge--warning">À valider</span>
+          </div>
+          <dl class="gd-properties">
+            <dt>Référence</dt><dd>TM-0310</dd>
+            <dt>Gamme</dt><dd>Tapis</dd>
+            <dt>Code EAN</dt><dd>3 760 123 456 789</dd>
+            <dt>Stock entrepôt</dt><dd>86 unités</dd>
+            <dt>Prix TTC</dt><dd>24,50 €</dd>
+            <dt>Dernière modification</dt><dd>20/10/2026, par l'équipe Produit</dd>
+          </dl>
+          <div class="gd-card__footer">
+            <button class="gd-btn gd-btn--secondary" type="button">Refuser</button>
+            <button class="gd-btn" type="button">Valider la fiche</button>
+          </div>
+        </div>
+
+        <form class="gd-card" onsubmit="return false">
+          <div class="gd-card__header"><h4 class="gd-card__title">Nouveau produit</h4></div>
+          <div class="gd-form-grid">
+            <div class="gd-field">
+              <label class="gd-label" for="p-nom">Nom</label>
+              <input class="gd-input" id="p-nom" value="Moule à savarin">
+            </div>
+            <div class="gd-field gd-field--error">
+              <label class="gd-label" for="p-ref">Référence</label>
+              <input class="gd-input" id="p-ref" value="MO-77" aria-describedby="p-ref-err" aria-invalid="true">
+              <span class="gd-field__error" id="p-ref-err">Une référence compte 2 lettres, un tiret et 4 chiffres.</span>
+            </div>
+            <div class="gd-field">
+              <label class="gd-label" for="p-gamme">Gamme</label>
+              <select class="gd-select" id="p-gamme"><option>Moules</option><option>Flexipan</option></select>
+            </div>
+            <div class="gd-field">
+              <label class="gd-label" for="p-prix">Prix TTC <span class="gd-label__optional">(facultatif)</span></label>
+              <input class="gd-input" id="p-prix" placeholder="29,90">
+              <span class="gd-hint">Laisser vide tant que le tarif n'est pas validé.</span>
+            </div>
+          </div>
+          <div class="gd-field" style="margin-top: var(--space-4)">
+            <label class="gd-label" for="p-desc">Description</label>
+            <textarea class="gd-textarea" id="p-desc">Moule en silicone, 8 empreintes.</textarea>
+          </div>
+          <label class="gd-check" style="margin-top: var(--space-3)"><input type="checkbox" checked>Publier dès la validation</label>
+          <div class="gd-card__footer">
+            <button class="gd-btn gd-btn--ghost" type="button">Annuler</button>
+            <button class="gd-btn" type="submit">Créer le produit</button>
+          </div>
+        </form>
+      </div>
+
+      <h3>Alertes — réservées au statut</h3>
+      <div class="pile">
+        <div class="gd-alert" role="status"><div><span class="gd-alert__title">Import en cours</span>Le fichier tarifs_novembre.csv est en cours de traitement (312 lignes sur 1 040).</div></div>
+        <div class="gd-alert gd-alert--success" role="status"><div><span class="gd-alert__title">Fiche publiée</span>Elle est visible dans l'espace Conseillers.</div></div>
+        <div class="gd-alert gd-alert--warning" role="status"><div><span class="gd-alert__title">9 fiches attendent une validation</span>Elles sont en attente depuis plus de 7 jours.</div></div>
+        <div class="gd-alert gd-alert--error" role="alert"><div><span class="gd-alert__title">L'import a échoué</span>La colonne « prix_ttc » est absente. Corrigez le fichier, puis relancez l'import.</div></div>
+      </div>
+
+      <h3>État vide</h3>
+      <div class="gd-table-wrap">
+        <div class="gd-empty">
+          <p class="gd-empty__title">Aucun import pour l'instant</p>
+          <p class="gd-empty__text">Les fichiers de prix et de stocks que vous déposez apparaîtront ici, avec le détail des lignes rejetées.</p>
+          <button class="gd-btn" type="button"><svg aria-hidden="true"><use href="#i-imports"/></svg>Déposer un fichier</button>
+        </div>
+      </div>
+
+      <h3>Jetons — lus en direct dans gd-interne-tokens.css</h3>
+      <div class="nuancier" id="nuancier"></div>
+
+      <h3>Échelle typographique</h3>
+      <div class="echelle" id="echelle"></div>
+    </section>
+
+  </main>
+</div>
+
+<dialog class="gd-modal" id="modale" aria-labelledby="modale-titre">
+  <div class="gd-modal__header"><h2 class="gd-modal__title" id="modale-titre">Supprimer la fiche TM-0310 ?</h2></div>
+  <div class="gd-modal__body">La fiche « Tapis de cuisson 40 × 30 » et son historique de prix seront supprimés. Les commandes passées ne sont pas modifiées.</div>
+  <div class="gd-modal__footer">
+    <button class="gd-btn gd-btn--secondary" type="button" data-fermer>Annuler</button>
+    <button class="gd-btn gd-btn--danger" type="button" data-fermer>Supprimer</button>
+  </div>
+</dialog>
+
+<script>
+  /* Sélection de lignes : la case à cocher pilote aria-selected, qui donne
+     le style. Démonstration seulement. */
+  const table = document.getElementById('table-produits')
+  const compte = document.getElementById('compte-selection')
+  const majCompte = () => {
+    const n = table.querySelectorAll('tbody tr[aria-selected="true"]').length
+    compte.textContent = (n ? n + (n > 1 ? ' sélectionnés' : ' sélectionné') + ' · ' : '') + '1 284 produits'
+  }
+  table.addEventListener('change', (e) => {
+    if (!e.target.matches('input[type="checkbox"]')) return
+    if (e.target.closest('thead')) {
+      table.querySelectorAll('tbody tr').forEach((tr) => {
+        tr.querySelector('input').checked = e.target.checked
+        tr.setAttribute('aria-selected', String(e.target.checked))
+      })
+    } else {
+      e.target.closest('tr').setAttribute('aria-selected', String(e.target.checked))
+    }
+    majCompte()
+  })
+
+  /* Onglets */
+  document.querySelectorAll('.gd-tabs').forEach((liste) => {
+    liste.addEventListener('click', (e) => {
+      const onglet = e.target.closest('.gd-tab')
+      if (!onglet) return
+      liste.querySelectorAll('.gd-tab').forEach((t) => t.setAttribute('aria-selected', String(t === onglet)))
+    })
+  })
+
+  /* Modale native */
+  const modale = document.getElementById('modale')
+  document.getElementById('ouvrir-modale').addEventListener('click', () => modale.showModal())
+  modale.querySelectorAll('[data-fermer]').forEach((b) => b.addEventListener('click', () => modale.close()))
+
+  /* Planche des jetons : valeurs lues dans le DOM, jamais recopiées. */
+  const style = getComputedStyle(document.documentElement)
+  const couleurs = ['--gd-red', '--gd-red-deep', '--gd-red-soft', '--gd-red-wash', '--gd-cream', '--gd-cream-deep',
+    '--gd-sidebar', '--gd-paper', '--gd-hover', '--gd-ink', '--gd-ink-soft', '--gd-border', '--gd-border-strong',
+    '--gd-border-field', '--color-success', '--color-warning', '--color-error', '--color-info']
+  document.getElementById('nuancier').innerHTML = couleurs.map((v) =>
+    `<div class="nuance"><div class="nuance__swatch" style="background: var(${v})"></div>` +
+    `<div class="nuance__nom">${v}</div><div class="nuance__val">${style.getPropertyValue(v).trim()}</div></div>`).join('')
+
+  const tailles = ['--text-xs', '--text-sm', '--text-base', '--text-lg', '--text-xl', '--text-3xl']
+  document.getElementById('echelle').innerHTML = tailles.map((v) =>
+    `<div class="echelle__ligne"><span class="echelle__jeton">${v} · ${style.getPropertyValue(v).trim()}</span>` +
+    `<span style="font-size: var(${v})">Fiche produit Flexipan Origin</span></div>`).join('')
+</script>
+</body>
+</html>

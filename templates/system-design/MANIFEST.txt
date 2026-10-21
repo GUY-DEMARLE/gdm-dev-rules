@@ -20,3 +20,11 @@ kit/gd-ai-mascotte.js
 kit/gd-ai-mascotte.svg
 kit/gd-ai-tokens.css
 outils/verifier-interface.mjs
+
+# Profil interne (outils des équipes Guy Demarle)
+interne/AGENTS.md
+interne/README.md
+interne/kit/demo.html
+interne/kit/gd-interne-components.css
+interne/kit/gd-interne-marque-o.png
+interne/kit/gd-interne-tokens.css

@@ -31,7 +31,7 @@ Respecte ces règles dans tout ce que tu génères. Si une demande te paraît co
 
 Le dossier `system-design/` est à la racine du repo, posé et mis à jour par `gdm-dev-rules` — ne le modifie pas ici.
 
-**Avant toute création ou modification d'interface, lis `system-design/AGENTS.md`.** Jetons, composants et mascotte sont fournis dans `system-design/kit/` : rien à redessiner, aucune couleur / taille / rayon / durée en dur, uniquement des `var(--gd-*)`. Rendu visuel : `system-design/kit/demo.html`. Contrôle : `node system-design/outils/verifier-interface.mjs <dossier du front>`.
+**Avant toute création ou modification d'interface, lis `system-design/AGENTS.md`** : il t'envoie vers le profil de l'app, déclaré par la ligne « Profil d'interface » du Contexte du projet de `CLAUDE.md`. Profil **Conseillers** (par défaut) : kit dans `system-design/kit/`. Profil **interne** (back-office, référentiel, pilotage) : `system-design/interne/AGENTS.md` et `system-design/interne/kit/`. Un seul kit par app, rien à redessiner, aucune couleur / taille / rayon / durée en dur, uniquement des `var(--gd-*)`. Contrôle : `node system-design/outils/verifier-interface.mjs <dossier du front>`.
 
 ## Rappel des points critiques
 
@@ -43,7 +43,7 @@ Le dossier `system-design/` est à la racine du repo, posé et mis à jour par `
 6. **Vérifie les patterns de clés** dans le code généré : aucune chaîne ne doit matcher `AIza...`, `sk-ant-...`, `sk_live_...`, `AKIA...`, `ghp_...`.
 7. **Security OSS obligatoire** : `.github/workflows/security-oss.yml` est posé par `gdm-dev-rules` dans chaque app, en copie complète et c'est voulu. Ne le remplace pas par un caller `workflow_call`, ne le modifie pas localement, n'en écris pas un second.
 8. **Sentry en prod** : pour les apps actives, prevoir erreurs, performance, routes lentes, tokens et couts IA si applicable.
-9. **Interface = design system GDM** : lis `system-design/AGENTS.md` avant de coder une UI, consomme les jetons `var(--gd-*)` et ne réécris pas un composant déjà fourni par le kit.
+9. **Interface = design system GDM** : lis `system-design/AGENTS.md` avant de coder une UI, suis le profil de l'app (Conseillers ou interne), consomme les jetons `var(--gd-*)` et ne réécris pas un composant déjà fourni par le kit.
 10. **Fichiers gérés par gdm-dev-rules** (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`) : ne les modifie jamais ici, la CI « GDM Rules Guard » bloquerait la PR. Toute évolution passe par une PR sur `GUY-DEMARLE/gdm-dev-rules`.
 11. **Tests dans chaque PR** (`RULES.md` § 7) : tests de la fonctionnalité ou test qui reproduit le bug, priorité aux droits, RLS, proxys et données ; ne jamais affaiblir ni supprimer un test pour le faire passer ; CI rapide et parallèle selon `docs-rules/TESTS_CI.md`.
 12. **Journal des décisions** (`RULES.md` § 8) : chaque décision importante (architecture, librairie ou service choisi ou rejeté, modèle de données, droits, contournement d'une limite, écart à une règle GDM, approche abandonnée) a son entrée courte en haut de `docs/DECISIONS.md`, dans la même PR. Crée le fichier depuis `docs-rules/DECISIONS_TEMPLATE.md` s'il n'existe pas. Une décision qui change : nouvelle entrée, l'ancienne passe en « Remplacée par … » ; on ne supprime jamais une entrée.
