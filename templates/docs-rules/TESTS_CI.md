@@ -13,26 +13,59 @@ Le code écrit avec l'IA, personne ne l'a tapé : les tests sont le moyen de le 
 |---|---|
 | **Tests dans la même PR** | une fonctionnalité ou un correctif arrive avec ses tests |
 | **Un bug = d'abord un test qui le reproduit** | il échoue avant le correctif, passe après |
-| **Priorités obligatoires** | droits et authentification, RLS, proxys vers les tiers, écriture de données et argent, parcours principal |
-| **Pyramide** | beaucoup de tests unitaires, des tests d'intégration sur les priorités, très peu de bout en bout |
+| **D'abord la liste des cas** | normal, refusé, limites, panne du tiers ; validée par l'utilisateur, recopiée dans la PR |
+| **Priorités obligatoires** | droits et authentification, RLS, proxys vers les tiers, écriture de données et argent |
+| **Le niveau selon le risque** | unitaire pour la logique pure, intégration sur une vraie base pour les données et les droits, Playwright conseillé, test de fumée après déploiement |
+| **Pas de faux test** | un test passe au rouge quand on casse le code qu'il vérifie |
 | **Jamais affaiblir un test pour le faire passer** | ni `skip`, ni suppression, ni assertion assouplie |
-| **Tests hermétiques** | pas de vraie donnée, pas de vrai secret, pas d'appel réseau réel |
+| **Tests hermétiques** | pas de vraie donnée (sauf messages réels anonymisés), pas de vrai secret, pas d'appel réseau réel |
 | **CI de moins de 10 minutes** | jobs en parallèle, tests parallélisés, cache, timeout de 15 min par job |
 | **Un contrôle final `Tests`** | c'est lui qu'on rend obligatoire dans la protection des branches |
 
 ---
 
-## 2. La pyramide des tests
+## 2. Quoi tester, et à quel niveau
 
-```mermaid
-flowchart TB
-    e2e["🔺 De bout en bout · Playwright<br/>peu nombreux · le parcours critique seulement<br/>lents, plusieurs secondes chacun"]
-    integ["🔷 Intégration<br/>routes d'API, droits, RLS, proxys<br/>quelques dizaines"]
-    unit["🟩 Unitaires · Vitest, pytest, PHPUnit<br/>des centaines · une fonction, un composant<br/>quelques millisecondes chacun"]
-    e2e --- integ --- unit
+### D'abord, la liste des cas
+
+Avant d'écrire le moindre test, l'IA liste les cas en quelques lignes et l'utilisateur la valide. C'est là qu'on réfléchit ; les tests ne font ensuite que traduire la liste. Elle finit dans la description de la PR :
+
+```markdown
+## Cas testés — question au chatbot (proxy Gemini)
+- un conseiller connecté pose une question : la réponse s'affiche
+- sans connexion : refusé (401), Gemini n'est pas appelé
+- question vide ou de plus de 2 000 caractères : refusée avant l'appel
+- Gemini répond 500 ou ne répond pas en 30 s : message d'erreur clair, pas de nouvel essai en boucle
+
+Non testé : la qualité des réponses (évaluée à part)
 ```
 
-Plus on monte, plus un test est lent, fragile et coûteux à maintenir. On teste chaque comportement **au niveau le plus bas possible**.
+### Le bon niveau selon le risque
+
+On part du bug qui coûterait cher, puis on prend le niveau le plus bas qui l'attrape.
+
+| Ce qu'on vérifie | Niveau | Outil |
+|---|---|---|
+| Logique pure : calcul, conversion, lecture d'un format | unitaire | Vitest, pytest, PHPUnit |
+| Données, droits, RLS, routes d'API, proxys | intégration, contre une vraie base de test (§ 6) | pytest, Vitest, pgTAP |
+| Messages reçus d'un tiers : webhook ERP, réponse d'API | rejeu de vrais messages anonymisés (§ 3) | pytest, Vitest |
+| 1 à 3 parcours vitaux, **conseillé** | bout en bout | Playwright |
+| L'app déployée répond | test de fumée après chaque déploiement (§ 3) | `curl` dans un workflow |
+
+Pour une app faite surtout de formulaires et de tables, l'essentiel de l'effort va à l'**intégration** : un test unitaire qui simule toute la base ne prouve presque rien. Le bout en bout reste rare : chaque test prend plusieurs secondes et casse au moindre changement d'écran.
+
+### Les faux tests à refuser
+
+Ils sont verts mais ne prouvent rien, et ce sont les plus fréquents dans le code écrit par une IA.
+
+| Faux test | Pourquoi il ne prouve rien | À la place |
+|---|---|---|
+| Il vérifie que le mock renvoie ce qu'on lui a donné | il teste la simulation, pas le code | simuler seulement la frontière (`fetch`) et vérifier ce que le code en fait |
+| Il refait le calcul du code : `expect(prixTTC(100)).toBe(100 * 1.2)` | une erreur de formule est recopiée dans le test | une valeur écrite à la main : `toBe(120)` |
+| Il vérifie un détail interne : fonction appelée, état d'un composant | il casse au moindre remaniement et ne voit pas le bug visible | vérifier ce que voit l'utilisateur ou ce que renvoie l'API |
+| Pause fixe ou sélecteur CSS dans un test d'interface | lent et instable | `getByRole` / `getByLabel`, attendre un état visible |
+
+Le contrôle qui démasque un faux test : **casser volontairement le code** (inverser une condition, supprimer une ligne), lancer le test, constater qu'il passe au rouge, puis remettre le code.
 
 ---
 
@@ -105,9 +138,11 @@ select * from finish();
 rollback;
 ```
 
-### Parcours critique de bout en bout (Playwright)
+### Parcours vital de bout en bout (Playwright, conseillé)
 
-On marque les tests du chemin critique avec `@critique` : ce sont les seuls lancés sur chaque PR.
+Conseillé dès que l'app a un parcours clé : se connecter, puis faire l'action principale. L'app choisit ses 1 à 3 parcours et peut les rendre obligatoires dans « Règles spécifiques à ce projet » de son `CLAUDE.md`. On les marque `@critique` : ce sont les seuls lancés sur chaque PR.
+
+La connexion dépend de l'app : le test utilise un utilisateur créé pour les tests (par exemple dans `supabase/seed.sql` de la base locale), jamais un vrai compte ni la prod.
 
 ```ts
 // e2e/connexion.spec.ts
@@ -115,7 +150,8 @@ import { test, expect } from "@playwright/test";
 
 test("un conseiller se connecte et pose une question @critique", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("E-mail").fill("conseiller@test.local");
+  await page.getByLabel("E-mail").fill("conseiller@test.local"); // utilisateur du seed de test
+  await page.getByLabel("Mot de passe").fill("mot-de-passe-de-test");
   await page.getByRole("button", { name: "Se connecter" }).click();
   await expect(page.getByRole("textbox", { name: "Votre question" })).toBeVisible();
 });
@@ -144,6 +180,59 @@ vi.spyOn(globalThis, "fetch").mockResolvedValue(
   new Response(JSON.stringify({ texte: "réponse simulée" }), { status: 200 })
 );
 ```
+
+### Rejouer de vrais messages reçus
+
+Les surprises de format (champ absent, date dans un autre format, accent mal encodé) ne s'inventent pas : on les récolte. Chaque vrai message reçu d'un tiers devient un fichier de test, **anonymisé** (noms, e-mails, adresses, téléphones remplacés) : un message brut contient des données personnelles et n'entre jamais dans le repo. Quand un message fait planter l'app, on l'ajoute au dossier : c'est le test du bug.
+
+```python
+# api/tests/test_messages_erp.py
+import json
+from pathlib import Path
+
+import pytest
+
+from api.erp import lire_commande
+
+MESSAGES = sorted((Path(__file__).parent / "messages_erp").glob("*.json"))
+
+
+@pytest.mark.parametrize("fichier", MESSAGES, ids=lambda f: f.name)
+def test_chaque_message_reel_se_lit(fichier):
+    commande = lire_commande(json.loads(fichier.read_text(encoding="utf-8")))
+
+    assert commande.numero
+    assert commande.lignes
+```
+
+### Test de fumée après déploiement
+
+Vercel signale chaque déploiement à GitHub : ce workflow vérifie, juste après, que l'app et sa base répondent. Pour un déploiement fait par un workflow (Gandi), ajoute les deux `curl` à la fin de ce workflow.
+
+```yaml
+# .github/workflows/fumee.yml
+name: Fumée
+
+on: deployment_status
+
+permissions:
+  contents: read
+
+jobs:
+  fumee:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: L'app et sa base répondent
+        env:
+          URL: ${{ github.event.deployment_status.target_url }}
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 10 "$URL" > /dev/null
+          curl --fail --silent --show-error --retry 3 --retry-delay 10 "$URL/api/sante"
+```
+
+`/api/sante` est une route qui fait une requête minimale à la base et renvoie 200 ; sans elle, retire le second `curl` : seule la page d'accueil est alors vérifiée. Si les aperçus Vercel sont protégés, limite le job à la prod (`&& github.event.deployment_status.environment == 'Production'`).
 
 ---
 
@@ -174,7 +263,7 @@ Les 6 réglages qui gardent la CI sous 10 minutes, présents dans tous les modè
 3. `cache: npm` / `cache: pip` ;
 4. `concurrency` + `cancel-in-progress: true` ;
 5. tests parallélisés : Vitest par défaut, `pytest -n auto`, `fullyParallel` + `--shard` pour Playwright ;
-6. E2E de la PR limités à `@critique`, suite complète la nuit (`schedule`).
+6. E2E de la PR limités à `@critique`, suite complète la nuit (`schedule`) et sur les PR vers `main`.
 
 ---
 
@@ -249,7 +338,7 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  # Supprime ce job tant que l'app n'a pas de tests Playwright (et retire-le de `needs` plus bas).
+  # Facultatif (Playwright est conseillé, pas imposé) : sans tests Playwright, supprime ce job et retire-le de `needs` plus bas.
   e2e:
     name: E2E (${{ matrix.shard }})
     runs-on: ubuntu-latest
@@ -259,8 +348,8 @@ jobs:
       matrix:
         shard: ["1/2", "2/2"]
     env:
-      # Sur une PR : chemin critique seulement. La nuit : suite complète.
-      PW_FILTRE: ${{ github.event_name == 'schedule' && '.*' || '@critique' }}
+      # Sur une PR : chemin critique seulement. La nuit et sur une PR vers `main` : suite complète.
+      PW_FILTRE: ${{ (github.event_name == 'schedule' || github.base_ref == 'main') && '.*' || '@critique' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -481,11 +570,13 @@ Tant qu'une app n'a pas de CI de tests, on ne l'exige pas : le contrôle n'exist
 
 ## 8. Checklist : ma PR est-elle prête ?
 
-- [ ] Les nouveaux comportements ont des tests, au niveau le plus bas possible
+- [ ] La liste des cas testés, et de ce qui ne l'est pas, est dans la description de la PR
+- [ ] Chaque comportement est testé au niveau le plus bas qui attrape le bug
 - [ ] Un bug corrigé a son test de non-régression
 - [ ] Les cas **refusés** sont testés (droits, RLS, entrées invalides)
+- [ ] Chaque nouveau test passe au rouge quand on casse le code qu'il vérifie
 - [ ] Aucun test n'a été supprimé, désactivé ou assoupli pour passer
-- [ ] Aucune vraie donnée, aucun vrai secret, aucun appel réseau réel dans les tests
+- [ ] Aucune vraie donnée (messages réels : anonymisés), aucun vrai secret, aucun appel réseau réel dans les tests
 - [ ] Les tests passent en local et le contrôle `Tests` est vert
 - [ ] La CI reste sous 10 minutes
 
