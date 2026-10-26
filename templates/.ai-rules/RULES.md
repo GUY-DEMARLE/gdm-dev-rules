@@ -260,6 +260,7 @@ Code ecrit avec l'IA = code que personne n'a tape : les tests sont le moyen de l
 - Chaque nouvelle fonctionnalite arrive avec ses tests, **dans la meme PR**.
 - Chaque correction de bug commence par un test qui **reproduit le bug** (il echoue), puis le correctif le fait passer : le bug ne peut plus revenir.
 - Une PR n'est pas prete tant que les tests ne passent pas en local et en CI.
+- Avant d'ecrire les tests, lister les cas en quelques lignes : cas normal, cas refuse, limites (vide, tres long, doublon), panne du service tiers. L'utilisateur valide la liste ; elle va dans la description de la PR, avec ce qui n'est pas teste et pourquoi.
 
 ### 7.2 Quoi tester en priorite (obligatoire)
 
@@ -267,16 +268,23 @@ Code ecrit avec l'IA = code que personne n'a tape : les tests sont le moyen de l
 - Policies RLS Supabase : un utilisateur ne voit pas les donnees d'un autre (cf. regle 1.2).
 - Proxys vers les services tiers : validation des entrees, limites, parametres couteux verrouilles (cf. regle 1.6).
 - Tout ce qui ecrit des donnees ou touche a l'argent.
-- Le parcours principal de l'app, de bout en bout (Playwright), sur le chemin critique uniquement.
 
-Pyramide des tests : beaucoup de tests unitaires (rapides), des tests d'integration sur les points ci-dessus, tres peu de tests de bout en bout (lents et fragiles).
+Le niveau de test se choisit selon le risque : le bug qui couterait cher, puis le niveau le plus bas qui l'attrape.
+
+- Logique pure (calcul, conversion, lecture d'un format) : test unitaire.
+- Donnees, droits, routes d'API, proxys : test d'integration contre une vraie base de test. C'est la que se trouvent la plupart des bugs : l'essentiel de l'effort va ici, pas dans des tests unitaires qui simulent toute la base.
+- Messages recus d'un tiers (webhook ERP, reponses d'API) : rejouer de vrais messages recus, **anonymises**, enregistres comme fichiers de test. Un message qui a fait planter l'app devient un de ces fichiers.
+- Parcours vitaux de bout en bout (Playwright) : **conseille**, pas impose. L'app choisit 1 a 3 parcours et peut les rendre obligatoires dans « Regles specifiques a ce projet » de son `CLAUDE.md`.
+- Apres chaque deploiement (staging, puis prod) : un test de fumee automatique, l'app repond et sa base aussi.
 
 ### 7.3 Interdits pour l'IA
 
 - Ne jamais affaiblir, supprimer, desactiver (`skip`, `xfail`, `.only` oublie) ou contourner un test pour le faire passer. Si un test casse : corriger le code, ou expliquer a l'utilisateur pourquoi le test est faux et attendre son accord.
 - Ne pas simuler (mock) ce qui est justement teste. On simule les frontieres : API externes, horloge, hasard.
-- Un test doit echouer sans le code qu'il verifie ; sinon il ne prouve rien.
-- Pas de vraies donnees, pas de vrais secrets, pas d'appel reseau reel dans les tests (tests hermetiques). Donnees de test fabriquees, cles factices.
+- Un test doit echouer sans le code qu'il verifie ; sinon il ne prouve rien. Le verifier une fois : casser volontairement le code, constater que le test passe au rouge, remettre le code.
+- Pas de faux tests : un test qui verifie que le mock renvoie ce qu'on lui a donne, qui refait le meme calcul que le code au lieu d'une valeur attendue ecrite a la main, ou qui verifie un detail interne (fonction appelee, etat d'un composant) au lieu du resultat visible.
+- Tests d'interface : selecteurs par role ou libelle (`getByRole`, `getByLabel`), jamais de selecteur CSS ni de pause fixe (`sleep`, `waitForTimeout`) ; on attend un etat visible.
+- Pas de vraies donnees, pas de vrais secrets, pas d'appel reseau reel dans les tests (tests hermetiques). Donnees de test fabriquees ou messages reels anonymises (cf. 7.2), cles factices.
 - Pas de test « snapshot » seul pour valider une logique metier.
 - Un test instable (flaky) se corrige ou se met en quarantaine tout de suite, avec une issue : on ne s'habitue jamais au rouge.
 
@@ -285,7 +293,7 @@ Pyramide des tests : beaucoup de tests unitaires (rapides), des tests d'integrat
 - `timeout-minutes` sur chaque job (15 par defaut) : rien ne tourne 45 minutes.
 - Jobs independants **en parallele** : lint, typage, tests front, tests back, build ; pas de `needs` entre eux.
 - Tests paralleles a l'interieur : Vitest (par defaut), `pytest -n auto` (pytest-xdist), workers Playwright ; `--shard` sur plusieurs machines si la suite E2E grossit.
-- Sur chaque PR : tests unitaires + integration + E2E du chemin critique. Suite E2E complete la nuit ou avant une release vers `main`.
+- Sur chaque PR : tests unitaires + integration, et les E2E `@critique` si l'app en a. Suite E2E complete la nuit et sur les PR vers `main`.
 - Cache des dependances (`cache: npm`, `cache: pip`).
 - `concurrency` avec `cancel-in-progress` : un nouveau push annule le run precedent de la meme PR.
 - Un job final nomme **`Tests`** agrege tous les jobs de tests : c'est le controle a rendre obligatoire dans la protection des branches.
@@ -297,7 +305,7 @@ Pyramide des tests : beaucoup de tests unitaires (rapides), des tests d'integrat
 | Front React/Vite, Node | Vitest (+ Testing Library pour les composants) |
 | API Python | pytest (+ pytest-xdist) |
 | PHP | PHPUnit |
-| De bout en bout | Playwright |
+| De bout en bout (conseille) | Playwright |
 | RLS Supabase | tests SQL (pgTAP / `supabase test db`) |
 
 Couverture : mesurer la couverture **du code modifie** dans la PR, pas viser un pourcentage global.
