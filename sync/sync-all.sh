@@ -201,13 +201,33 @@ protection_note() {
 # statusCheckRollup` : sa requête GraphQL demande aussi les workflows, ce que
 # l'App n'a pas le droit de lire (« Resource not accessible by integration »).
 # Affiche une liste de mots ok / pending / fail ; échoue si la lecture échoue.
+#
+# Lancements annulés : quand un même commit déclenche deux fois les workflows,
+# une CI avec cancel-in-progress annule l'une des copies, et son job final
+# (« Tests ») sort en échec. Un groupe de checks annulé est ignoré quand tous
+# ses checks existent dans un autre groupe non annulé : il a été remplacé.
+# Tant qu'un autre groupe tourne encore, ses échecs comptent comme « en
+# cours » ; ensuite, annulé sans remplaçant, il compte comme un échec.
 read_checks() {
-    local full=$1 sha=$2 runs statuses
-    runs=$(gh api "repos/$full/commits/$sha/check-runs?per_page=100&filter=latest" --jq '
-        [.check_runs[] |
-          if .status != "completed" then "pending"
-          elif (.conclusion == "success" or .conclusion == "neutral" or .conclusion == "skipped") then "ok"
-          else "fail" end] | join(" ")') || return 1
+    local full=$1 sha=$2 suites cancelled busy runs statuses
+    # « busy ids » : busy d'abord, la liste d'identifiants peut être vide.
+    suites=$(gh api "repos/$full/commits/$sha/check-suites?per_page=100" --jq '
+        "\(any(.check_suites[]; .conclusion != "cancelled" and .latest_check_runs_count > 0
+              and .status != "completed")) \(
+          [.check_suites[] | select(.conclusion == "cancelled") | .id] | join(","))"') || return 1
+    read -r busy cancelled <<< "$suites"
+    [[ "$cancelled" =~ ^[0-9,]*$ && "$busy" =~ ^(true|false)$ ]] || return 1
+    runs=$(gh api "repos/$full/commits/$sha/check-runs?per_page=100&filter=latest" --jq "
+        [$cancelled] as \$cancelled | $busy as \$busy | "'
+        [.check_runs[] | . + {annule: (.check_suite.id as $s | any($cancelled[]; . == $s))}] as $all
+        | [$all[] | select(.annule | not) | .name] as $vivants
+        | ([$all[] | select(.annule)] | group_by(.check_suite.id)
+            | map(select(all(.[]; .name as $n | any($vivants[]; . == $n))) | .[0].check_suite.id)) as $remplaces
+        | [$all[] | select(.check_suite.id as $s | any($remplaces[]; . == $s) | not) |
+            if .status != "completed" then "pending"
+            elif (.conclusion == "success" or .conclusion == "neutral" or .conclusion == "skipped") then "ok"
+            elif .annule and $busy then "pending"
+            else "fail" end] | join(" ")') || return 1
     statuses=$(gh api "repos/$full/commits/$sha/status" --jq '
         [.statuses[] |
           if .state == "success" then "ok"
