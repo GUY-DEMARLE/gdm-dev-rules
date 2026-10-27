@@ -324,7 +324,7 @@ flowchart LR
 - **Des tests dans chaque PR** : ceux de la fonctionnalité, ou un test qui reproduit le bug corrigé. Jamais un test supprimé ou assoupli pour passer. Détail : [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md).
 - **Les décisions importantes vont dans `docs/DECISIONS.md`**, dans la même PR : l'IA lit ce journal en début de session et y ajoute une entrée courte quand un choix structurant est fait (architecture, librairie, modèle de données, droits, approche abandonnée). C'est la mémoire de l'app pour le prochain dev et sa prochaine IA.
 - **Contrôles bloquants sur chaque PR** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
-- **Le lundi, les PR Dependabot** : une par app (et par dossier de dépendances), vers `dev`, avec les correctifs et versions mineures. Si elle est verte, un coup d'œil à l'aperçu de l'app (le parcours principal), puis merge. Si elle casse, on la ferme : rien n'est arrivé dans `dev`. Les versions majeures se font à la main.
+- **Le lundi, les PR Dependabot** : une par app (et par dossier de dépendances), vers `dev`, avec les correctifs et versions mineures publiés depuis au moins 7 jours (le temps qu'un paquet piégé soit repéré). Si elle est verte, un coup d'œil à l'aperçu de l'app (le parcours principal), puis merge. Si elle casse, on la ferme : rien n'est arrivé dans `dev`. Les versions majeures se font à la main.
 
 ---
 
