@@ -102,7 +102,9 @@ manifest_dirs() {
 }
 
 # Dependabot : une PR par semaine, qui regroupe les correctifs et versions
-# mineures. Les versions majeures se décident et se font à la main. Pas de
+# mineures. Les versions majeures se décident et se font à la main. Une version
+# n'est proposée que 7 jours après sa publication : le temps qu'un paquet piégé
+# soit repéré et retiré (règle Semgrep dependabot-missing-cooldown). Pas de
 # mises à jour des actions GitHub : les workflows de l'app sont gérés ici.
 write_dependabot() {
     local rel=".github/dependabot.yml" dst="$DST/.github/dependabot.yml"
@@ -130,6 +132,8 @@ write_dependabot() {
       day: "monday"
       time: "05:00"
       timezone: "Europe/Paris"
+    cooldown:
+      default-days: 7
     groups:
       mises-a-jour:
         patterns: ["*"]
@@ -150,6 +154,7 @@ write_dependabot() {
         echo "#"
         echo "# Chaque lundi, une PR par dossier de dépendances regroupe les correctifs et"
         echo "# versions mineures. Les versions majeures se décident et se font à la main."
+        echo "# Une version n'est proposée que 7 jours après sa publication."
         echo "version: 2"
         echo "updates:"
         printf '%s' "$body"
