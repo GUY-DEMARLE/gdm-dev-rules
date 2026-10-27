@@ -39,6 +39,7 @@ Il fonctionne sur **n'importe quelle app**, quelle que soit sa stack : il ne fai
 | `docs-rules/`, `system-design/` | écrasés ; un fichier retiré de la source est supprimé de l'app |
 | `.github/workflows/security-oss.yml` | écrasé (copie complète, voulue) |
 | `.github/workflows/gdm-rules-guard.yml` | écrasé : la CI qui bloque les modifications locales |
+| `.github/dependabot.yml` | écrit selon les dépendances trouvées (npm, pip, composer), PR vers `dev` ; un fichier propre à l'app, jamais posé par le robot, est laissé intact |
 | `.ai-rules/verify-managed.sh`, `.ai-rules/MANAGED.sha256` | script de vérification et empreintes des fichiers gérés |
 | `CLAUDE.md`, `AGENTS.md` | partie GDM mise à jour, **« ## Contexte du projet » et la suite préservés** |
 

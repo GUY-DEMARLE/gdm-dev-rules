@@ -114,7 +114,7 @@ Ces outils verifient :
 ```text
 Gitleaks    -> secrets, tokens, cles API, fichiers sensibles
 Semgrep     -> erreurs de code et patterns de securite
-OSV Scanner -> dependances vulnerables connues
+OSV Scanner -> dependances vulnerables ajoutees par la PR
 ```
 
 Interet :
@@ -428,9 +428,10 @@ les erreurs Slack doivent etre corrigees ou justifiees
 Chaque lundi :
 
 ```text
+merger les PR Dependabot vertes, apres un coup d'oeil a l'apercu de l'app
 lire le rapport Slack Security OSS
 ouvrir les artifacts si un outil remonte un probleme
-traiter en priorite secrets, critical et high
+traiter en priorite secrets, critical et high qui touchent la prod
 ```
 
 Au fil de l'eau :
