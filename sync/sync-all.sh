@@ -76,10 +76,13 @@ sync_repo() {
     fi
 
     # Branche cible : dev si elle existe, sinon la branche par défaut de l'app.
-    local target
+    # Les PR Dependabot visent la même branche.
+    local target dependabot_branch=""
     if git -C "$dir" ls-remote --exit-code --heads origin dev >/dev/null 2>&1; then
         target=dev
         git -C "$dir" fetch --quiet origin dev
+        [ "$(git -C "$dir" symbolic-ref --short refs/remotes/origin/HEAD)" = origin/dev ] \
+            || dependabot_branch=dev
     else
         target=$(git -C "$dir" symbolic-ref --short refs/remotes/origin/HEAD)
         target=${target#origin/}
@@ -89,7 +92,7 @@ sync_repo() {
     local first_install=0
     [ -f "$dir/.ai-rules/MANAGED.sha256" ] || first_install=1
 
-    GDM_NOTES="$notes" GDM_TOUCHED="$touched" \
+    GDM_NOTES="$notes" GDM_TOUCHED="$touched" GDM_DEPENDABOT_BRANCH="$dependabot_branch" \
         bash "$HERE/apply.sh" "$SRC" "$dir"
 
     # -f : les fichiers gérés doivent être versionnés même si le .gitignore

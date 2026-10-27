@@ -80,6 +80,9 @@ jobs:
         if: steps.pr_gitleaks.outputs.exit_code != '0' || steps.pr_semgrep.outputs.exit_code != '0'
         run: exit 1
 
+  # Bloque uniquement les failles que la PR ajoute : on scanne la branche cible,
+  # puis la PR, et on compare. Les failles déjà présentes ne bloquent pas toutes
+  # les PR de l'app : elles restent dans l'audit du lundi et Dependabot les corrige.
   pr_security_osv:
     name: PR Security - OSV Scanner
     if: github.event_name == 'pull_request'
@@ -87,11 +90,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
 
       - name: Prepare PR reports directory
         run: mkdir -p reports
 
-      - name: OSV Scanner (blocking, no SARIF upload)
+      - name: Checkout target branch
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git checkout --quiet "$BASE_SHA"
+
+      - name: OSV Scanner on target branch
+        uses: google/osv-scanner-action/osv-scanner-action@375a0e8ebdc98e99b02ac4338a724f5750f21213 # v2.3.1
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --recursive
+            --format=json
+            --output=reports/base-osv-scanner-report.json
+            .
+
+      - name: Checkout PR
+        run: git checkout --quiet -f "$GITHUB_SHA"
+
+      - name: OSV Scanner on PR (no SARIF upload)
         id: pr_osv
         uses: google/osv-scanner-action/osv-scanner-action@375a0e8ebdc98e99b02ac4338a724f5750f21213 # v2.3.1
         continue-on-error: true
@@ -99,8 +122,92 @@ jobs:
           scan-args: |-
             --recursive
             --format=json
-            --output=reports/pr-osv-scanner-report.json
+            --output=reports/head-osv-scanner-report.json
             .
+
+      - name: Keep only vulnerabilities added by the PR
+        id: osv_diff
+        env:
+          HEAD_OUTCOME: ${{ steps.pr_osv.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          reports = Path("reports")
+
+          def load(name):
+              path = reports / name
+              try:
+                  if path.exists() and path.stat().st_size > 0:
+                      return json.loads(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  print(f"::warning::{name} illisible : {exc}")
+              return None
+
+          def source_of(result):
+              src = result.get("source", {}) or {}
+              path = src.get("path") or src.get("name") or ""
+              return path.split("/github/workspace/", 1)[-1]
+
+          # Une faille = (fichier de dépendances, écosystème, paquet, identifiant).
+          def key(source, package, vuln):
+              pkg = package.get("package", {}) or {}
+              return (source, pkg.get("ecosystem"), pkg.get("name"), vuln.get("id"))
+
+          def all_keys(data):
+              return {
+                  key(source_of(result), package, vuln)
+                  for result in (data or {}).get("results", []) or []
+                  for package in result.get("packages", []) or []
+                  for vuln in package.get("vulnerabilities", []) or []
+              }
+
+          head = load("head-osv-scanner-report.json")
+          base = load("base-osv-scanner-report.json")
+          head_outcome = os.environ.get("HEAD_OUTCOME", "")
+
+          base_keys = all_keys(base)
+          head_keys = all_keys(head)
+          if base is None and head_keys:
+              print("::warning::Pas de rapport OSV pour la branche cible : toutes les failles de la PR comptent comme ajoutées.")
+
+          # Seules les failles absentes de la branche cible restent dans le
+          # rapport : c'est lui que la notification Slack détaille.
+          added = {"results": []}
+          for result in (head or {}).get("results", []) or []:
+              source = source_of(result)
+              packages = []
+              for package in result.get("packages", []) or []:
+                  vulns = [
+                      vuln for vuln in package.get("vulnerabilities", []) or []
+                      if key(source, package, vuln) not in base_keys
+                  ]
+                  if vulns:
+                      packages.append({**package, "vulnerabilities": vulns})
+              if packages:
+                  added["results"].append({**result, "packages": packages})
+          (reports / "pr-osv-scanner-report.json").write_text(json.dumps(added, indent=2), encoding="utf-8")
+
+          added_count = len(head_keys - base_keys)
+          existing_count = len(head_keys & base_keys)
+          # Scan en échec sans aucune faille lisible : erreur du scanner, on bloque.
+          scan_error = head_outcome == "failure" and not head_keys
+          blocking = added_count > 0 or scan_error
+
+          lines = [
+              f"Failles ajoutées par la PR : {added_count}",
+              f"Failles déjà présentes sur la branche cible (non bloquantes, audit du lundi et Dependabot) : {existing_count}",
+          ]
+          if scan_error:
+              lines.append("Le scan OSV de la PR a échoué sans rapport exploitable : ouvrir les logs du job.")
+          print("\n".join(lines))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("### OSV Scanner\n\n" + "\n".join(f"- {line}" for line in lines) + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"blocking={'true' if blocking else 'false'}\n")
+          PY
 
       - name: Upload PR OSV report
         if: always()
@@ -110,8 +217,8 @@ jobs:
           path: reports/
           if-no-files-found: warn
 
-      - name: Fail PR OSV check when vulnerabilities exist
-        if: steps.pr_osv.outcome == 'failure'
+      - name: Fail PR OSV check when the PR adds vulnerabilities
+        if: steps.osv_diff.outputs.blocking != 'false'
         run: exit 1
 
   pr_security_notify:
@@ -246,7 +353,7 @@ jobs:
               failed.append("OSV Scanner")
               osv = osv_findings()
               if osv:
-                  sections.append("*Dependances vulnerables OSV:*\n" + "\n".join(osv))
+                  sections.append("*Dependances vulnerables ajoutees par la PR (OSV):*\n" + "\n".join(osv))
               else:
                   sections.append("*OSV Scanner:* le job a echoue, mais aucun rapport JSON exploitable n'a ete trouve. Ouvrir les logs du job.")
 

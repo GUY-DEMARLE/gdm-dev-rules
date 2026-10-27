@@ -55,9 +55,11 @@ ton-app/
 │   ├── verify-managed.sh      ← vérifie que les fichiers gérés n'ont pas été modifiés
 │   └── MANAGED.sha256         ← empreintes de ces fichiers
 ├── .cursor/rules/gdm-rules.mdc ← lu automatiquement par Cursor
-├── .github/workflows/
-│   ├── security-oss.yml       ← pipeline sécurité (obligatoire)
-│   └── gdm-rules-guard.yml    ← bloque toute modification locale des fichiers gérés
+├── .github/
+│   ├── dependabot.yml         ← chaque lundi, une PR de mises à jour des dépendances
+│   └── workflows/
+│       ├── security-oss.yml    ← pipeline sécurité (obligatoire)
+│       └── gdm-rules-guard.yml ← bloque toute modification locale des fichiers gérés
 ├── docs-rules/                ← doc GDM : setup, archi, sécu, hébergement, config GitHub
 ├── system-design/             ← design system GDM (jetons, composants, mascotte)
 ├── CLAUDE.md                  ← lu par Claude Code
@@ -74,6 +76,7 @@ L'app a aussi son propre `docs/DECISIONS.md` : le journal des décisions importa
 | `CLAUDE.md` / `AGENTS.md`, partie au-dessus de `## Contexte du projet` | ❌ non | `templates/CLAUDE.md`, `templates/AGENTS.md` ici |
 | `.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/` | ❌ non | `templates/` ici |
 | `.github/workflows/security-oss.yml`, `gdm-rules-guard.yml` | ❌ non | `.github/workflows/security-oss.yml`, `templates/.github/` ici |
+| `.github/dependabot.yml` (écrit selon les dépendances de l'app) | ❌ non | `sync/apply.sh` ici |
 | Tout le reste (le code de l'app) | ✅ oui | dans l'app, par PR |
 
 Une modification d'un fichier ❌ fait échouer le contrôle **GDM Rules Guard**, et le robot remet l'original au passage suivant.
@@ -321,6 +324,7 @@ flowchart LR
 - **Des tests dans chaque PR** : ceux de la fonctionnalité, ou un test qui reproduit le bug corrigé. Jamais un test supprimé ou assoupli pour passer. Détail : [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md).
 - **Les décisions importantes vont dans `docs/DECISIONS.md`**, dans la même PR : l'IA lit ce journal en début de session et y ajoute une entrée courte quand un choix structurant est fait (architecture, librairie, modèle de données, droits, approche abandonnée). C'est la mémoire de l'app pour le prochain dev et sa prochaine IA.
 - **Contrôles bloquants sur chaque PR** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
+- **Le lundi, les PR Dependabot** : une par app (et par dossier de dépendances), vers `dev`, avec les correctifs et versions mineures. Si elle est verte, un coup d'œil à l'aperçu de l'app (le parcours principal), puis merge. Si elle casse, on la ferme : rien n'est arrivé dans `dev`. Les versions majeures se font à la main.
 
 ---
 
@@ -379,7 +383,8 @@ Posée par `sync/proteger-repos.sh` sur la branche par défaut, `main`, `staging
 | Contrôle | Où | Quand | Bloquant |
 |---|---|---|---|
 | Gitleaks, Semgrep | chaque app | chaque PR | ✅ |
-| OSV Scanner (dépendances) | chaque app | chaque PR | ✅ |
+| OSV Scanner (dépendances) | chaque app | chaque PR | ✅ pour les failles ajoutées par la PR |
+| PR Dependabot (correctifs et versions mineures) | chaque app | chaque lundi 05:00, heure de Paris | — merge à la main |
 | GDM Rules Guard | chaque app | chaque PR | ✅ |
 | Revue IA Codex (code + sécurité) | chaque app où elle est activée | à l'ouverture de la PR, ou `@codex review` | non, commentaires seulement |
 | Audit complet (ZAP, Supabomb, npm/pip/composer-audit, Trivy) | chaque app | chaque lundi 06:00 UTC + à la demande | non, rapport Slack + artifacts |

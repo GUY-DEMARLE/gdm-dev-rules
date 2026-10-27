@@ -163,7 +163,7 @@ Production   -> Sentry surveille erreurs, latence, routes critiques et couts IA.
 - Architecture front/back respectee.
 - CI securite verte :
   - `PR Security - Secrets + SAST` : Gitleaks + Semgrep.
-  - `PR Security - OSV Scanner` : dependances vulnerables.
+  - `PR Security - OSV Scanner` : dependances vulnerables ajoutees par la PR (celles deja presentes sont corrigees par les PR Dependabot du lundi).
   - `GDM Rules Guard` : aucun fichier gere par `gdm-dev-rules` modifie localement.
 - Si Security OSS envoie un Slack d'echec : corriger les fichiers/packages cites avant merge.
 
@@ -232,7 +232,7 @@ Quand tu proposes ou modifies du code :
 12. Au démarrage d'un projet, proposer le bon couple stack/hébergement : API Supabase PostgREST/Edge par défaut (Render seulement si logique lourde), front statique → Gandi FTP, front avec rendu serveur → Vercel. Rappeler que sur Gandi + Supabase en accès direct, les RLS sont l'unique barrière (cf. `HEBERGEMENT_GANDI.md`).
 13. Pour toute interface (nouvel ecran, refonte, composant), appliquer le design system GDM : lire `system-design/AGENTS.md` avant de coder et suivre le profil de l'app (Conseillers par defaut, interne si `CLAUDE.md` declare « Profil d'interface : interne »), consommer les jetons `var(--gd-*)`, ne pas reecrire un composant deja fourni par le kit, ne jamais charger les deux kits dans la meme app.
 14. Au debut de chaque session : `git fetch` puis `git status -sb`. Si la branche est en retard sur son origine ou sur `origin/dev`, rappeler a l'utilisateur de faire `git pull` (ou de rebaser sur `dev`) avant de coder. Ne pas le faire a sa place sans accord.
-15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
+15. Ne jamais modifier un fichier gere par `gdm-dev-rules` dans une app (`.ai-rules/`, `.cursor/rules/gdm-rules.mdc`, `docs-rules/`, `system-design/`, `security-oss.yml`, `gdm-rules-guard.yml`, `dependabot.yml`, partie GDM de `CLAUDE.md` / `AGENTS.md`). La CI « GDM Rules Guard » bloque la PR ; l'evolution passe par une PR sur `gdm-dev-rules`.
 16. Appliquer la section 7 (tests et CI) a chaque fonctionnalite et chaque correctif : ecrire les tests dans la meme PR, ne jamais affaiblir ni supprimer un test pour le faire passer, et creer ou adapter le `ci.yml` de l'app a partir de `docs-rules/TESTS_CI.md` s'il manque.
 17. Tenir le journal des decisions de l'app (section 8) : lire `docs/DECISIONS.md` en debut de session, y ajouter une entree dans la meme PR a chaque decision importante, ne jamais contredire une decision active sans le signaler a l'utilisateur.
 

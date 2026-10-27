@@ -196,6 +196,8 @@ autres fichiers supportes par OSV
 
 Contrairement au job Semgrep, OSV ne cherche pas principalement des erreurs dans le code applicatif. Il cherche si une bibliotheque utilisee est connue comme vulnerable.
 
+Le job ne bloque que les failles **ajoutees par la PR** : il scanne la branche cible, puis la PR, et compare. Une faille deja presente avant la PR ne bloque pas : sinon, chaque nouvelle faille publiee mettrait en rouge toutes les PR de l'app, y compris celles du robot. Les failles deja presentes restent dans l'audit du lundi et sont corrigees par les PR Dependabot. Le resume du job donne les deux nombres (ajoutees, deja presentes).
+
 Exemple :
 
 ```text
