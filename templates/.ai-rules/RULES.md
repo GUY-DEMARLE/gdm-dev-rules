@@ -166,6 +166,7 @@ Production   -> Sentry surveille erreurs, latence, routes critiques et couts IA.
   - `PR Security - OSV Scanner` : dependances vulnerables ajoutees par la PR (celles deja presentes sont corrigees par les PR Dependabot du lundi).
   - `GDM Rules Guard` : aucun fichier gere par `gdm-dev-rules` modifie localement.
 - Si Security OSS envoie un Slack d'echec : corriger les fichiers/packages cites avant merge.
+- Sur une promotion (PR qui part de `dev` ou `staging`), ces trois controles sont sautes et comptent comme reussis : le code est deja passe par eux sur sa PR vers `dev` (cf. 7.4).
 
 ### 2.5 Avant chaque deploiement prod
 
@@ -293,7 +294,8 @@ Le niveau de test se choisit selon le risque : le bug qui couterait cher, puis l
 - `timeout-minutes` sur chaque job (15 par defaut) : rien ne tourne 45 minutes.
 - Jobs independants **en parallele** : lint, typage, tests front, tests back, build ; pas de `needs` entre eux.
 - Tests paralleles a l'interieur : Vitest (par defaut), `pytest -n auto` (pytest-xdist), workers Playwright ; `--shard` sur plusieurs machines si la suite E2E grossit.
-- Sur chaque PR : tests unitaires + integration, et les E2E `@critique` si l'app en a. Suite E2E complete la nuit et sur les PR vers `main`.
+- Sur chaque PR : tests unitaires + integration, et les E2E `@critique` si l'app en a. Suite E2E complete la nuit.
+- Les promotions ne relancent rien : une PR qui part de `dev` ou `staging` saute tous ses jobs, `Tests` compris, par un `if` (pas par un filtre dans `on:`, qui laisserait le controle obligatoire en attente). Ces branches sont protegees : leur code est deja passe par une PR vers `dev`. On ne merge donc rien dans `dev` tant que ses controles ne sont pas verts. Condition dans `docs-rules/TESTS_CI.md` section 4.
 - Cache des dependances (`cache: npm`, `cache: pip`).
 - `concurrency` avec `cancel-in-progress` : un nouveau push annule le run precedent de la meme PR.
 - Un job final nomme **`Tests`** agrege tous les jobs de tests : c'est le controle a rendre obligatoire dans la protection des branches.
