@@ -3,6 +3,11 @@ name: Security OSS
 on:
   # Toutes les PR, quelle que soit la branche cible : le workflow doit protéger
   # n'importe quelle app, y compris celles sans dev/staging ou avec master.
+  # Sauf les promotions (PR qui part de dev ou staging) : ces branches sont
+  # protégées, tout ce qu'elles contiennent est déjà passé par une PR contrôlée.
+  # Leurs jobs sont sautés par leur `if` et non filtrés ici : un job sauté compte
+  # comme réussi pour les contrôles obligatoires, un workflow non déclenché
+  # laisserait la PR en attente.
   pull_request:
   workflow_dispatch:
     inputs:
@@ -25,7 +30,12 @@ env:
 jobs:
   pr_security_static:
     name: PR Security - Secrets + SAST
-    if: github.event_name == 'pull_request'
+    # Sauté sur une promotion (cf. `on`). La branche doit venir de ce repo :
+    # une branche « dev » d'un fork ne passe pas sans contrôle.
+    if: >-
+      github.event_name == 'pull_request' &&
+      (github.event.pull_request.head.repo.full_name != github.repository ||
+      (github.head_ref != 'dev' && github.head_ref != 'staging'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -85,7 +95,11 @@ jobs:
   # les PR de l'app : elles restent dans l'audit du lundi et Dependabot les corrige.
   pr_security_osv:
     name: PR Security - OSV Scanner
-    if: github.event_name == 'pull_request'
+    # Sauté sur une promotion, comme le job précédent.
+    if: >-
+      github.event_name == 'pull_request' &&
+      (github.event.pull_request.head.repo.full_name != github.repository ||
+      (github.head_ref != 'dev' && github.head_ref != 'staging'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

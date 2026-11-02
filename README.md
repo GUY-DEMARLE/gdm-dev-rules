@@ -323,7 +323,8 @@ flowchart LR
 - **Une PR = une intention.** Le code écrit par l'IA appartient à celui qui le pousse : tu dois pouvoir expliquer chaque ligne.
 - **Des tests dans chaque PR** : ceux de la fonctionnalité, ou un test qui reproduit le bug corrigé. Jamais un test supprimé ou assoupli pour passer. Détail : [`TESTS_CI.md`](templates/docs-rules/TESTS_CI.md).
 - **Les décisions importantes vont dans `docs/DECISIONS.md`**, dans la même PR : l'IA lit ce journal en début de session et y ajoute une entrée courte quand un choix structurant est fait (architecture, librairie, modèle de données, droits, approche abandonnée). C'est la mémoire de l'app pour le prochain dev et sa prochaine IA.
-- **Contrôles bloquants sur chaque PR** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`.
+- **Contrôles bloquants sur chaque PR** : `PR Security - Secrets + SAST`, `PR Security - OSV Scanner`, `GDM Rules Guard`, et `Tests` quand l'app a sa CI.
+- **Tout se joue sur la PR vers `dev`** : les promotions `dev` → `staging` → `main` ne relancent aucun contrôle, puisque leur code y est déjà passé. On ne merge donc rien dans `dev` tant que ses contrôles ne sont pas verts.
 - **Le lundi, les PR Dependabot** : une par app (et par dossier de dépendances), vers `dev`, avec les correctifs et versions mineures publiés depuis au moins 7 jours (le temps qu'un paquet piégé soit repéré). Si elle est verte, un coup d'œil à l'aperçu de l'app (le parcours principal), puis merge. Si elle casse, on la ferme : rien n'est arrivé dans `dev`. Les versions majeures se font à la main.
 
 ---
@@ -382,13 +383,15 @@ Posée par `sync/proteger-repos.sh` sur la branche par défaut, `main`, `staging
 
 | Contrôle | Où | Quand | Bloquant |
 |---|---|---|---|
-| Gitleaks, Semgrep | chaque app | chaque PR | ✅ |
-| OSV Scanner (dépendances) | chaque app | chaque PR | ✅ pour les failles ajoutées par la PR |
+| Gitleaks, Semgrep | chaque app | chaque PR, sauf promotion | ✅ |
+| OSV Scanner (dépendances) | chaque app | chaque PR, sauf promotion | ✅ pour les failles ajoutées par la PR |
 | PR Dependabot (correctifs et versions mineures) | chaque app | chaque lundi 05:00, heure de Paris | — merge à la main |
-| GDM Rules Guard | chaque app | chaque PR | ✅ |
+| GDM Rules Guard | chaque app | chaque PR, sauf promotion | ✅ |
 | Revue IA Codex (code + sécurité) | chaque app où elle est activée | à l'ouverture de la PR, ou `@codex review` | non, commentaires seulement |
 | Audit complet (ZAP, Supabomb, npm/pip/composer-audit, Trivy) | chaque app | chaque lundi 06:00 UTC + à la demande | non, rapport Slack + artifacts |
 | Synchro des apps | `gdm-dev-rules` | merge sur `main` + chaque nuit 05:00 UTC | — |
+
+Une promotion, c'est une PR qui part de `dev` ou `staging` : ses jobs sont sautés et comptent comme réussis, la PR reste donc mergeable sans rien relancer.
 
 ### Pourquoi le pipeline sécurité est copié dans chaque app
 

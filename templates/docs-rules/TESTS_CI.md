@@ -21,6 +21,7 @@ Le code écrit avec l'IA, personne ne l'a tapé : les tests sont le moyen de le 
 | **Tests hermétiques** | pas de vraie donnée (sauf messages réels anonymisés), pas de vrai secret, pas d'appel réseau réel |
 | **CI de moins de 10 minutes** | jobs en parallèle, tests parallélisés, cache, timeout de 15 min par job |
 | **Un contrôle final `Tests`** | c'est lui qu'on rend obligatoire dans la protection des branches |
+| **Rien ne se relance sur une promotion** | une PR qui part de `dev` ou `staging` saute tous les jobs : son code est déjà passé par une PR vers `dev` |
 
 ---
 
@@ -263,7 +264,21 @@ Les 6 réglages qui gardent la CI sous 10 minutes, présents dans tous les modè
 3. `cache: npm` / `cache: pip` ;
 4. `concurrency` + `cancel-in-progress: true` ;
 5. tests parallélisés : Vitest par défaut, `pytest -n auto`, `fullyParallel` + `--shard` pour Playwright ;
-6. E2E de la PR limités à `@critique`, suite complète la nuit (`schedule`) et sur les PR vers `main`.
+6. E2E de la PR limités à `@critique`, suite complète la nuit (`schedule`).
+
+### Les promotions ne relancent rien
+
+Un changement passe par trois PR : vers `dev`, puis `dev` → `staging`, puis `staging` → `main`. Seule la première change le code. Les deux autres promeuvent du code déjà contrôlé : `dev` et `staging` sont protégées, on n'y entre que par une PR verte. Chaque job, `Tests` compris, est donc sauté quand la PR part de `dev` ou de `staging` :
+
+```yaml
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+```
+
+- Un job sauté compte comme réussi pour les contrôles obligatoires : la promotion reste mergeable et ne consomme aucune minute. Ne filtre pas les branches dans `on:` à la place : le contrôle `Tests` ne serait jamais créé et la PR resterait en attente.
+- La seconde moitié de la condition garde les contrôles sur une branche `dev` venue d'un fork.
+- Toute autre PR reste contrôlée : correctif urgent vers `main`, app sans branche `dev`.
+- Security OSS et GDM Rules Guard suivent la même règle.
+- Tout se joue donc sur la PR vers `dev` : on n'y merge rien tant que ses contrôles ne sont pas verts. Limite assumée : deux PR mergées en parallèle dans `dev` ne sont pas retestées ensemble ; la recette sur `staging` sert de filet.
 
 ---
 
@@ -294,6 +309,8 @@ permissions:
 jobs:
   lint:
     name: Lint et typage
+    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -310,6 +327,7 @@ jobs:
 
   unit:
     name: Tests unitaires
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -325,6 +343,7 @@ jobs:
 
   build:
     name: Build
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -341,6 +360,7 @@ jobs:
   # Facultatif (Playwright est conseillé, pas imposé) : sans tests Playwright, supprime ce job et retire-le de `needs` plus bas.
   e2e:
     name: E2E (${{ matrix.shard }})
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -348,8 +368,8 @@ jobs:
       matrix:
         shard: ["1/2", "2/2"]
     env:
-      # Sur une PR : chemin critique seulement. La nuit et sur une PR vers `main` : suite complète.
-      PW_FILTRE: ${{ (github.event_name == 'schedule' || github.base_ref == 'main') && '.*' || '@critique' }}
+      # Sur une PR : chemin critique seulement. La nuit : suite complète.
+      PW_FILTRE: ${{ github.event_name == 'schedule' && '.*' || '@critique' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -364,7 +384,8 @@ jobs:
 
   tests:
     name: Tests
-    if: always()
+    # Sauté aussi sur une promotion : il compte alors comme réussi.
+    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
     needs: [lint, unit, build, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -400,6 +421,8 @@ permissions:
 jobs:
   lint:
     name: Lint
+    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -415,6 +438,7 @@ jobs:
 
   pytest:
     name: Tests API
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -430,7 +454,8 @@ jobs:
 
   tests:
     name: Tests
-    if: always()
+    # Sauté aussi sur une promotion : il compte alors comme réussi.
+    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
     needs: [lint, pytest]
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -453,6 +478,8 @@ Même principe : un job par partie, tous en parallèle. Seuls les jobs changent 
 jobs:
   front:
     name: Front (lint, tests, build)
+    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -474,6 +501,7 @@ jobs:
 
   api:
     name: Tests API
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -493,7 +521,8 @@ jobs:
 
   tests:
     name: Tests
-    if: always()
+    # Sauté aussi sur une promotion : il compte alors comme réussi.
+    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
     needs: [front, api]
     # … étapes identiques au modèle A
 ```
@@ -517,6 +546,8 @@ permissions:
 jobs:
   phpunit:
     name: Tests PHP
+    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
+    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -533,7 +564,8 @@ jobs:
 
   tests:
     name: Tests
-    if: always()
+    # Sauté aussi sur une promotion : il compte alors comme réussi.
+    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
     needs: [phpunit]
     runs-on: ubuntu-latest
     timeout-minutes: 2

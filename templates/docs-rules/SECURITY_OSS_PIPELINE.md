@@ -20,10 +20,11 @@ Le workflow se lance dans trois cas.
 
 ```yaml
 pull_request:
-  branches: [main, staging, dev]
 ```
 
-Sur Pull Request, les controles sont bloquants. L'objectif est d'eviter d'introduire un secret, une faille de code ou une dependance vulnerable.
+Sur Pull Request, quelle que soit la branche cible, les controles sont bloquants. L'objectif est d'eviter d'introduire un secret, une faille de code ou une dependance vulnerable.
+
+Exception : une promotion (PR qui part de `dev` ou `staging` du meme repo) ne relance rien. Ces branches sont protegees, leur code est deja passe par ces controles sur sa PR vers `dev`. Les jobs sont sautes par leur `if`, et un job saute compte comme reussi pour les controles obligatoires. Le filtre n'est pas mis dans `on:` : le workflow ne demarrerait pas et la PR resterait en attente de ses controles.
 
 ```yaml
 workflow_dispatch:

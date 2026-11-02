@@ -20,6 +20,13 @@ permissions:
 jobs:
   guard:
     name: GDM Rules Guard
+    # Sauté sur une promotion (PR qui part de dev ou staging de ce repo) : ces
+    # branches sont protégées, leur contenu est déjà passé par ce contrôle.
+    # Un job sauté compte comme réussi pour les contrôles obligatoires.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name != github.repository ||
+      (github.head_ref != 'dev' && github.head_ref != 'staging')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
