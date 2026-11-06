@@ -167,6 +167,7 @@ Production   -> Sentry surveille erreurs, latence, routes critiques et couts IA.
   - `GDM Rules Guard` : aucun fichier gere par `gdm-dev-rules` modifie localement.
 - Si Security OSS envoie un Slack d'echec : corriger les fichiers/packages cites avant merge.
 - Sur une promotion (PR qui part de `dev` ou `staging`), ces trois controles sont sautes et comptent comme reussis : le code est deja passe par eux sur sa PR vers `dev` (cf. 7.4).
+- Sur une PR du robot de synchro (`gdm/sync-rules`, dernier commit pousse par `gdm-dev-rules-sync[bot]`), Gitleaks, Semgrep et OSV sont sautes : le robot ne pose que des fichiers deja controles dans `gdm-dev-rules`. `GDM Rules Guard` tourne toujours. Un push d'une autre personne sur cette branche les fait revenir.
 
 ### 2.5 Avant chaque deploiement prod
 
