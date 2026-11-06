@@ -5,6 +5,13 @@ on:
   # n'importe quelle app, y compris celles sans dev/staging ou avec master.
   # Sauf les promotions (PR qui part de dev ou staging) : ces branches sont
   # protégées, tout ce qu'elles contiennent est déjà passé par une PR contrôlée.
+  # Sauf aussi les commits du robot de synchro sur sa branche gdm/sync-rules
+  # (GDM_SYNC_BRANCH dans sync/config.env) : il n'y pose que des fichiers venus
+  # de gdm-dev-rules, déjà contrôlés là-bas, et aucun lockfile. Sans ce saut,
+  # chaque évolution des règles relançait Gitleaks, Semgrep et OSV dans toutes
+  # les apps. Le test porte sur `github.actor`, l'auteur du push : si quelqu'un
+  # d'autre pousse sur cette branche, les contrôles reviennent. GDM Rules Guard
+  # continue de tourner sur ces PR.
   # Leurs jobs sont sautés par leur `if` et non filtrés ici : un job sauté compte
   # comme réussi pour les contrôles obligatoires, un workflow non déclenché
   # laisserait la PR en attente.
@@ -30,12 +37,14 @@ env:
 jobs:
   pr_security_static:
     name: PR Security - Secrets + SAST
-    # Sauté sur une promotion (cf. `on`). La branche doit venir de ce repo :
-    # une branche « dev » d'un fork ne passe pas sans contrôle.
+    # Sauté sur une promotion et sur un push du robot de synchro (cf. `on`).
+    # La branche doit venir de ce repo : une branche « dev » d'un fork ne passe
+    # pas sans contrôle.
     if: >-
       github.event_name == 'pull_request' &&
       (github.event.pull_request.head.repo.full_name != github.repository ||
-      (github.head_ref != 'dev' && github.head_ref != 'staging'))
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -95,11 +104,12 @@ jobs:
   # les PR de l'app : elles restent dans l'audit du lundi et Dependabot les corrige.
   pr_security_osv:
     name: PR Security - OSV Scanner
-    # Sauté sur une promotion, comme le job précédent.
+    # Sauté sur une promotion et sur un push du robot, comme le job précédent.
     if: >-
       github.event_name == 'pull_request' &&
       (github.event.pull_request.head.repo.full_name != github.repository ||
-      (github.head_ref != 'dev' && github.head_ref != 'staging'))
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

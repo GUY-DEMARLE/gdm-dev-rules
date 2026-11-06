@@ -26,6 +26,8 @@ Sur Pull Request, quelle que soit la branche cible, les controles sont bloquants
 
 Exception : une promotion (PR qui part de `dev` ou `staging` du meme repo) ne relance rien. Ces branches sont protegees, leur code est deja passe par ces controles sur sa PR vers `dev`. Les jobs sont sautes par leur `if`, et un job saute compte comme reussi pour les controles obligatoires. Le filtre n'est pas mis dans `on:` : le workflow ne demarrerait pas et la PR resterait en attente de ses controles.
 
+Deuxieme exception : une PR du robot de synchro (branche `gdm/sync-rules` du meme repo) dont le dernier commit a ete pousse par `gdm-dev-rules-sync[bot]` (`github.actor`). Le robot ne pose que des fichiers venus de `gdm-dev-rules`, deja controles la-bas, et aucun lockfile : Gitleaks, Semgrep et OSV y sont sautes. Si une autre personne pousse sur la branche, ils reviennent. `GDM Rules Guard` tourne toujours sur ces PR.
+
 ```yaml
 workflow_dispatch:
 ```
