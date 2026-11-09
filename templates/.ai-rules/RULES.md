@@ -168,6 +168,7 @@ Production   -> Sentry surveille erreurs, latence, routes critiques et couts IA.
 - Si Security OSS envoie un Slack d'echec : corriger les fichiers/packages cites avant merge.
 - Sur une promotion (PR qui part de `dev` ou `staging`), ces trois controles sont sautes et comptent comme reussis : le code est deja passe par eux sur sa PR vers `dev` (cf. 7.4).
 - Sur une PR du robot de synchro (`gdm/sync-rules`, dernier commit pousse par `gdm-dev-rules-sync[bot]`), Gitleaks, Semgrep et OSV sont sautes : le robot ne pose que des fichiers deja controles dans `gdm-dev-rules`. `GDM Rules Guard` tourne toujours. Un push d'une autre personne sur cette branche les fait revenir.
+- Sur une PR Dependabot (`dependabot/…`, dernier commit pousse par `dependabot[bot]`), Gitleaks, Semgrep et `GDM Rules Guard` sont sautes : elle ne change que des manifestes et des lockfiles. `PR Security - OSV Scanner` et la CI de l'app tournent : ce sont eux qui verifient les nouvelles versions.
 
 ### 2.5 Avant chaque deploiement prod
 
@@ -296,7 +297,8 @@ Le niveau de test se choisit selon le risque : le bug qui couterait cher, puis l
 - Jobs independants **en parallele** : lint, typage, tests front, tests back, build ; pas de `needs` entre eux.
 - Tests paralleles a l'interieur : Vitest (par defaut), `pytest -n auto` (pytest-xdist), workers Playwright ; `--shard` sur plusieurs machines si la suite E2E grossit.
 - Sur chaque PR : tests unitaires + integration, et les E2E `@critique` si l'app en a. Suite E2E complete la nuit.
-- Les promotions ne relancent rien : une PR qui part de `dev` ou `staging` saute tous ses jobs, `Tests` compris, par un `if` (pas par un filtre dans `on:`, qui laisserait le controle obligatoire en attente). Ces branches sont protegees : leur code est deja passe par une PR vers `dev`. On ne merge donc rien dans `dev` tant que ses controles ne sont pas verts. Condition dans `docs-rules/TESTS_CI.md` section 4.
+- Les promotions ne relancent rien : une PR qui part de `dev` ou `staging` saute tous ses jobs, `Tests` compris, par un `if` (pas par un filtre dans `on:`, qui laisserait le controle obligatoire en attente). Ces branches sont protegees : leur code est deja passe par une PR vers `dev`. On ne merge donc rien dans `dev` tant que ses controles ne sont pas verts. Une PR du robot de synchro saute aussi la CI de l'app : il ne touche que des fichiers geres. Condition dans `docs-rules/TESTS_CI.md` section 4.
+- La CI tourne sur les PR, jamais sur un `push` vers `dev`, `staging` ou `main` : ce push n'est que l'arrivee d'une PR deja controlee. Les minutes Actions des repos prives sont comptees (2 000 par mois sur le plan gratuit).
 - Cache des dependances (`cache: npm`, `cache: pip`).
 - `concurrency` avec `cancel-in-progress` : un nouveau push annule le run precedent de la meme PR.
 - Un job final nomme **`Tests`** agrege tous les jobs de tests : c'est le controle a rendre obligatoire dans la protection des branches.
