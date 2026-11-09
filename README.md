@@ -383,17 +383,20 @@ Posée par `sync/proteger-repos.sh` sur la branche par défaut, `main`, `staging
 
 | Contrôle | Où | Quand | Bloquant |
 |---|---|---|---|
-| Gitleaks, Semgrep | chaque app | chaque PR, sauf promotion et PR du robot de synchro | ✅ |
+| Gitleaks, Semgrep | chaque app | chaque PR, sauf promotion, PR du robot de synchro et PR Dependabot | ✅ |
 | OSV Scanner (dépendances) | chaque app | chaque PR, sauf promotion et PR du robot de synchro | ✅ pour les failles ajoutées par la PR |
 | PR Dependabot (correctifs et versions mineures) | chaque app | chaque lundi 05:00, heure de Paris | — merge à la main |
-| GDM Rules Guard | chaque app | chaque PR, sauf promotion | ✅ |
+| GDM Rules Guard | chaque app | chaque PR, sauf promotion et PR Dependabot | ✅ |
+| CI de l'app (`Tests`) | chaque app qui en a une | chaque PR, sauf promotion et PR du robot de synchro ; jamais sur un push | ✅ |
 | Revue IA Codex (code + sécurité) | chaque app où elle est activée | à l'ouverture de la PR, ou `@codex review` | non, commentaires seulement |
 | Audit complet (ZAP, Supabomb, npm/pip/composer-audit, Trivy) | chaque app | chaque lundi 06:00 UTC + à la demande | non, rapport Slack + artifacts |
 | Synchro des apps | `gdm-dev-rules` | merge sur `main` + chaque nuit 05:00 UTC | — |
 
 Une promotion, c'est une PR qui part de `dev` ou `staging` : ses jobs sont sautés et comptent comme réussis, la PR reste donc mergeable sans rien relancer.
 
-Sur une PR du robot de synchro, Gitleaks, Semgrep et OSV sont sautés tant que c'est le robot qui a poussé le dernier commit : il ne pose que des fichiers déjà contrôlés ici, et aucun lockfile. GDM Rules Guard et la CI de l'app tournent toujours. Si quelqu'un pousse sur la branche `gdm/sync-rules`, les contrôles reviennent. Sans ce saut, chaque évolution des règles relançait trois contrôles dans toutes les apps : environ la moitié des minutes consommées par la synchro.
+Sur une PR du robot de synchro, Gitleaks, Semgrep et OSV sont sautés tant que c'est le robot qui a poussé le dernier commit : il ne pose que des fichiers déjà contrôlés ici, et aucun lockfile. La CI de l'app est sautée aussi quand elle suit les modèles de `TESTS_CI.md` : le robot ne touche pas au code de l'app. GDM Rules Guard tourne toujours. Si quelqu'un pousse sur la branche `gdm/sync-rules`, les contrôles reviennent. Sans ce saut, chaque évolution des règles relançait trois contrôles dans toutes les apps : environ la moitié des minutes consommées par la synchro.
+
+Sur une PR Dependabot (branche `dependabot/…` poussée par `dependabot[bot]`), Gitleaks, Semgrep et GDM Rules Guard sont sautés : elle ne change que des manifestes et des lockfiles, le code scanné est celui de `dev`, déjà contrôlé. OSV et la CI de l'app tournent : ce sont eux qui vérifient les nouvelles versions. Environ 2,5 min de gagnées par PR, chaque lundi et dans chaque app.
 
 ### Pourquoi le pipeline sécurité est copié dans chaque app
 

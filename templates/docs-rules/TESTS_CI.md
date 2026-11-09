@@ -21,7 +21,8 @@ Le code écrit avec l'IA, personne ne l'a tapé : les tests sont le moyen de le 
 | **Tests hermétiques** | pas de vraie donnée (sauf messages réels anonymisés), pas de vrai secret, pas d'appel réseau réel |
 | **CI de moins de 10 minutes** | jobs en parallèle, tests parallélisés, cache, timeout de 15 min par job |
 | **Un contrôle final `Tests`** | c'est lui qu'on rend obligatoire dans la protection des branches |
-| **Rien ne se relance sur une promotion** | une PR qui part de `dev` ou `staging` saute tous les jobs : son code est déjà passé par une PR vers `dev` |
+| **La CI tourne sur les PR, pas sur les push** | pas de `push:` vers `dev`, `staging` ou `main` dans `ci.yml` : ce code est arrivé par une PR déjà contrôlée |
+| **Rien ne se relance sur une promotion** | une PR qui part de `dev` ou `staging` saute tous les jobs : son code est déjà passé par une PR vers `dev`. Idem pour une PR du robot de synchro |
 
 ---
 
@@ -268,15 +269,22 @@ Les 6 réglages qui gardent la CI sous 10 minutes, présents dans tous les modè
 
 ### Les promotions ne relancent rien
 
-Un changement passe par trois PR : vers `dev`, puis `dev` → `staging`, puis `staging` → `main`. Seule la première change le code. Les deux autres promeuvent du code déjà contrôlé : `dev` et `staging` sont protégées, on n'y entre que par une PR verte. Chaque job, `Tests` compris, est donc sauté quand la PR part de `dev` ou de `staging` :
+Les minutes GitHub Actions des repos privés sont comptées (2 000 par mois sur le plan gratuit) : un contrôle ne tourne qu'une fois par changement.
+
+Un changement passe par trois PR : vers `dev`, puis `dev` → `staging`, puis `staging` → `main`. Seule la première change le code. Les deux autres promeuvent du code déjà contrôlé : `dev` et `staging` sont protégées, on n'y entre que par une PR verte. Chaque job, `Tests` compris, est donc sauté quand la PR part de `dev` ou de `staging`, et sur une PR du robot de synchro :
 
 ```yaml
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
 ```
 
 - Un job sauté compte comme réussi pour les contrôles obligatoires : la promotion reste mergeable et ne consomme aucune minute. Ne filtre pas les branches dans `on:` à la place : le contrôle `Tests` ne serait jamais créé et la PR resterait en attente.
-- La seconde moitié de la condition garde les contrôles sur une branche `dev` venue d'un fork.
-- Toute autre PR reste contrôlée : correctif urgent vers `main`, app sans branche `dev`.
+- **Pas de `push:` vers `dev`, `staging` ou `main`** dans `on:` : ce push n'est que l'arrivée d'une PR déjà contrôlée, il rejouerait toute la CI pour rien. Un déploiement ou une migration déclenchés par un push sur `main` ne sont pas concernés : ce ne sont pas des contrôles.
+- **PR du robot de synchro** (branche `gdm/sync-rules`, dernier commit poussé par `gdm-dev-rules-sync[bot]`) : le robot ne touche que des fichiers gérés par `gdm-dev-rules`, jamais le code de l'app. Si quelqu'un d'autre pousse sur la branche, la CI revient. Limite assumée : si une évolution d'un outil géré (par exemple `system-design/outils/verifier-interface.mjs`) fait échouer la CI de l'app, l'échec apparaît à la PR suivante vers `dev`.
+- La dernière ligne de la condition garde les contrôles sur une branche `dev` venue d'un fork.
+- Toute autre PR reste contrôlée : correctif urgent vers `main`, app sans branche `dev`, PR Dependabot (c'est la CI qui vérifie ses nouvelles versions).
 - Security OSS et GDM Rules Guard suivent la même règle.
 - Tout se joue donc sur la PR vers `dev` : on n'y merge rien tant que ses contrôles ne sont pas verts. Limite assumée : deux PR mergées en parallèle dans `dev` ne sont pas retestées ensemble ; la recette sur `staging` sert de filet.
 
@@ -309,8 +317,11 @@ permissions:
 jobs:
   lint:
     name: Lint et typage
-    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    # Sauté sur une promotion (PR qui part de dev ou staging) et sur une PR du robot de synchro, cf. § 4.
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -327,7 +338,10 @@ jobs:
 
   unit:
     name: Tests unitaires
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -343,7 +357,10 @@ jobs:
 
   build:
     name: Build
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -360,7 +377,10 @@ jobs:
   # Facultatif (Playwright est conseillé, pas imposé) : sans tests Playwright, supprime ce job et retire-le de `needs` plus bas.
   e2e:
     name: E2E (${{ matrix.shard }})
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -384,8 +404,12 @@ jobs:
 
   tests:
     name: Tests
-    # Sauté aussi sur une promotion : il compte alors comme réussi.
-    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
+    # Sauté dans les mêmes cas : il compte alors comme réussi.
+    if: >-
+      always() &&
+      ((github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository)
     needs: [lint, unit, build, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -421,8 +445,11 @@ permissions:
 jobs:
   lint:
     name: Lint
-    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    # Sauté sur une promotion (PR qui part de dev ou staging) et sur une PR du robot de synchro, cf. § 4.
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -438,7 +465,10 @@ jobs:
 
   pytest:
     name: Tests API
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -454,8 +484,12 @@ jobs:
 
   tests:
     name: Tests
-    # Sauté aussi sur une promotion : il compte alors comme réussi.
-    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
+    # Sauté dans les mêmes cas : il compte alors comme réussi.
+    if: >-
+      always() &&
+      ((github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository)
     needs: [lint, pytest]
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -478,8 +512,11 @@ Même principe : un job par partie, tous en parallèle. Seuls les jobs changent 
 jobs:
   front:
     name: Front (lint, tests, build)
-    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    # Sauté sur une promotion (PR qui part de dev ou staging) et sur une PR du robot de synchro, cf. § 4.
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -501,7 +538,10 @@ jobs:
 
   api:
     name: Tests API
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -521,8 +561,12 @@ jobs:
 
   tests:
     name: Tests
-    # Sauté aussi sur une promotion : il compte alors comme réussi.
-    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
+    # Sauté dans les mêmes cas : il compte alors comme réussi.
+    if: >-
+      always() &&
+      ((github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository)
     needs: [front, api]
     # … étapes identiques au modèle A
 ```
@@ -546,8 +590,11 @@ permissions:
 jobs:
   phpunit:
     name: Tests PHP
-    # Sauté sur une promotion (PR qui part de dev ou staging), cf. § 4.
-    if: (github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository
+    # Sauté sur une promotion (PR qui part de dev ou staging) et sur une PR du robot de synchro, cf. § 4.
+    if: >-
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -564,8 +611,12 @@ jobs:
 
   tests:
     name: Tests
-    # Sauté aussi sur une promotion : il compte alors comme réussi.
-    if: always() && ((github.head_ref != 'dev' && github.head_ref != 'staging') || github.event.pull_request.head.repo.full_name != github.repository)
+    # Sauté dans les mêmes cas : il compte alors comme réussi.
+    if: >-
+      always() &&
+      ((github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(github.head_ref == 'gdm/sync-rules' && github.actor == 'gdm-dev-rules-sync[bot]')) ||
+      github.event.pull_request.head.repo.full_name != github.repository)
     needs: [phpunit]
     runs-on: ubuntu-latest
     timeout-minutes: 2
