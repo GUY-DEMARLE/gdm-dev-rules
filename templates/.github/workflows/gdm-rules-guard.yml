@@ -22,11 +22,16 @@ jobs:
     name: GDM Rules Guard
     # Sauté sur une promotion (PR qui part de dev ou staging de ce repo) : ces
     # branches sont protégées, leur contenu est déjà passé par ce contrôle.
+    # Sauté aussi sur un push de Dependabot (branche dependabot/…) : sa config,
+    # posée par gdm-dev-rules, ne met à jour que des manifestes et lockfiles,
+    # jamais un fichier géré. Si quelqu'un d'autre pousse sur la branche, le
+    # contrôle revient.
     # Un job sauté compte comme réussi pour les contrôles obligatoires.
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name != github.repository ||
-      (github.head_ref != 'dev' && github.head_ref != 'staging')
+      (github.head_ref != 'dev' && github.head_ref != 'staging' &&
+      !(startsWith(github.head_ref, 'dependabot/') && github.actor == 'dependabot[bot]'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

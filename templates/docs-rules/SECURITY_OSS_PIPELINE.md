@@ -28,6 +28,8 @@ Exception : une promotion (PR qui part de `dev` ou `staging` du meme repo) ne re
 
 Deuxieme exception : une PR du robot de synchro (branche `gdm/sync-rules` du meme repo) dont le dernier commit a ete pousse par `gdm-dev-rules-sync[bot]` (`github.actor`). Le robot ne pose que des fichiers venus de `gdm-dev-rules`, deja controles la-bas, et aucun lockfile : Gitleaks, Semgrep et OSV y sont sautes. Si une autre personne pousse sur la branche, ils reviennent. `GDM Rules Guard` tourne toujours sur ces PR.
 
+Troisieme exception : une PR Dependabot (branche `dependabot/…` du meme repo, dernier commit pousse par `dependabot[bot]`). Elle ne change que des manifestes et des lockfiles : le code que Gitleaks et Semgrep scanneraient est celui de la branche cible, deja controle. `PR Security - Secrets + SAST` et `GDM Rules Guard` y sont sautes. `PR Security - OSV Scanner` tourne : c'est lui qui verifie que les nouvelles versions n'ajoutent pas de faille. La config Dependabot posee par `gdm-dev-rules` ne met jamais a jour les workflows, donc jamais un fichier gere.
+
 ```yaml
 workflow_dispatch:
 ```
